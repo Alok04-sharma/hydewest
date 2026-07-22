@@ -1,0 +1,66 @@
+Resend Setup
+Step 1
+
+Account banao:
+
+👉 https://resend.com (alokgkp8@gmail.com)
+
+
+Step 2
+
+Dashboard me jao.
+
+Left side me milega
+
+API Keys
+
+Click karo.
+
+Create API Key (re_PbHghXoh_Q14xoaNssiXKT6i8FoTX7TJy)
+
+Example
+
+Name
+
+StayNest
+
+Permission
+
+Full Access
+
+Uske baad tumhe ek key milegi.
+
+Example
+
+re_xxxxxxxxxxxxxxxxxxxxxxxxx
+
+Ye tumhari
+
+RESEND_API_KEY
+
+hai.
+Step 3
+
+Ab sender email.
+
+Development me Resend ek testing email deta hai.
+
+Example
+
+onboarding@resend.dev
+
+Ya
+
+yourname@resend.dev
+
+Production me apna domain verify karoge.
+
+Jaise
+
+noreply@staynest.com
+
+Abhi development me Resend ka testing sender hi use karenge.
+
+
+
+postman:- alokgkp8@gmail.com
