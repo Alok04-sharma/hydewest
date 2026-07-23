@@ -4,6 +4,8 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 
 import {
   FiActivity,
@@ -121,9 +123,27 @@ function StatCard({
   icon: Icon,
   growth,
   accent,
+  to,
+  onNavigate,
 }) {
+  const openCard = () => {
+    if (to && onNavigate) onNavigate(to);
+  };
+
   return (
-    <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <motion.article
+      whileHover={{ y: -8, scale: 1.015 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ type: "spring", stiffness: 320, damping: 22 }}
+      onClick={openCard}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && to) openCard();
+      }}
+      role={to ? "link" : undefined}
+      tabIndex={to ? 0 : undefined}
+      className={`group relative overflow-hidden rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm transition ${to ? "cursor-pointer focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-200" : ""}`}
+    >
+      <div className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-violet-100/70 transition duration-300 group-hover:scale-125" />
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-gray-500">
@@ -151,7 +171,13 @@ function StatCard({
           {helper}
         </span>
       </div>
-    </article>
+
+      {to && (
+        <div className="mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-violet-500 opacity-0 transition group-hover:opacity-100">
+          Open management →
+        </div>
+      )}
+    </motion.article>
   );
 }
 
@@ -293,6 +319,7 @@ function RevenueChart({
 // ======================================
 
 export default function OwnerDashboard() {
+  const navigate = useNavigate();
   const [
     dashboard,
     setDashboard,
@@ -662,6 +689,8 @@ export default function OwnerDashboard() {
               growth.users
             }
             accent="bg-purple-100 text-purple-700"
+            to="/owner/hosts"
+            onNavigate={navigate}
           />
 
           <StatCard
@@ -675,6 +704,8 @@ export default function OwnerDashboard() {
               growth.hosts
             }
             accent="bg-pink-100 text-pink-700"
+            to="/owner/hosts"
+            onNavigate={navigate}
           />
 
           <StatCard
@@ -688,6 +719,8 @@ export default function OwnerDashboard() {
               growth.guests
             }
             accent="bg-blue-100 text-blue-700"
+            to="/owner/bookings"
+            onNavigate={navigate}
           />
 
           <StatCard
@@ -701,6 +734,8 @@ export default function OwnerDashboard() {
               growth.listings
             }
             accent="bg-amber-100 text-amber-700"
+            to="/owner/listings"
+            onNavigate={navigate}
           />
 
           <StatCard
@@ -714,6 +749,8 @@ export default function OwnerDashboard() {
               growth.bookings
             }
             accent="bg-emerald-100 text-emerald-700"
+            to="/owner/bookings"
+            onNavigate={navigate}
           />
 
           <StatCard
@@ -727,6 +764,8 @@ export default function OwnerDashboard() {
               growth.revenue
             }
             accent="bg-violet-100 text-violet-700"
+            to="/owner/subscriptions"
+            onNavigate={navigate}
           />
         </section>
 

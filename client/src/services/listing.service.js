@@ -1,44 +1,44 @@
-import api from './axios';
+import api from "./axios";
+
+const unwrap = (response) => response.data;
 
 const listingService = {
-  // Public: Get all approved apartments
-  getAll: () => {
-    return api.get('/api/apartments');
-  },
+  getAll: async () => unwrap(await api.get("/api/apartments")),
+  search: async (params = {}) => unwrap(await api.get("/api/apartments/search", { params })),
+  getPublicById: async (id) => unwrap(await api.get(`/api/apartments/${id}`)),
+  getMine: async () => unwrap(await api.get("/api/apartments/host/my")),
+  getMineById: async (id) => unwrap(await api.get(`/api/apartments/host/${id}`)),
+  create: async (formData) =>
+    unwrap(
+      await api.post("/api/apartments/create", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    ),
+  update: async (id, formData) =>
+    unwrap(
+      await api.put(`/api/apartments/${id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    ),
+  remove: async (id) => unwrap(await api.delete(`/api/apartments/${id}`)),
+  quote: async (id, payload) => unwrap(await api.post(`/api/apartments/${id}/quote`, payload)),
 
-  // Public: Search & Filter
-  search: (queryParams) => {
-    return api.get('/api/apartments/search', { params: queryParams });
-  },
-
-  // Public: Get Single Apartment Details
-  getById: (id) => {
-    return api.get(`/api/apartments/${id}`);
-  },
-
-  // Host: Get Host's own apartments (FIXED PATH to match backend host.routes.js)
-  getHostApartments: () => {
-    return api.get('/api/host/apartments');
-  },
-
-  // Host: Create Apartment (Multipart FormData)
-  create: (formData) => {
-    return api.post('/api/apartments/create', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-  },
-
-  // Host: Update Apartment
-  update: (id, updateData) => {
-    return api.put(`/api/apartments/${id}`, updateData);
-  },
-
-  // Host: Delete Apartment
-  delete: (id) => {
-    return api.delete(`/api/apartments/${id}`);
-  },
+  // Backward-compatible aliases for existing Redux/pages.
+  getById: async (id) => unwrap(await api.get(`/api/apartments/${id}`)),
+  getHostApartments: async () => unwrap(await api.get("/api/apartments/host/my")),
+  createApartment: async (formData) =>
+    unwrap(
+      await api.post("/api/apartments/create", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    ),
+  updateApartment: async (id, formData) =>
+    unwrap(
+      await api.put(`/api/apartments/${id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      })
+    ),
+  delete: async (id) => unwrap(await api.delete(`/api/apartments/${id}`)),
 };
 
 export default listingService;

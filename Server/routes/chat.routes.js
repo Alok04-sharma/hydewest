@@ -1,0 +1,10 @@
+const express = require("express");
+const authMiddleware = require("../middleware/auth.middleware");
+const { startConversation, getConversations, getMessages, sendMessage } = require("../controllers/chat.controller");
+const router = express.Router();
+router.use(authMiddleware);
+router.post("/conversations", startConversation);
+router.get("/conversations", getConversations);
+router.get("/conversations/:conversationId/messages", getMessages);
+router.post("/conversations/:conversationId/messages", sendMessage);
+module.exports = router;

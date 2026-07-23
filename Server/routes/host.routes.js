@@ -1,95 +1,24 @@
 const express = require("express");
-
 const router = express.Router();
-
-// ======================================
-// Middleware
-// ======================================
-
 const authMiddleware = require("../middleware/auth.middleware");
-
 const roleMiddleware = require("../middleware/role.middleware");
-
-
-// ======================================
-// Controller
-// ======================================
-
-const {
-  getDashboardStats,
-  getMyApartments,
-  getPendingApartments,
-  getApprovedApartments,
-  getRejectedApartments,
-  getInactiveApartments,
-} = require("../controllers/host.controller");
-
-
-// ======================================
-// Constants
-// ======================================
-
 const ROLES = require("../constants/roles");
-
-
-// ======================================
-// Host Protection
-// ======================================
+const base = require("../controllers/host.controller");
+const management = require("../controllers/hostBooking.controller");
 
 router.use(authMiddleware);
-
-router.use(
-  roleMiddleware(ROLES.HOST)
-);
-
-
-// ======================================
-// Dashboard
-// ======================================
-
-router.get(
-  "/dashboard",
-  getDashboardStats
-);
-
-
-// ======================================
-// Apartments
-// ======================================
-
-// All Host Apartments
-router.get(
-  "/apartments",
-  getMyApartments
-);
-
-
-// Pending Apartments
-router.get(
-  "/apartments/pending",
-  getPendingApartments
-);
-
-
-// Approved Apartments
-router.get(
-  "/apartments/approved",
-  getApprovedApartments
-);
-
-
-// Rejected Apartments
-router.get(
-  "/apartments/rejected",
-  getRejectedApartments
-);
-
-
-// Inactive Apartments
-router.get(
-  "/apartments/inactive",
-  getInactiveApartments
-);
-
-
+router.use(roleMiddleware(ROLES.HOST));
+router.get("/dashboard", base.getDashboardStats);
+router.get("/apartments", base.getMyApartments);
+router.get("/apartments/pending", base.getPendingApartments);
+router.get("/apartments/approved", base.getApprovedApartments);
+router.get("/apartments/rejected", base.getRejectedApartments);
+router.get("/apartments/inactive", base.getInactiveApartments);
+router.get("/apartments/suspended", base.getSuspendedApartments);
+router.get("/bookings", management.getHostBookings);
+router.get("/bookings/:id", management.getHostBookingDetails);
+router.patch("/bookings/:id/status", management.updateBookingStatus);
+router.get("/availability", management.getAvailability);
+router.get("/revenue", management.getRevenue);
+router.get("/notification-snapshot", management.getHostNotificationSnapshot);
 module.exports = router;

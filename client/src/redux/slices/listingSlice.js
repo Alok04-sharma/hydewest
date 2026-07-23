@@ -1,78 +1,71 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import listingService from '../../services/listing.service';
+import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import listingService from "../../services/listing.service";
 
 const initialState = {
   listings: [],
   selectedListing: null,
-  pagination: {
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 1,
-  },
+  pagination: { page: 1, limit: 10, total: 0, totalPages: 1 },
   filters: {
-    city: '',
-    state: '',
-    country: '',
-    minPrice: '',
-    maxPrice: '',
-    guests: '',
-    bedrooms: '',
-    propertyType: '',
-    amenities: '',
-    sortBy: 'newest',
+    city: "",
+    state: "",
+    country: "",
+    minPrice: "",
+    maxPrice: "",
+    guests: "",
+    bedrooms: "",
+    propertyType: "",
+    amenities: "",
+    priceUnit: "",
+    sortBy: "newest",
   },
   loading: false,
   error: null,
 };
 
-// Async Thunk: Fetch All Approved Apartments
 export const fetchAllListings = createAsyncThunk(
-  'listing/fetchAllListings',
+  "listing/fetchAllListings",
   async (_, { rejectWithValue }) => {
     try {
       const response = await listingService.getAll();
-      return response.data.data; // Array of approved apartments
+      return response.data || [];
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || 'Apartments load karne mein error aaya.'
+        error.response?.data?.message || "Apartments load karne mein error aaya."
       );
     }
   }
 );
 
-// Async Thunk: Search / Filter Apartments
 export const searchListingsThunk = createAsyncThunk(
-  'listing/searchListingsThunk',
+  "listing/searchListingsThunk",
   async (queryParams, { rejectWithValue }) => {
     try {
       const response = await listingService.search(queryParams);
-      return response.data.data; // Returns { page, limit, total, totalPages, apartments }
+      return response.data || {};
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || 'Search filter run karne mein fail ho gaya.'
+        error.response?.data?.message || "Search filter run karne mein fail ho gaya."
       );
     }
   }
 );
 
-// Async Thunk: Fetch Single Apartment Details
 export const fetchListingById = createAsyncThunk(
-  'listing/fetchListingById',
+  "listing/fetchListingById",
   async (id, { rejectWithValue }) => {
     try {
-      const response = await listingService.getById(id);
-      return response.data.data; // Apartment details object
+      const response = await listingService.getPublicById(id);
+      return response.data;
     } catch (error) {
       return rejectWithValue(
-        error.response?.data?.message || 'Apartment details fetch nahi ho payi.'
+        error.response?.data?.message || "Apartment details fetch nahi ho payi."
       );
     }
   }
 );
 
 const listingSlice = createSlice({
-  name: 'listing',
+  name: "listing",
   initialState,
   reducers: {
     setFilter: (state, action) => {
@@ -90,7 +83,6 @@ const listingSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Fetch All Listings
       .addCase(fetchAllListings.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -103,8 +95,6 @@ const listingSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Search Listings
       .addCase(searchListingsThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -123,8 +113,6 @@ const listingSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-
-      // Fetch Single Listing Details
       .addCase(fetchListingById.pending, (state) => {
         state.loading = true;
         state.error = null;

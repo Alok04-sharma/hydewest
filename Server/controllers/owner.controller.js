@@ -3,11 +3,24 @@ const asyncHandler = require("express-async-handler");
 const Apartment = require("../models/apartment.model");
 const Booking = require("../models/booking.model");
 const Payment = require("../models/payment.model");
+const SubscriptionPayment = require(
+  "../models/subscriptionPayment.model"
+);
 const User = require("../models/user.model");
 
-const APARTMENT_STATUS = require("../constants/apartmentStatus");
+const APARTMENT_STATUS = require(
+  "../constants/apartmentStatus"
+);
+
 const ROLES = require("../constants/roles");
-const sendResponse = require("../utils/sendResponse");
+
+const {
+  SUBSCRIPTION_PAYMENT_STATUS,
+} = require("../constants/subscriptionStatus");
+
+const sendResponse = require(
+  "../utils/sendResponse"
+);
 
 const NOT_DELETED = {
   isDeleted: {
@@ -64,7 +77,10 @@ const createMonthBuckets = () => {
     const month = date.getUTCMonth() + 1;
 
     buckets.push({
-      key: `${year}-${String(month).padStart(2, "0")}`,
+      key: `${year}-${String(month).padStart(
+        2,
+        "0"
+      )}`,
 
       label: date.toLocaleString("en-IN", {
         month: "short",
@@ -80,6 +96,15 @@ const createMonthBuckets = () => {
       guests: 0,
       listings: 0,
       bookings: 0,
+
+      /*
+       * Booking aur subscription revenue ko
+       * internally separate rakhenge.
+       *
+       * Final revenue in dono ka total hoga.
+       */
+      bookingRevenue: 0,
+      subscriptionRevenue: 0,
       revenue: 0,
     });
   }
@@ -128,18 +153,54 @@ const monthlyCount = (
 };
 
 // ======================================
-// Monthly Revenue
+// Total Successful Revenue
 // ======================================
 
-const monthlyRevenue = (startDate) => {
-  return Payment.aggregate([
+const totalSuccessfulRevenue = (
+  Model,
+  successStatus
+) => {
+  return Model.aggregate([
     {
       $match: {
         ...NOT_DELETED,
-        status: PAYMENT_SUCCESS_STATUS,
+        status: successStatus,
       },
     },
 
+    {
+      $group: {
+        _id: null,
+
+        total: {
+          $sum: "$amount",
+        },
+      },
+    },
+  ]);
+};
+
+// ======================================
+// Monthly Successful Revenue
+// ======================================
+
+const monthlySuccessfulRevenue = (
+  Model,
+  successStatus,
+  startDate
+) => {
+  return Model.aggregate([
+    {
+      $match: {
+        ...NOT_DELETED,
+        status: successStatus,
+      },
+    },
+
+    /*
+     * paidAt available ho to use karenge.
+     * Legacy records ke liye createdAt fallback hai.
+     */
     {
       $addFields: {
         effectiveDate: {
@@ -241,11 +302,13 @@ const growthMetric = (
   currentValue,
   previousValue
 ) => {
-  const current =
-    Number(currentValue || 0);
+  const current = Number(
+    currentValue || 0
+  );
 
-  const previous =
-    Number(previousValue || 0);
+  const previous = Number(
+    previousValue || 0
+  );
 
   let percentage = 0;
 
@@ -293,8 +356,10 @@ const getDashboard = asyncHandler(
         )
       );
 
-    // Host can be identified by role
-    // or by the isHost flag.
+    /*
+     * Host role ya isHost flag se
+     * host identify ho sakta hai.
+     */
     const hostFilter = {
       ...NOT_DELETED,
 
@@ -326,15 +391,28 @@ const getDashboard = asyncHandler(
       totalAdmins,
       totalListings,
       totalBookings,
-      revenueResult,
+
+      /*
+       * Dono revenue sources alag query honge.
+       */
+      bookingRevenueResult,
+      subscriptionRevenueResult,
+
       listingStatuses,
       bookingStatuses,
+
       userTrend,
       hostTrend,
       guestTrend,
       listingTrend,
       bookingTrend,
-      revenueTrend,
+
+      /*
+       * Monthly booking aur subscription
+       * revenue alag fetch honge.
+       */
+      bookingRevenueTrend,
+      subscriptionRevenueTrend,
     ] = await Promise.all([
       // Total Users
       User.countDocuments(
@@ -370,26 +448,17 @@ const getDashboard = asyncHandler(
         NOT_DELETED
       ),
 
-      // Total Successful Payment Revenue
-      Payment.aggregate([
-        {
-          $match: {
-            ...NOT_DELETED,
-            status:
-              PAYMENT_SUCCESS_STATUS,
-          },
-        },
+      // Booking payment revenue
+      totalSuccessfulRevenue(
+        Payment,
+        PAYMENT_SUCCESS_STATUS
+      ),
 
-        {
-          $group: {
-            _id: null,
-
-            total: {
-              $sum: "$amount",
-            },
-          },
-        },
-      ]),
+      // Host subscription revenue
+      totalSuccessfulRevenue(
+        SubscriptionPayment,
+        SUBSCRIPTION_PAYMENT_STATUS.SUCCESS
+      ),
 
       // Listing Status Breakdown
       statusCounts(Apartment),
@@ -432,8 +501,17 @@ const getDashboard = asyncHandler(
         trendStart
       ),
 
-      // Monthly Revenue
-      monthlyRevenue(
+      // Monthly Booking Revenue
+      monthlySuccessfulRevenue(
+        Payment,
+        PAYMENT_SUCCESS_STATUS,
+        trendStart
+      ),
+
+      // Monthly Subscription Revenue
+      monthlySuccessfulRevenue(
+        SubscriptionPayment,
+        SUBSCRIPTION_PAYMENT_STATUS.SUCCESS,
         trendStart
       ),
     ]);
@@ -482,20 +560,68 @@ const getDashboard = asyncHandler(
 
     mergeMetric(
       bucketMap,
-      revenueTrend,
-      "revenue"
+      bookingRevenueTrend,
+      "bookingRevenue"
     );
 
+    mergeMetric(
+      bucketMap,
+      subscriptionRevenueTrend,
+      "subscriptionRevenue"
+    );
+
+    /*
+     * Har month ka total platform revenue:
+     *
+     * Booking Revenue
+     *       +
+     * Host Subscription Revenue
+     */
     const monthlyTrend =
       Array.from(
         bucketMap.values()
-      );
+      ).map((bucket) => ({
+        ...bucket,
+
+        revenue:
+          Number(
+            bucket.bookingRevenue ||
+              0
+          ) +
+          Number(
+            bucket.subscriptionRevenue ||
+              0
+          ),
+      }));
 
     const currentMonth =
       monthlyTrend.at(-1) || {};
 
     const previousMonth =
       monthlyTrend.at(-2) || {};
+
+    const bookingRevenue =
+      Number(
+        bookingRevenueResult[0]
+          ?.total || 0
+      );
+
+    const subscriptionRevenue =
+      Number(
+        subscriptionRevenueResult[0]
+          ?.total || 0
+      );
+
+    /*
+     * Final Platform Revenue:
+     *
+     * Successful booking payments
+     *              +
+     * Successful subscription payments
+     */
+    const totalRevenue =
+      bookingRevenue +
+      subscriptionRevenue;
 
     // ======================================
     // Dashboard Response
@@ -514,9 +640,14 @@ const getDashboard = asyncHandler(
           totalListings,
           totalBookings,
 
-          totalRevenue: Number(
-            revenueResult[0]?.total || 0
-          ),
+          totalRevenue,
+
+          /*
+           * Extra breakdown future UI ke liye.
+           * Existing frontend break nahi hoga.
+           */
+          bookingRevenue,
+          subscriptionRevenue,
 
           currency: "INR",
         },
@@ -547,6 +678,10 @@ const getDashboard = asyncHandler(
             previousMonth.bookings
           ),
 
+          /*
+           * Ab revenue growth booking +
+           * subscription dono se calculate hogi.
+           */
           revenue: growthMetric(
             currentMonth.revenue,
             previousMonth.revenue
@@ -554,6 +689,15 @@ const getDashboard = asyncHandler(
         },
 
         analytics: {
+          /*
+           * Monthly Trend me:
+           *
+           * revenue
+           * bookingRevenue
+           * subscriptionRevenue
+           *
+           * teeno available honge.
+           */
           monthlyTrend,
 
           userDistribution: {
@@ -582,6 +726,11 @@ const getDashboard = asyncHandler(
             rejected:
               listingStatuses[
                 APARTMENT_STATUS.REJECTED
+              ] || 0,
+
+            suspended:
+              listingStatuses[
+                APARTMENT_STATUS.SUSPENDED
               ] || 0,
 
             inactive:

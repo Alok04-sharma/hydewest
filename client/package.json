@@ -27,6 +27,7 @@
     "react-leaflet": "^5.0.0",
     "react-redux": "^9.3.0",
     "react-router-dom": "^7.18.1",
+    "socket.io-client": "^4.8.1",
     "swiper": "^14.0.5",
     "yup": "^1.7.1"
   },

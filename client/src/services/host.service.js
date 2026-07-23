@@ -1,12 +1,12 @@
-import axiosInstance from './axios';
-import { API_ENDPOINTS } from '../constants/api';
-
-export const hostService = {
-  getHostDashboard: () => {
-    return axiosInstance.get(API_ENDPOINTS.HOST.DASHBOARD);
-  },
-
-  updateBookingStatus: (bookingId, status) => {
-    return axiosInstance.patch(API_ENDPOINTS.HOST.UPDATE_BOOKING_STATUS(bookingId), { status });
-  },
+import api from "./axios";
+const hostService = {
+  getDashboard: async () => (await api.get("/api/host/dashboard")).data,
+  getListings: async () => (await api.get("/api/host/apartments")).data,
+  getBookings: async (params = {}) => (await api.get("/api/host/bookings", { params })).data,
+  getBookingDetails: async (id) => (await api.get(`/api/host/bookings/${id}`)).data,
+  updateBookingStatus: async (id, payload) => (await api.patch(`/api/host/bookings/${id}/status`, payload)).data,
+  getAvailability: async (params = {}) => (await api.get("/api/host/availability", { params })).data,
+  getRevenue: async () => (await api.get("/api/host/revenue")).data,
 };
+export { hostService };
+export default hostService;

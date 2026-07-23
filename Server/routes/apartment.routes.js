@@ -1,99 +1,77 @@
 const express = require("express");
+
 const router = express.Router();
 
-// ======================================
-// Middleware
-// ======================================
 const authMiddleware = require("../middleware/auth.middleware");
 const roleMiddleware = require("../middleware/role.middleware");
 const upload = require("../middleware/upload.middleware");
+const activeSubscriptionMiddleware = require("../middleware/activeSubscription.middleware");
+const ROLES = require("../constants/roles");
 
-// ======================================
-// Controller
-// ======================================
 const {
   createApartment,
   getAllApartments,
   getApartmentDetails,
   getHostApartments,
+  getHostApartmentDetails,
   updateApartment,
   deleteApartment,
+  getListingQuote,
   searchApartments,
 } = require("../controllers/apartment.controller");
 
-// ======================================
-// Constants
-// ======================================
-const ROLES = require("../constants/roles");
+// Public static routes first.
+router.get("/search", searchApartments);
+router.get("/", getAllApartments);
 
-// ======================================
-// 1. PUBLIC GENERAL ROUTES (Static First)
-// ======================================
-
-// Search Apartments
-router.get(
-  "/search",
-  searchApartments
-);
-
-// Get All Approved Apartments
-router.get(
-  "/",
-  getAllApartments
-);
-
-// ======================================
-// 2. HOST SPECIFIC ROUTES (MUST BE BEFORE /:id)
-// ======================================
-
-// Get Host Apartments (Supporting both /host and /host/my to avoid frontend URL mismatch)
+// Host-owned listing routes must stay before public /:id.
 router.get(
   "/host",
   authMiddleware,
   roleMiddleware(ROLES.HOST),
   getHostApartments
 );
-
 router.get(
   "/host/my",
   authMiddleware,
   roleMiddleware(ROLES.HOST),
   getHostApartments
 );
+router.get(
+  "/host/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.HOST),
+  getHostApartmentDetails
+);
 
-// Create Apartment
 router.post(
   "/create",
   authMiddleware,
   roleMiddleware(ROLES.HOST),
+  activeSubscriptionMiddleware,
   upload.array("images", 10),
   createApartment
 );
 
-// ======================================
-// 3. DYNAMIC PARAMETER ROUTES (MUST BE AFTER STATIC ROUTES)
-// ======================================
+// Quote supports advanced pricing and host coupon codes.
+router.post("/:id/quote", getListingQuote);
 
-// Get Single Apartment Details
-router.get(
-  "/:id",
-  getApartmentDetails
-);
-
-// Update Apartment
 router.put(
   "/:id",
   authMiddleware,
   roleMiddleware(ROLES.HOST),
+  activeSubscriptionMiddleware,
+  upload.array("images", 10),
   updateApartment
 );
 
-// Delete Apartment
 router.delete(
   "/:id",
   authMiddleware,
   roleMiddleware(ROLES.HOST),
   deleteApartment
 );
+
+router.get("/:id", getApartmentDetails);
 
 module.exports = router;

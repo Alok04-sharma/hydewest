@@ -1,213 +1,840 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import userService from '../../services/user.service';
-import listingService from '../../services/listing.service';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  FiBarChart2,
+  FiCalendar,
+  FiCheckCircle,
+  FiClock,
+  FiCreditCard,
+  FiDollarSign,
+  FiHome,
+  FiPlus,
+  FiRefreshCw,
+  FiTrendingUp,
+  FiUsers,
+  FiXCircle,
+} from "react-icons/fi";
 
-export default function HostDashboard() {
-  const [stats, setStats] = useState({
-    totalApartments: 0,
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    inactive: 0,
+import hostService from "../../services/host.service";
+import subscriptionService from "../../services/subscription.service";
+
+const currency = (value) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
+
+const compactCurrency = (value) => {
+  const amount = Number(value || 0);
+
+  if (amount >= 10000000) {
+    return `₹${(amount / 10000000).toFixed(amount >= 100000000 ? 0 : 1)}Cr`;
+  }
+
+  if (amount >= 100000) {
+    return `₹${(amount / 100000).toFixed(amount >= 1000000 ? 0 : 1)}L`;
+  }
+
+  if (amount >= 1000) {
+    return `₹${(amount / 1000).toFixed(amount >= 10000 ? 0 : 1)}K`;
+  }
+
+  return `₹${amount.toLocaleString("en-IN")}`;
+};
+
+const formatDate = (value) => {
+  if (!value) {
+    return "—";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "—";
+  }
+
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
   });
-  const [myListings, setMyListings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+};
 
-  useEffect(() => {
-    fetchHostData();
-  }, []);
+const getImageUrl = (images) => {
+  const image = images?.[0];
 
-  const fetchHostData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const [statsRes, listingsRes] = await Promise.all([
-        userService.getHostStats(),
-        listingService.getHostApartments(),
-      ]);
+  if (typeof image === "string") {
+    return image;
+  }
 
-      if (statsRes.data?.data) {
-        setStats(statsRes.data.data);
-      }
-      if (listingsRes.data?.data) {
-        setMyListings(listingsRes.data.data);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Dashboard data load nahi ho paya.');
-    } finally {
-      setLoading(false);
-    }
+  return image?.url || "https://placehold.co/300x300?text=StayNest";
+};
+
+const createChartGeometry = (items, width = 820, height = 270) => {
+  const safeItems = Array.isArray(items) && items.length > 0 ? items : [];
+  const padding = {
+    left: 34,
+    right: 22,
+    top: 22,
+    bottom: 42,
   };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+  const maximum = Math.max(
+    ...safeItems.map((item) => Number(item.revenue || 0)),
+    1
+  );
 
-  const handleDeleteListing = async (id) => {
-    if (window.confirm('Kya aap sach me is listing ko delete karna chahte hain?')) {
-      try {
-        await listingService.delete(id);
-        fetchHostData();
-      } catch (err) {
-        alert(err.response?.data?.message || 'Delete karne me issue aaya.');
-      }
-    }
+  const points = safeItems.map((item, index) => {
+    const x =
+      padding.left +
+      (safeItems.length === 1
+        ? chartWidth / 2
+        : (index / (safeItems.length - 1)) * chartWidth);
+    const y =
+      padding.top +
+      chartHeight -
+      (Number(item.revenue || 0) / maximum) * chartHeight;
+
+    return {
+      ...item,
+      x,
+      y,
+      value: Number(item.revenue || 0),
+    };
+  });
+
+  const baseline = padding.top + chartHeight;
+  const linePath = points
+    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+    .join(" ");
+  const areaPath = points.length
+    ? `${linePath} L ${points[points.length - 1].x} ${baseline} L ${
+        points[0].x
+      } ${baseline} Z`
+    : "";
+
+  return {
+    width,
+    height,
+    points,
+    linePath,
+    areaPath,
+    baseline,
+    maximum,
+    padding,
+    chartHeight,
   };
+};
+
+function RevenueAreaChart({ items }) {
+  const chart = useMemo(() => createChartGeometry(items), [items]);
+
+  if (chart.points.length === 0) {
+    return (
+      <div className="grid h-64 place-items-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 text-center">
+        <div>
+          <p className="text-sm font-black text-slate-700">No revenue data yet</p>
+          <p className="mt-1 text-xs text-slate-400">
+            Successful booking payments will appear here.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Top Header Bar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-          <div>
-            <h1 className="text-2xl font-extrabold text-gray-900">Host Dashboard 🗝️</h1>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1">
-              Manage your properties, edit listings, and view guest booking requests.
-            </p>
-          </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
-            <Link
-              to="/host/booking-requests"
-              className="flex-1 sm:flex-none text-center bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold px-4 py-3 rounded-xl text-xs sm:text-sm border border-gray-200 transition"
+    <div className="relative mt-5 overflow-hidden rounded-[24px] border border-slate-100 bg-gradient-to-b from-slate-50/80 to-white p-2 sm:p-4">
+      <svg
+        viewBox={`0 0 ${chart.width} ${chart.height}`}
+        className="h-[250px] w-full overflow-visible"
+        role="img"
+        aria-label="Monthly revenue graph"
+      >
+        <defs>
+          <linearGradient id="dashboardRevenueArea" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ff385c" stopOpacity="0.30" />
+            <stop offset="100%" stopColor="#7c3aed" stopOpacity="0.02" />
+          </linearGradient>
+          <linearGradient id="dashboardRevenueLine" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#7c3aed" />
+            <stop offset="55%" stopColor="#ff385c" />
+            <stop offset="100%" stopColor="#fb7185" />
+          </linearGradient>
+          <filter id="dashboardRevenueGlow" x="-40%" y="-40%" width="180%" height="180%">
+            <feDropShadow dx="0" dy="7" stdDeviation="7" floodColor="#ff385c" floodOpacity="0.20" />
+          </filter>
+        </defs>
+
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+          const y = chart.padding.top + chart.chartHeight * ratio;
+          const labelValue = chart.maximum * (1 - ratio);
+
+          return (
+            <g key={ratio}>
+              <line
+                x1={chart.padding.left}
+                x2={chart.width - chart.padding.right}
+                y1={y}
+                y2={y}
+                stroke="#cbd5e1"
+                strokeOpacity="0.45"
+                strokeDasharray="5 7"
+              />
+              <text
+                x={chart.padding.left - 7}
+                y={y + 4}
+                textAnchor="end"
+                fontSize="9"
+                fontWeight="700"
+                fill="#94a3b8"
+              >
+                {compactCurrency(labelValue)}
+              </text>
+            </g>
+          );
+        })}
+
+        <motion.path
+          d={chart.areaPath}
+          fill="url(#dashboardRevenueArea)"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.7 }}
+        />
+
+        <motion.path
+          d={chart.linePath}
+          fill="none"
+          stroke="url(#dashboardRevenueLine)"
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          filter="url(#dashboardRevenueGlow)"
+          initial={{ pathLength: 0 }}
+          animate={{ pathLength: 1 }}
+          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+        />
+
+        {chart.points.map((point, index) => (
+          <g key={point.key || point.month || index}>
+            <motion.circle
+              cx={point.x}
+              cy={point.y}
+              r="6"
+              fill="#ffffff"
+              stroke="#ff385c"
+              strokeWidth="4"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.15 + index * 0.045 }}
             >
-              📋 Guest Bookings
-            </Link>
-            <Link
-              to="/host/add-listing"
-              className="flex-1 sm:flex-none text-center bg-[#FF385C] hover:bg-[#E00B41] text-white font-bold px-5 py-3 rounded-xl text-xs sm:text-sm shadow-md transition active:scale-95"
+              <title>{`${point.month}: ${currency(point.value)}`}</title>
+            </motion.circle>
+
+            <text
+              x={point.x}
+              y={chart.height - 13}
+              textAnchor="middle"
+              fontSize="9"
+              fontWeight="800"
+              fill="#64748b"
             >
-              ➕ Add New Stay
-            </Link>
-          </div>
+              {point.month}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function StatCard({ title, value, helper, icon: Icon, style, to, onNavigate }) {
+  return (
+    <motion.article
+      whileHover={{ y: -8, scale: 1.02 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ type: "spring", stiffness: 320, damping: 22 }}
+      onClick={() => to && onNavigate(to)}
+      onKeyDown={(event) => {
+        if ((event.key === "Enter" || event.key === " ") && to) {
+          onNavigate(to);
+        }
+      }}
+      role={to ? "link" : undefined}
+      tabIndex={to ? 0 : undefined}
+      className="group relative cursor-pointer overflow-hidden rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-200"
+    >
+      <div className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-rose-100/70 transition duration-300 group-hover:scale-125" />
+
+      <div className="relative flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-gray-500">{title}</p>
+          <p className="mt-2 break-words text-3xl font-black tracking-tight text-gray-950">
+            {value}
+          </p>
+          <p className="mt-1 text-xs font-semibold text-gray-400">{helper}</p>
         </div>
 
-        {/* Loading Indicator */}
-        {loading && (
-          <div className="flex justify-center items-center py-16">
-            <div className="animate-spin h-9 w-9 border-4 border-[#FF385C] border-t-transparent rounded-full"></div>
-          </div>
-        )}
+        <motion.div
+          whileHover={{ rotate: 7, scale: 1.08 }}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-xl ${style}`}
+        >
+          <Icon aria-hidden="true" />
+        </motion.div>
+      </div>
 
-        {/* Error Alert */}
+      <div className="relative mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-[#FF385C] opacity-0 transition group-hover:opacity-100">
+        Open details →
+      </div>
+    </motion.article>
+  );
+}
+
+export default function HostDashboard() {
+  const navigate = useNavigate();
+  const [dashboard, setDashboard] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadDashboard = useCallback(async (manual = false) => {
+    try {
+      if (manual) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError("");
+
+      const [dashboardResponse, subscriptionResponse] = await Promise.all([
+        hostService.getDashboard(),
+        subscriptionService.getMySubscription(),
+      ]);
+
+      if (!dashboardResponse?.success) {
+        throw new Error(
+          dashboardResponse?.message || "Dashboard load nahi hua."
+        );
+      }
+
+      setDashboard(dashboardResponse.data || null);
+      setSubscription(subscriptionResponse?.data || null);
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message ||
+          requestError.message ||
+          "Host dashboard load karne me error aaya."
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  const overview = dashboard?.overview || {};
+  const monthlyRevenue = Array.isArray(dashboard?.monthlyRevenue)
+    ? dashboard.monthlyRevenue
+    : [];
+
+  const subscriptionSummary = subscription?.summary || subscription || {};
+  const activeSubscription =
+    subscriptionSummary.activeSubscription ||
+    subscription?.activeSubscription ||
+    subscription?.latestSubscription ||
+    subscription?.subscription ||
+    null;
+  const hasActiveSubscription = Boolean(
+    subscriptionSummary.isActive ?? activeSubscription?.status === "active"
+  );
+
+  const currentMonthRevenue = Number(
+    monthlyRevenue[monthlyRevenue.length - 1]?.revenue || 0
+  );
+  const previousMonthRevenue = Number(
+    monthlyRevenue[monthlyRevenue.length - 2]?.revenue || 0
+  );
+  const highestMonth = useMemo(() => {
+    if (monthlyRevenue.length === 0) {
+      return null;
+    }
+
+    return monthlyRevenue.reduce((highest, item) =>
+      Number(item.revenue || 0) > Number(highest.revenue || 0) ? item : highest
+    );
+  }, [monthlyRevenue]);
+
+  const revenueGrowth = useMemo(() => {
+    if (previousMonthRevenue === 0) {
+      return currentMonthRevenue > 0 ? 100 : 0;
+    }
+
+    return (
+      ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) *
+      100
+    );
+  }, [currentMonthRevenue, previousMonthRevenue]);
+
+  return (
+    <div className="min-h-screen bg-transparent">
+      <div className="mx-auto max-w-7xl px-3 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#FF385C]">
+              Host performance
+            </p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">
+              Dashboard
+            </h1>
+            <p className="mt-2 text-sm text-gray-500">
+              Listings, bookings and earnings ka complete live overview.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => loadDashboard(true)}
+              disabled={refreshing}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-black text-gray-700 hover:bg-gray-100 disabled:opacity-50 sm:flex-none"
+            >
+              <FiRefreshCw
+                aria-hidden="true"
+                className={refreshing ? "animate-spin" : ""}
+              />
+              Refresh
+            </button>
+
+            <Link
+              to={
+                hasActiveSubscription
+                  ? "/host/add-listing"
+                  : "/host/subscription/plans"
+              }
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#FF385C] px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-[#E31C5F] sm:flex-none"
+            >
+              <FiPlus aria-hidden="true" />
+              {hasActiveSubscription ? "Add property" : "Activate plan"}
+            </Link>
+          </div>
+        </header>
+
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl text-sm font-medium">
+          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
             {error}
           </div>
         )}
 
-        {!loading && !error && (
+        {loading ? (
+          <div className="flex min-h-[60vh] items-center justify-center">
+            <div className="h-11 w-11 animate-spin rounded-full border-4 border-[#FF385C] border-t-transparent" />
+          </div>
+        ) : (
           <>
-            {/* Analytics Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Stays</p>
-                <p className="text-3xl font-extrabold text-gray-900 mt-2">{stats.totalApartments || 0}</p>
-              </div>
-
-              <div className="bg-white p-5 rounded-2xl border border-amber-100 shadow-sm bg-amber-50/30">
-                <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">Pending Approval</p>
-                <p className="text-3xl font-extrabold text-amber-600 mt-2">{stats.pending || 0}</p>
-              </div>
-
-              <div className="bg-white p-5 rounded-2xl border border-emerald-100 shadow-sm bg-emerald-50/30">
-                <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Approved / Active</p>
-                <p className="text-3xl font-extrabold text-emerald-600 mt-2">{stats.approved || 0}</p>
-              </div>
-
-              <div className="bg-white p-5 rounded-2xl border border-rose-100 shadow-sm bg-rose-50/30">
-                <p className="text-xs font-bold text-rose-600 uppercase tracking-wider">Rejected</p>
-                <p className="text-3xl font-extrabold text-rose-600 mt-2">{stats.rejected || 0}</p>
-              </div>
-            </div>
-
-            {/* Listings Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                <h2 className="text-lg font-bold text-gray-900">Your Property Listings</h2>
-                <span className="text-xs font-semibold text-gray-500">{myListings.length} Listed</span>
-              </div>
-
-              {myListings.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <p className="text-gray-500 font-medium text-sm">Aapne abhi tak koi property add nahi ki hai.</p>
-                  <Link
-                    to="/host/add-listing"
-                    className="inline-block mt-3 text-xs font-bold text-[#FF385C] underline"
+            <section
+              className={`mt-7 overflow-hidden rounded-3xl border p-5 shadow-sm sm:p-6 ${
+                hasActiveSubscription
+                  ? "border-emerald-200 bg-gradient-to-r from-emerald-50 to-cyan-50"
+                  : "border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50"
+              }`}
+            >
+              <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+                <div className="flex items-start gap-4">
+                  <div
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl ${
+                      hasActiveSubscription
+                        ? "bg-emerald-600 text-white"
+                        : "bg-amber-500 text-white"
+                    }`}
                   >
-                    Pehli Property Abhi Add Karein →
+                    <FiCreditCard aria-hidden="true" />
+                  </div>
+
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-xl font-black text-gray-950">
+                        Host subscription
+                      </h2>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-black ${
+                          hasActiveSubscription
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {hasActiveSubscription ? "ACTIVE" : "ACTION REQUIRED"}
+                      </span>
+                    </div>
+
+                    <p className="mt-2 text-sm text-gray-600">
+                      {hasActiveSubscription
+                        ? `${
+                            activeSubscription?.planName || "Host plan"
+                          } active hai. Aap listings create aur edit kar sakte hain.`
+                        : "Listing create/edit continue karne ke liye Host subscription activate karein."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div className="rounded-2xl bg-white p-4 shadow-sm">
+                    <FiClock aria-hidden="true" className="text-purple-600" />
+                    <p className="mt-2 text-xl font-black text-gray-950">
+                      {subscriptionSummary.remainingDays || 0}
+                    </p>
+                    <p className="text-[11px] text-gray-500">Days left</p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white p-4 shadow-sm">
+                    <FiCalendar aria-hidden="true" className="text-purple-600" />
+                    <p className="mt-2 text-xs font-black text-gray-950">
+                      {formatDate(activeSubscription?.expiryDate)}
+                    </p>
+                    <p className="text-[11px] text-gray-500">Expiry</p>
+                  </div>
+
+                  <div className="rounded-2xl bg-white p-4 shadow-sm">
+                    <FiCreditCard
+                      aria-hidden="true"
+                      className="text-purple-600"
+                    />
+                    <p className="mt-2 text-xs font-black text-gray-950">
+                      {formatDate(
+                        subscriptionSummary.nextRenewalDate ||
+                          activeSubscription?.nextRenewalDate
+                      )}
+                    </p>
+                    <p className="text-[11px] text-gray-500">Renewal</p>
+                  </div>
+
+                  <Link
+                    to="/host/subscription/plans"
+                    className="flex flex-col justify-center rounded-2xl bg-gray-950 p-4 text-white hover:bg-purple-700"
+                  >
+                    <p className="text-sm font-black">
+                      {hasActiveSubscription ? "Renew plan" : "Buy plan"}
+                    </p>
+                    <p className="mt-1 text-[11px] text-white/60">
+                      View durations
+                    </p>
                   </Link>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 text-gray-500 text-xs font-bold uppercase border-b border-gray-100">
-                        <th className="py-3.5 px-6">Property</th>
-                        <th className="py-3.5 px-6">Type</th>
-                        <th className="py-3.5 px-6">Price / Night</th>
-                        <th className="py-3.5 px-6">Status</th>
-                        <th className="py-3.5 px-6 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
-                      {myListings.map((apt) => (
-                        <tr key={apt._id} className="hover:bg-gray-50/50 transition">
-                          <td className="py-4 px-6">
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={apt.images && apt.images[0] ? apt.images[0].url : 'https://via.placeholder.com/150'}
-                                alt={apt.title}
-                                className="h-12 w-12 rounded-xl object-cover border border-gray-200"
-                              />
-                              <div>
-                                <p className="font-bold text-gray-900 line-clamp-1">{apt.title}</p>
-                                <p className="text-xs text-gray-400">
-                                  {apt.location?.city}, {apt.location?.state}
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-6">{apt.propertyType}</td>
-                          <td className="py-4 px-6 font-bold text-gray-900">₹{apt.pricing?.pricePerNight}</td>
-                          <td className="py-4 px-6">
-                            <span
-                              className={`inline-block px-2.5 py-1 rounded-full text-xs font-extrabold capitalize ${
-                                apt.status === 'approved'
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : apt.status === 'pending'
-                                  ? 'bg-amber-100 text-amber-700'
-                                  : 'bg-red-100 text-red-700'
-                              }`}
-                            >
-                              {apt.status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-right space-x-3">
-                            <Link
-                              to={`/apartment/${apt._id}`}
-                              className="text-gray-500 hover:text-gray-900 text-xs font-bold underline"
-                            >
-                              View
-                            </Link>
-                            <Link
-                              to={`/host/edit-listing/${apt._id}`}
-                              className="text-blue-600 hover:text-blue-800 text-xs font-bold underline"
-                            >
-                              Edit
-                            </Link>
-                            <button
-                              onClick={() => handleDeleteListing(apt._id)}
-                              className="text-red-500 hover:text-red-700 text-xs font-bold"
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              </div>
+            </section>
+
+            <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+              <StatCard
+                title="Total listings"
+                value={overview.totalListings || 0}
+                helper="Non-deleted properties"
+                icon={FiHome}
+                style="bg-purple-100 text-purple-700"
+                to="/host/listings"
+                onNavigate={navigate}
+              />
+              <StatCard
+                title="Active listings"
+                value={overview.activeListings || 0}
+                helper="Approved and visible"
+                icon={FiCheckCircle}
+                style="bg-emerald-100 text-emerald-700"
+                to="/host/listings"
+                onNavigate={navigate}
+              />
+              <StatCard
+                title="Pending listings"
+                value={overview.pendingListings || 0}
+                helper="Waiting for review"
+                icon={FiClock}
+                style="bg-amber-100 text-amber-700"
+                to="/host/listings"
+                onNavigate={navigate}
+              />
+              <StatCard
+                title="Suspended"
+                value={overview.suspendedListings || 0}
+                helper="Admin action required"
+                icon={FiXCircle}
+                style="bg-red-100 text-red-700"
+                to="/host/listings"
+                onNavigate={navigate}
+              />
+              <StatCard
+                title="Total bookings"
+                value={overview.totalBookings || 0}
+                helper="All reservations"
+                icon={FiUsers}
+                style="bg-blue-100 text-blue-700"
+                to="/host/bookings"
+                onNavigate={navigate}
+              />
+              <StatCard
+                title="Total earnings"
+                value={currency(overview.totalEarnings)}
+                helper="Successful payments"
+                icon={FiDollarSign}
+                style="bg-violet-100 text-violet-700"
+                to="/host/revenue"
+                onNavigate={navigate}
+              />
+            </section>
+
+            <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,.55fr)]">
+              <motion.article
+                whileHover={{ y: -4 }}
+                onClick={() => navigate("/host/revenue")}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    navigate("/host/revenue");
+                  }
+                }}
+                role="link"
+                tabIndex={0}
+                className="group cursor-pointer overflow-hidden rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-rose-200 sm:p-6"
+              >
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-rose-50 text-[#FF385C]">
+                        <FiBarChart2 aria-hidden="true" />
+                      </span>
+                      <div>
+                        <h2 className="text-xl font-black text-gray-950">
+                          Revenue momentum
+                        </h2>
+                        <p className="text-xs font-semibold text-gray-400">
+                          Last 12 months · click for complete analytics
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-2xl bg-slate-50 px-3 py-2.5">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        This month
+                      </p>
+                      <p className="mt-1 text-lg font-black text-slate-950">
+                        {currency(currentMonthRevenue)}
+                      </p>
+                    </div>
+                    <div
+                      className={`rounded-2xl px-3 py-2.5 ${
+                        revenueGrowth >= 0 ? "bg-emerald-50" : "bg-rose-50"
+                      }`}
+                    >
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Growth
+                      </p>
+                      <p
+                        className={`mt-1 text-lg font-black ${
+                          revenueGrowth >= 0
+                            ? "text-emerald-700"
+                            : "text-rose-700"
+                        }`}
+                      >
+                        {revenueGrowth >= 0 ? "+" : ""}
+                        {revenueGrowth.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <RevenueAreaChart items={monthlyRevenue} />
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-slate-950 px-4 py-3 text-white">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/45">
+                      Best month
+                    </p>
+                    <p className="mt-1 text-sm font-black">
+                      {highestMonth?.month || "—"} · {currency(highestMonth?.revenue)}
+                    </p>
+                  </div>
+                  <span className="text-xs font-black text-rose-300 transition group-hover:translate-x-1">
+                    Open revenue page →
+                  </span>
+                </div>
+              </motion.article>
+
+              <motion.article
+                whileHover={{ y: -4 }}
+                className="relative overflow-hidden rounded-[32px] border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-violet-950 p-6 text-white shadow-xl"
+              >
+                <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-violet-500/20 blur-3xl" />
+                <div className="relative">
+                  <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white/10 text-2xl text-emerald-400">
+                    <FiTrendingUp aria-hidden="true" />
+                  </span>
+                  <p className="mt-6 text-sm font-bold text-white/55">
+                    Revenue growth
+                  </p>
+                  <p
+                    className={`mt-2 text-5xl font-black tracking-tight ${
+                      revenueGrowth >= 0 ? "text-emerald-400" : "text-rose-400"
+                    }`}
+                  >
+                    {revenueGrowth >= 0 ? "+" : ""}
+                    {revenueGrowth.toFixed(1)}%
+                  </p>
+                  <p className="mt-3 text-xs leading-5 text-white/45">
+                    Current month compared with previous month successful booking
+                    payments.
+                  </p>
+
+                  <div className="mt-8 rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+                    <FiDollarSign aria-hidden="true" className="text-xl text-rose-300" />
+                    <p className="mt-3 text-2xl font-black">
+                      {currency(overview.totalEarnings)}
+                    </p>
+                    <p className="mt-1 text-xs text-white/45">
+                      Lifetime host earnings
+                    </p>
+                  </div>
+
+                  <Link
+                    to="/host/revenue"
+                    className="mt-4 flex items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-black text-slate-950 hover:bg-rose-100"
+                  >
+                    View detailed report
+                  </Link>
+                </div>
+              </motion.article>
+            </section>
+
+            <section className="mt-6 grid gap-6 xl:grid-cols-2">
+              <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-gray-100 p-5">
+                  <div>
+                    <h2 className="text-lg font-black text-gray-950">
+                      Recent properties
+                    </h2>
+                    <p className="text-xs text-gray-500">Latest listing activity</p>
+                  </div>
+                  <Link
+                    to="/host/listings"
+                    className="text-sm font-black text-[#FF385C]"
+                  >
+                    View all
+                  </Link>
+                </div>
+
+                <div className="divide-y divide-gray-100">
+                  {(dashboard?.recentListings || []).length === 0 ? (
+                    <p className="p-8 text-center text-sm text-gray-500">
+                      No listings yet.
+                    </p>
+                  ) : (
+                    dashboard.recentListings.map((listing) => (
+                      <Link
+                        to={`/host/edit-listing/${listing._id}`}
+                        key={listing._id}
+                        className="flex items-center gap-4 p-4 hover:bg-slate-50"
+                      >
+                        <img
+                          src={getImageUrl(listing.images)}
+                          alt={listing.title}
+                          className="h-14 w-14 shrink-0 rounded-2xl bg-gray-100 object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-black text-gray-950">
+                            {listing.title}
+                          </p>
+                          <p className="mt-1 truncate text-xs text-gray-500">
+                            {listing.location?.city || "Location"} • ₹
+                            {Number(
+                              listing.pricing?.basePrice ||
+                                listing.pricing?.pricePerNight ||
+                                0
+                            ).toLocaleString("en-IN")} {" "}
+                            / {listing.pricing?.priceUnit || "night"}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-black capitalize ${
+                            listing.status === "approved"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : listing.status === "pending"
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          {listing.status}
+                        </span>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-gray-100 p-5">
+                  <div>
+                    <h2 className="text-lg font-black text-gray-950">
+                      Recent bookings
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      Latest guest reservations
+                    </p>
+                  </div>
+                  <Link
+                    to="/host/bookings"
+                    className="text-sm font-black text-[#FF385C]"
+                  >
+                    View all
+                  </Link>
+                </div>
+
+                <div className="divide-y divide-gray-100">
+                  {(dashboard?.recentBookings || []).length === 0 ? (
+                    <p className="p-8 text-center text-sm text-gray-500">
+                      No bookings yet.
+                    </p>
+                  ) : (
+                    dashboard.recentBookings.map((booking) => (
+                      <Link
+                        to={`/host/bookings/${booking._id}`}
+                        key={booking._id}
+                        className="flex items-center gap-4 p-4 hover:bg-slate-50"
+                      >
+                        <img
+                          src={getImageUrl(booking.apartment?.images)}
+                          alt="Property"
+                          className="h-14 w-14 shrink-0 rounded-2xl bg-gray-100 object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-black text-gray-950">
+                            {booking.apartment?.title || "Property"}
+                          </p>
+                          <p className="mt-1 truncate text-xs text-gray-500">
+                            {booking.guest?.name ||
+                              booking.guest?.email ||
+                              "Guest"} {" "}
+                            • {formatDate(booking.checkIn)}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="font-black text-gray-950">
+                            {currency(booking.pricing?.totalAmount)}
+                          </p>
+                          <p className="text-xs capitalize text-gray-500">
+                            {booking.status}
+                          </p>
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                </div>
+              </div>
+            </section>
           </>
         )}
       </div>

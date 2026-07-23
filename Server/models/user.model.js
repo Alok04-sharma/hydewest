@@ -3,6 +3,47 @@ const mongoose = require("mongoose");
 const ROLES = require("../constants/roles");
 const USER_STATUS = require("../constants/userStatus");
 
+const moderationSchema = new mongoose.Schema(
+  {
+    suspensionReason: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    suspendedAt: {
+      type: Date,
+      default: null,
+    },
+
+    suspendedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    removalReason: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    removedAt: {
+      type: Date,
+      default: null,
+    },
+
+    removedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+  },
+  {
+    _id: false,
+  }
+);
+
 const userSchema = new mongoose.Schema(
   {
     // =========================
@@ -42,6 +83,7 @@ const userSchema = new mongoose.Schema(
         message: "{VALUE} is not a valid role",
       },
       default: ROLES.GUEST,
+      index: true,
     },
 
     // =========================
@@ -52,12 +94,18 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
+    lastLoginAt: {
+      type: Date,
+      default: null,
+    },
+
     // =========================
     // Host Information
     // =========================
     isHost: {
       type: Boolean,
       default: false,
+      index: true,
     },
 
     // =========================
@@ -67,6 +115,12 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: Object.values(USER_STATUS),
       default: USER_STATUS.ACTIVE,
+      index: true,
+    },
+
+    moderation: {
+      type: moderationSchema,
+      default: () => ({}),
     },
 
     // =========================
@@ -83,6 +137,7 @@ const userSchema = new mongoose.Schema(
     isDeleted: {
       type: Boolean,
       default: false,
+      index: true,
     },
   },
   {
@@ -90,4 +145,19 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("User", userSchema);
+userSchema.index({
+  role: 1,
+  status: 1,
+  isDeleted: 1,
+});
+
+userSchema.index({
+  name: 1,
+  email: 1,
+  phone: 1,
+});
+
+module.exports = mongoose.model(
+  "User",
+  userSchema
+);
