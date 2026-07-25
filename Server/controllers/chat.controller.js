@@ -65,7 +65,7 @@ const sendMessage = asyncHandler(async (req, res) => {
     actor: req.user._id,
     entityType: "Conversation",
     entityId: conversation._id,
-    actionUrl: senderIsHost ? `/messages/${conversation._id}` : `/host/messages/${conversation._id}`,
+    actionUrl: senderIsHost ? `/guest/messages/${conversation._id}` : `/host/messages/${conversation._id}`,
   });
 
   const io = req.app.get("io");

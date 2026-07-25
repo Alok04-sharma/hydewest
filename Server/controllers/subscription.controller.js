@@ -23,7 +23,34 @@ const {
   createAdminNotifications,
   createUserNotification,
 } = require("../services/notification.service");
+const {
+  createSubscriptionInvoiceBuffer,
+} = require("../services/invoice.service");
 const sendResponse = require("../utils/sendResponse");
+
+const buildInvoiceNumber = (payment, paidAt = new Date()) => {
+  const date = new Date(paidAt);
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const suffix = String(payment._id).slice(-8).toUpperCase();
+
+  return `SN-HOST-${year}${month}-${suffix}`;
+};
+
+const ensureInvoiceNumber = async (payment) => {
+  if (payment.invoiceNumber) {
+    return payment.invoiceNumber;
+  }
+
+  payment.invoiceNumber = buildInvoiceNumber(
+    payment,
+    payment.paidAt || payment.createdAt
+  );
+  payment.invoiceGeneratedAt = payment.invoiceGeneratedAt || new Date();
+  await payment.save();
+
+  return payment.invoiceNumber;
+};
 
 const getPlans = asyncHandler(async (req, res) => {
   return sendResponse(
@@ -63,7 +90,10 @@ const getMySubscriptionPayments = asyncHandler(async (req, res) => {
     host: req.user._id,
     isDeleted: false,
   })
-    .populate("subscription", "planCode planName status startDate expiryDate")
+    .populate(
+      "subscription",
+      "planCode planName status startDate expiryDate durationMonths"
+    )
     .sort({ createdAt: -1 });
 
   return sendResponse(
@@ -91,7 +121,44 @@ const createSubscriptionOrder = asyncHandler(async (req, res) => {
   }
 
   if (host.role !== ROLES.HOST && host.isHost !== true) {
-    return sendResponse(res, 403, false, "Only Hosts can purchase subscriptions.");
+    return sendResponse(
+      res,
+      403,
+      false,
+      "Only Hosts can purchase subscriptions."
+    );
+  }
+
+  const now = new Date();
+  const existingSamePlanCoverage = await Subscription.findOne({
+    host: host._id,
+    planCode: plan.code,
+    isDeleted: false,
+    paymentStatus: SUBSCRIPTION_PAYMENT_STATUS.SUCCESS,
+    status: {
+      $in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.SCHEDULED],
+    },
+    expiryDate: { $gt: now },
+  }).sort({ expiryDate: -1 });
+
+  if (existingSamePlanCoverage) {
+    return sendResponse(
+      res,
+      409,
+      false,
+      `This plan is already purchased until ${new Date(
+        existingSamePlanCoverage.expiryDate
+      ).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      })}.`,
+      {
+        planCode: plan.code,
+        purchasedUntil: existingSamePlanCoverage.expiryDate,
+      }
+    );
   }
 
   const order = await razorpay.orders.create({
@@ -191,11 +258,7 @@ const createSubscriptionOrder = asyncHandler(async (req, res) => {
 });
 
 const verifySubscriptionPayment = asyncHandler(async (req, res) => {
-  const {
-    razorpayOrderId,
-    razorpayPaymentId,
-    razorpaySignature,
-  } = req.body;
+  const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
   if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
     return sendResponse(res, 400, false, "Incomplete Razorpay payment details.");
@@ -208,17 +271,29 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
   });
 
   if (!payment) {
-    return sendResponse(res, 404, false, "Subscription payment record not found.");
+    return sendResponse(
+      res,
+      404,
+      false,
+      "Subscription payment record not found."
+    );
   }
 
   if (payment.status === SUBSCRIPTION_PAYMENT_STATUS.SUCCESS) {
-    const existingSubscription = await Subscription.findById(payment.subscription);
+    await ensureInvoiceNumber(payment);
+    const existingSubscription = await Subscription.findById(
+      payment.subscription
+    );
+
     return sendResponse(
       res,
       200,
       true,
       "Subscription payment was already verified.",
-      existingSubscription
+      {
+        subscription: existingSubscription,
+        payment,
+      }
     );
   }
 
@@ -242,7 +317,8 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
       recipient: req.user._id,
       type: NOTIFICATION_TYPE.HOST_SUBSCRIPTION_PAYMENT_FAILED,
       title: "Subscription payment failed",
-      message: "Your subscription payment could not be verified. No Host plan was activated. Please try again.",
+      message:
+        "Your subscription payment could not be verified. No Host plan was activated. Please try again.",
       actor: req.user._id,
       entityType: "Subscription",
       entityId: payment.subscription,
@@ -255,7 +331,12 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
       },
     });
 
-    return sendResponse(res, 400, false, "Subscription payment verification failed.");
+    return sendResponse(
+      res,
+      400,
+      false,
+      "Subscription payment verification failed."
+    );
   }
 
   const now = new Date();
@@ -287,6 +368,8 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
   payment.status = SUBSCRIPTION_PAYMENT_STATUS.SUCCESS;
   payment.paidAt = now;
   payment.failureReason = "";
+  payment.invoiceNumber = buildInvoiceNumber(payment, now);
+  payment.invoiceGeneratedAt = now;
   await payment.save();
 
   const subscription = await Subscription.findById(payment.subscription);
@@ -325,6 +408,7 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
       startDate: subscription.startDate,
       expiryDate: subscription.expiryDate,
       razorpayPaymentId,
+      invoiceNumber: payment.invoiceNumber,
     },
   });
 
@@ -370,6 +454,7 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
       startDate: subscription.startDate,
       expiryDate: subscription.expiryDate,
       razorpayPaymentId,
+      invoiceNumber: payment.invoiceNumber,
     },
   });
 
@@ -380,8 +465,52 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
     subscriptionStatus === SUBSCRIPTION_STATUS.SCHEDULED
       ? "Subscription renewal payment verified. The new plan will start after your current plan ends."
       : "Subscription activated successfully.",
-    subscription
+    {
+      subscription,
+      payment,
+    }
   );
+});
+
+const downloadMySubscriptionInvoice = asyncHandler(async (req, res) => {
+  const payment = await SubscriptionPayment.findOne({
+    _id: req.params.paymentId,
+    host: req.user._id,
+    isDeleted: false,
+    status: SUBSCRIPTION_PAYMENT_STATUS.SUCCESS,
+  }).populate(
+    "subscription",
+    "planCode planName durationMonths startDate expiryDate status"
+  );
+
+  if (!payment) {
+    return sendResponse(
+      res,
+      404,
+      false,
+      "Successful subscription payment not found."
+    );
+  }
+
+  const host = await User.findById(req.user._id).select("name email");
+  const invoiceNumber = await ensureInvoiceNumber(payment);
+  const pdfBuffer = await createSubscriptionInvoiceBuffer({
+    payment,
+    subscription: payment.subscription,
+    payer: host,
+  });
+
+  const safeFileName = `${invoiceNumber.replace(/[^a-zA-Z0-9-_]/g, "-")}.pdf`;
+
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${safeFileName}"`
+  );
+  res.setHeader("Content-Length", pdfBuffer.length);
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+
+  return res.status(200).send(pdfBuffer);
 });
 
 module.exports = {
@@ -390,4 +519,5 @@ module.exports = {
   getMySubscriptionPayments,
   createSubscriptionOrder,
   verifySubscriptionPayment,
+  downloadMySubscriptionInvoice,
 };

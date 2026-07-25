@@ -1,43 +1,25 @@
 const express = require("express");
 
-const router = express.Router();
-
-
-// ======================================
-// Middleware
-// ======================================
-
 const authMiddleware = require("../middleware/auth.middleware");
-
 const roleMiddleware = require("../middleware/role.middleware");
-
-
-// ======================================
-// Controller
-// ======================================
-
+const ROLES = require("../constants/roles");
 const {
+  getBookingQuote,
   createBooking,
   getMyBookings,
+  getMyBookingDetails,
   getHostBookings,
   cancelBooking,
 } = require("../controllers/booking.controller");
 
+const router = express.Router();
 
-// ======================================
-// Constants
-// ======================================
-
-const ROLES = require("../constants/roles");
-
-
-
-// ======================================
-// Guest Routes
-// ======================================
-
-
-// Create Booking
+router.post(
+  "/quote",
+  authMiddleware,
+  roleMiddleware(ROLES.GUEST),
+  getBookingQuote
+);
 
 router.post(
   "/create",
@@ -46,10 +28,6 @@ router.post(
   createBooking
 );
 
-
-
-// Get My Bookings
-
 router.get(
   "/my",
   authMiddleware,
@@ -57,9 +35,12 @@ router.get(
   getMyBookings
 );
 
-
-
-// Cancel Booking
+router.get(
+  "/my/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.GUEST),
+  getMyBookingDetails
+);
 
 router.patch(
   "/:id/cancel",
@@ -68,23 +49,11 @@ router.patch(
   cancelBooking
 );
 
-
-
-
-// ======================================
-// Host Routes
-// ======================================
-
-
-// Get Host Bookings
-
 router.get(
   "/host",
   authMiddleware,
   roleMiddleware(ROLES.HOST),
   getHostBookings
 );
-
-
 
 module.exports = router;

@@ -38,9 +38,13 @@ const bookingSchema = new mongoose.Schema(
     pricing: {
       basePrice: { type: Number, default: 0 },
       priceUnit: { type: String, default: "night" },
+      bookingUnit: { type: String, default: "night" },
       unitCount: { type: Number, default: 1 },
+      durationHours: { type: Number, default: 0 },
       pricePerNight: { type: Number, default: 0 },
       totalNights: { type: Number, default: 1 },
+      availableRates: { type: mongoose.Schema.Types.Mixed, default: {} },
+      unitSavingsPercent: { type: Number, default: 0 },
       subtotal: { type: Number, required: true },
       includedGuests: { type: Number, default: 1 },
       extraGuestCount: { type: Number, default: 0 },
@@ -49,10 +53,36 @@ const bookingSchema = new mongoose.Schema(
       cleaningFee: { type: Number, default: 0 },
       serviceFee: { type: Number, default: 0 },
       couponCode: { type: String, default: "", uppercase: true, trim: true },
+      couponLabel: { type: String, default: "" },
+      couponPaymentMethod: { type: String, default: "any" },
+      preferredPaymentMethod: { type: String, default: "any" },
+      paymentMethodMismatch: { type: Boolean, default: false },
       discountAmount: { type: Number, default: 0 },
       premiumDiscountAmount: { type: Number, default: 0 },
+      loyaltyPointsUsed: { type: Number, default: 0, min: 0 },
+      loyaltyDiscountAmount: { type: Number, default: 0, min: 0 },
       totalAmount: { type: Number, required: true },
+      hostPayableAmount: { type: Number, default: 0 },
+      platformDiscountAmount: { type: Number, default: 0 },
       currency: { type: String, default: "INR" },
+    },
+    membershipSnapshot: {
+      isPremium: { type: Boolean, default: false },
+      planCode: { type: String, default: "" },
+      discountPercent: { type: Number, default: 0 },
+      benefits: { type: [String], default: [] },
+    },
+    loyalty: {
+      expectedPoints: { type: Number, default: 0, min: 0 },
+      awardedPoints: { type: Number, default: 0, min: 0 },
+      rewardRecorded: { type: Boolean, default: false },
+      redemptionRecorded: { type: Boolean, default: false },
+      reversalRecorded: { type: Boolean, default: false },
+    },
+    insurance: {
+      enabled: { type: Boolean, default: false },
+      premiumAmount: { type: Number, default: 0, min: 0 },
+      coverageType: { type: String, default: "" },
     },
     couponUsageRecorded: { type: Boolean, default: false },
     priorityScore: { type: Number, default: 0, index: true },
@@ -60,30 +90,37 @@ const bookingSchema = new mongoose.Schema(
     paymentStatus: { type: String, enum: Object.values(PAYMENT_STATUS), default: PAYMENT_STATUS.PENDING, index: true },
     hostDecisionAt: { type: Date, default: null },
     cancellation: {
-      cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-      cancelledAt: Date,
-      reason: { type: String, trim: true },
+      cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+      cancelledAt: { type: Date, default: null },
+      reason: { type: String, trim: true, default: "" },
+      refundEligible: { type: Boolean, default: false },
+      cancellationWindowHours: { type: Number, default: 24 },
     },
     reminders: {
-      checkInSentAt: { type: Date, default: null },
-      checkOutSentAt: { type: Date, default: null },
+      hostCheckInSentAt: { type: Date, default: null },
+      hostCheckOutSentAt: { type: Date, default: null },
+      guestCheckInSentAt: { type: Date, default: null },
+      guestCheckOutSentAt: { type: Date, default: null },
       roomAvailableSentAt: { type: Date, default: null },
+      guestCompletedSentAt: { type: Date, default: null },
     },
-    message: { type: String, trim: true, maxlength: 500 },
+    message: { type: String, trim: true, maxlength: 500, default: "" },
     history: { type: [bookingHistorySchema], default: [] },
     isDeleted: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
 );
 
-bookingSchema.pre("save", function validateDates(next) {
-  if (this.checkOut <= this.checkIn) return next(new Error("Check-out date must be after check-in date."));
-  return next();
+bookingSchema.pre("save", function validateDates() {
+  if (this.checkOut <= this.checkIn) {
+    throw new Error("Check-out date must be after check-in date.");
+  }
 });
 
 bookingSchema.index({ apartment: 1, checkIn: 1, checkOut: 1 });
 bookingSchema.index({ host: 1, status: 1, checkIn: 1, checkOut: 1 });
-bookingSchema.index({ guest: 1, createdAt: -1 });
+bookingSchema.index({ guest: 1, status: 1, createdAt: -1 });
+
 module.exports = mongoose.model("Booking", bookingSchema);
 module.exports.BOOKING_STATUS = BOOKING_STATUS;
 module.exports.PAYMENT_STATUS = PAYMENT_STATUS;

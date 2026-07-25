@@ -5,6 +5,8 @@ const connectDB = require("./config/db");
 const { startSubscriptionExpiryJob } = require("./jobs/subscriptionExpiry.job");
 const { startBookingLifecycleJob } = require("./jobs/bookingLifecycle.job");
 const { startSubscriptionReminderJob } = require("./jobs/subscriptionReminder.job");
+const { startGuestMembershipLifecycleJob } = require("./jobs/guestMembershipLifecycle.job");
+const { startPriceAlertJob } = require("./jobs/priceAlert.job");
 const { initializeSocket } = require("./socket");
 const PORT = process.env.PORT || 5000;
 
@@ -17,6 +19,8 @@ const startServer = async () => {
     startSubscriptionExpiryJob();
     startBookingLifecycleJob();
     startSubscriptionReminderJob();
+    startGuestMembershipLifecycleJob();
+    startPriceAlertJob();
   });
 };
 startServer().catch((error) => { console.error("Server startup failed:", error); process.exit(1); });

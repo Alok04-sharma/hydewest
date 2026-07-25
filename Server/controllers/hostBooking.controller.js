@@ -93,7 +93,7 @@ const updateBookingStatus = asyncHandler(async (req, res) => {
     actor: req.user._id,
     entityType: "Booking",
     entityId: booking._id,
-    actionUrl: `/bookings/${booking._id}`,
+    actionUrl: `/guest/bookings/${booking._id}`,
     eventKey: `guest-booking-${booking._id}-${status}`,
   });
 

@@ -55,6 +55,16 @@ const subscriptionPaymentSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    invoiceNumber: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+    invoiceGeneratedAt: {
+      type: Date,
+      default: null,
+    },
     status: {
       type: String,
       enum: Object.values(SUBSCRIPTION_PAYMENT_STATUS),

@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const APARTMENT_STATUS = require("../constants/apartmentStatus");
 const CANCELLATION_POLICY = require("../constants/cancellationPolicy");
 const PRICING_UNIT = require("../constants/pricingUnit");
+const { generateRatesFromDailyPrice } = require("../constants/pricingPresets");
 
 const imageSchema = new mongoose.Schema(
   {
@@ -77,6 +78,32 @@ const couponSchema = new mongoose.Schema(
     isActive: {
       type: Boolean,
       default: true,
+    },
+    premiumOnly: {
+      type: Boolean,
+      default: false,
+    },
+    label: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 80,
+    },
+    description: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 240,
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["any", "upi", "card"],
+      default: "any",
+    },
+    source: {
+      type: String,
+      enum: ["preset", "custom"],
+      default: "custom",
     },
   },
   { _id: true }
@@ -297,6 +324,7 @@ const apartmentSchema = new mongoose.Schema(
     },
 
     pricing: {
+      // Host enters the per-day price. Other rates are generated from it and remain editable.
       basePrice: {
         type: Number,
         required: true,
@@ -305,13 +333,24 @@ const apartmentSchema = new mongoose.Schema(
       priceUnit: {
         type: String,
         enum: Object.values(PRICING_UNIT),
-        default: PRICING_UNIT.NIGHT,
+        default: PRICING_UNIT.DAY,
       },
-      // Legacy compatibility for old cards and records.
+      // Legacy compatibility. This mirrors pricing.rates.night.
       pricePerNight: {
         type: Number,
         required: true,
         min: 1,
+      },
+      rates: {
+        hour: { type: Number, required: true, min: 1 },
+        night: { type: Number, required: true, min: 1 },
+        day: { type: Number, required: true, min: 1 },
+        week: { type: Number, required: true, min: 1 },
+        month: { type: Number, required: true, min: 1 },
+      },
+      autoRateMultipliers: {
+        type: Boolean,
+        default: true,
       },
       cleaningFee: {
         type: Number,
@@ -458,6 +497,49 @@ const apartmentSchema = new mongoose.Schema(
       default: false,
     },
 
+    premium: {
+      isExclusive: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+      discountPercent: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 80,
+      },
+      earlyAccessHours: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 168,
+      },
+      hiddenOfferLabel: {
+        type: String,
+        default: "",
+        trim: true,
+      },
+    },
+
+    features: {
+      instantBook: { type: Boolean, default: false, index: true },
+      selfCheckIn: { type: Boolean, default: false, index: true },
+      petFriendly: { type: Boolean, default: false, index: true },
+      superLuxury: { type: Boolean, default: false, index: true },
+    },
+
+    priceHistory: {
+      type: [
+        {
+          amount: { type: Number, required: true, min: 0 },
+          priceUnit: { type: String, default: PRICING_UNIT.NIGHT },
+          recordedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
+
     isDeleted: {
       type: Boolean,
       default: false,
@@ -469,12 +551,18 @@ const apartmentSchema = new mongoose.Schema(
 
 apartmentSchema.pre("validate", function normalizeListing() {
   if (this.pricing) {
-    const basePrice = Number(
-      this.pricing.basePrice || this.pricing.pricePerNight || 0
+    const dailyPrice = Number(
+      this.pricing.rates?.day ||
+        this.pricing.basePrice ||
+        this.pricing.pricePerNight ||
+        0
     );
+    const rates = generateRatesFromDailyPrice(dailyPrice, this.pricing.rates || {});
 
-    this.pricing.basePrice = basePrice;
-    this.pricing.pricePerNight = basePrice;
+    this.pricing.basePrice = rates.day;
+    this.pricing.pricePerNight = rates.night;
+    this.pricing.priceUnit = PRICING_UNIT.DAY;
+    this.pricing.rates = rates;
   }
 
   if (Array.isArray(this.images) && this.images.length > 0) {
@@ -536,6 +624,7 @@ apartmentSchema.index({
   "location.city": 1,
 });
 apartmentSchema.index({ "pricing.basePrice": 1 });
+apartmentSchema.index({ "pricing.rates.hour": 1, "pricing.rates.night": 1, "pricing.rates.week": 1, "pricing.rates.month": 1 });
 apartmentSchema.index({ host: 1, createdAt: -1 });
 apartmentSchema.index({ status: 1, isDeleted: 1, createdAt: -1 });
 apartmentSchema.index({ isFeatured: 1 });

@@ -3,6 +3,7 @@
 const asyncHandler = require("express-async-handler");
 
 const Apartment = require("../models/apartment.model");
+const Booking = require("../models/booking.model");
 const APARTMENT_STATUS = require("../constants/apartmentStatus");
 const NOTIFICATION_TYPE = require("../constants/notificationType");
 const sendResponse = require("../utils/sendResponse");
@@ -11,6 +12,7 @@ const uploadToCloudinary = require("../utils/uploadToCloudinary");
 const deleteFromCloudinary = require("../utils/deleteFromCloudinary");
 const { createAdminNotifications } = require("../services/notification.service");
 const { calculateListingQuote } = require("../services/listingPricing.service");
+const { generateRatesFromDailyPrice, cloneDefaultCouponPresets } = require("../constants/pricingPresets");
 
 const JSON_FIELDS = [
   "location",
@@ -43,6 +45,8 @@ const parseJsonValue = (value, fallback) => {
 
 const normalizeCoupon = (coupon = {}) => ({
   code: String(coupon.code || "").trim().toUpperCase(),
+  label: String(coupon.label || coupon.code || "").trim(),
+  description: String(coupon.description || "").trim(),
   discountType: coupon.discountType === "fixed" ? "fixed" : "percentage",
   discountValue: Number(coupon.discountValue || 0),
   minBookingAmount: Number(coupon.minBookingAmount || 0),
@@ -52,6 +56,11 @@ const normalizeCoupon = (coupon = {}) => ({
   usageLimit: Number(coupon.usageLimit || 0),
   usedCount: Number(coupon.usedCount || 0),
   isActive: coupon.isActive !== false,
+  premiumOnly: coupon.premiumOnly === true,
+  paymentMethod: ["upi", "card"].includes(String(coupon.paymentMethod || "").toLowerCase())
+    ? String(coupon.paymentMethod).toLowerCase()
+    : "any",
+  source: coupon.source === "preset" ? "preset" : "custom",
 });
 
 const normalizePayload = (body = {}) => {
@@ -69,7 +78,13 @@ const normalizePayload = (body = {}) => {
   });
 
   const pricing = parsed.pricing || {};
-  const basePrice = Number(pricing.basePrice || pricing.pricePerNight || 0);
+  const dailyPrice = Number(
+    pricing.rates?.day || pricing.basePrice || pricing.pricePerNight || 0
+  );
+  const rates = generateRatesFromDailyPrice(dailyPrice, pricing.rates || {});
+  const suppliedCoupons = Array.isArray(parsed.coupons)
+    ? parsed.coupons
+    : cloneDefaultCouponPresets();
 
   return {
     title: String(parsed.title || "").trim(),
@@ -90,18 +105,20 @@ const normalizePayload = (body = {}) => {
       longitude: Number(parsed.location?.longitude),
     },
     pricing: {
-      basePrice,
-      pricePerNight: basePrice,
-      priceUnit: String(pricing.priceUnit || "night"),
+      basePrice: rates.day,
+      pricePerNight: rates.night,
+      priceUnit: "day",
+      rates,
+      autoRateMultipliers: pricing.autoRateMultipliers !== false,
       cleaningFee: Number(pricing.cleaningFee || 0),
       serviceFee: Number(pricing.serviceFee || 0),
       extraGuestFee: Number(pricing.extraGuestFee || 0),
       baseGuestCount: Number(pricing.baseGuestCount || parsed.guests || 1),
       currency: String(pricing.currency || "INR").toUpperCase(),
     },
-    coupons: Array.isArray(parsed.coupons)
-      ? parsed.coupons.map(normalizeCoupon).filter((coupon) => coupon.code)
-      : [],
+    coupons: suppliedCoupons
+      .map(normalizeCoupon)
+      .filter((coupon) => coupon.code),
     amenities: Array.isArray(parsed.amenities)
       ? parsed.amenities.map((item) => String(item).trim()).filter(Boolean)
       : [],
@@ -154,7 +171,12 @@ const validateListingPayload = (data) => {
   ) {
     errors.push("Latitude or longitude is outside the valid range.");
   }
-  if (data.pricing.basePrice <= 0) errors.push("Base price must be greater than zero.");
+  if (data.pricing.basePrice <= 0) errors.push("Per-day price must be greater than zero.");
+  Object.entries(data.pricing.rates || {}).forEach(([unit, amount]) => {
+    if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
+      errors.push(`${unit} price must be greater than zero.`);
+    }
+  });
   if (data.pricing.baseGuestCount > data.guests) {
     errors.push("Included guest count cannot exceed maximum guests.");
   }
@@ -285,6 +307,13 @@ const createApartment = asyncHandler(async (req, res) => {
     images,
     status: APARTMENT_STATUS.PENDING,
     isDeleted: false,
+    priceHistory: [
+      {
+        amount: apartmentData.pricing.basePrice,
+        priceUnit: apartmentData.pricing.priceUnit,
+        recordedAt: new Date(),
+      },
+    ],
     statusHistory: [
       {
         status: APARTMENT_STATUS.PENDING,
@@ -437,6 +466,9 @@ const updateApartment = asyncHandler(async (req, res) => {
   }
 
   const previousStatus = apartment.status;
+  const previousBasePrice = Number(
+    apartment.pricing?.basePrice || apartment.pricing?.pricePerNight || 0
+  );
   const editableFields = [
     "title",
     "description",
@@ -459,6 +491,19 @@ const updateApartment = asyncHandler(async (req, res) => {
     apartment[field] = apartmentData[field];
   });
   apartment.images = images;
+
+  const nextBasePrice = Number(apartmentData.pricing?.basePrice || 0);
+  if (nextBasePrice > 0 && nextBasePrice !== previousBasePrice) {
+    apartment.priceHistory.push({
+      amount: nextBasePrice,
+      priceUnit: apartmentData.pricing?.priceUnit || "night",
+      recordedAt: new Date(),
+    });
+
+    if (apartment.priceHistory.length > 36) {
+      apartment.priceHistory = apartment.priceHistory.slice(-36);
+    }
+  }
 
   if (
     [
@@ -556,6 +601,8 @@ const getListingQuote = asyncHandler(async (req, res) => {
       checkOut: req.body.checkOut,
       guestsCount: req.body.guestsCount,
       couponCode: req.body.couponCode,
+      bookingUnit: req.body.bookingUnit,
+      paymentMethod: req.body.paymentMethod,
     });
 
     return sendResponse(res, 200, true, "Booking quote calculated successfully.", quote);
@@ -567,6 +614,7 @@ const getListingQuote = asyncHandler(async (req, res) => {
 const searchApartments = asyncHandler(async (req, res) => {
   const {
     city,
+    location,
     state,
     country,
     minPrice,
@@ -577,47 +625,86 @@ const searchApartments = asyncHandler(async (req, res) => {
     amenities,
     minRating,
     priceUnit,
+    checkIn,
+    checkOut,
+    instantBook,
+    selfCheckIn,
+    petFriendly,
+    superLuxury,
+    premiumExclusive,
     sortBy = "newest",
   } = req.query;
 
   const page = Math.max(Number.parseInt(req.query.page, 10) || 1, 1);
-  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 10, 1), 50);
+  const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 50);
   const query = { status: APARTMENT_STATUS.APPROVED, isDeleted: false };
 
   if (city) query["location.city"] = { $regex: city, $options: "i" };
   if (state) query["location.state"] = { $regex: state, $options: "i" };
   if (country) query["location.country"] = { $regex: country, $options: "i" };
-  if (minPrice || maxPrice) {
-    query["pricing.basePrice"] = {};
-    if (minPrice) query["pricing.basePrice"].$gte = Number(minPrice);
-    if (maxPrice) query["pricing.basePrice"].$lte = Number(maxPrice);
+  if (location) {
+    const matcher = { $regex: location, $options: "i" };
+    query.$or = [
+      { "location.city": matcher },
+      { "location.state": matcher },
+      { "location.address": matcher },
+      { "location.landmark": matcher },
+    ];
   }
-  if (priceUnit) query["pricing.priceUnit"] = priceUnit;
+  const selectedPriceUnit = ["hour", "night", "day", "week", "month"].includes(String(priceUnit || "").toLowerCase())
+    ? String(priceUnit).toLowerCase()
+    : "day";
+  const pricePath = `pricing.rates.${selectedPriceUnit}`;
+  if (minPrice || maxPrice) {
+    query[pricePath] = {};
+    if (minPrice) query[pricePath].$gte = Number(minPrice);
+    if (maxPrice) query[pricePath].$lte = Number(maxPrice);
+  }
   if (guests) query.guests = { $gte: Number(guests) };
   if (bedrooms) query.bedrooms = { $gte: Number(bedrooms) };
   if (propertyType) query.propertyType = propertyType;
   if (amenities) {
     query.amenities = {
-      $all: String(amenities)
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      $all: String(amenities).split(",").map((item) => item.trim()).filter(Boolean),
     };
   }
   if (minRating) query.rating = { $gte: Number(minRating) };
+  if (instantBook === "true") query["features.instantBook"] = true;
+  if (selfCheckIn === "true") query["features.selfCheckIn"] = true;
+  if (petFriendly === "true") query["features.petFriendly"] = true;
+  if (superLuxury === "true") query["features.superLuxury"] = true;
+  if (premiumExclusive === "true") query["premium.isExclusive"] = true;
+
+  if (checkIn && checkOut) {
+    const startDate = new Date(checkIn);
+    const endDate = new Date(checkOut);
+    if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate > startDate) {
+      const bookedIds = await Booking.distinct("apartment", {
+        isDeleted: false,
+        status: { $in: ["pending", "confirmed"] },
+        checkIn: { $lt: endDate },
+        checkOut: { $gt: startDate },
+      });
+      query._id = { $nin: bookedIds };
+      query["availability.availableFrom"] = { $lte: startDate };
+      query["availability.availableTo"] = { $gte: endDate };
+      query["availability.blockedDates"] = { $not: { $elemMatch: { $gte: startDate, $lt: endDate } } };
+    }
+  }
 
   const sortMap = {
     price_low: { "pricing.basePrice": 1 },
     price_high: { "pricing.basePrice": -1 },
-    rating: { rating: -1 },
-    popular: { bookingCount: -1 },
+    rating: { rating: -1, totalReviews: -1 },
+    popular: { bookingCount: -1, wishlistCount: -1 },
+    cleaning_low: { "pricing.cleaningFee": 1, rating: -1 },
+    best_value: { "premium.discountPercent": -1, rating: -1, "pricing.basePrice": 1 },
     newest: { createdAt: -1 },
   };
   const skip = (page - 1) * limit;
-
   const [apartments, total] = await Promise.all([
     Apartment.find(query)
-      .populate("host", "name email avatar")
+      .populate("host", "name email avatar isHost createdAt")
       .sort(sortMap[sortBy] || sortMap.newest)
       .skip(skip)
       .limit(limit),

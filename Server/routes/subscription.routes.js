@@ -11,6 +11,7 @@ const {
   getMySubscriptionPayments,
   createSubscriptionOrder,
   verifySubscriptionPayment,
+  downloadMySubscriptionInvoice,
 } = require("../controllers/subscription.controller");
 
 router.get("/plans", getPlans);
@@ -20,6 +21,10 @@ router.use(roleMiddleware(ROLES.HOST));
 
 router.get("/my", getMySubscription);
 router.get("/my/payments", getMySubscriptionPayments);
+router.get(
+  "/my/payments/:paymentId/invoice",
+  downloadMySubscriptionInvoice
+);
 router.post("/create-order", createSubscriptionOrder);
 router.post("/verify-payment", verifySubscriptionPayment);
 

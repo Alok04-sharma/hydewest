@@ -1,219 +1,35 @@
 const mongoose = require("mongoose");
 
-
-// ======================================
-// Payment Status
-// ======================================
-
 const PAYMENT_STATUS = Object.freeze({
-
   PENDING: "pending",
-
   SUCCESS: "success",
-
   FAILED: "failed",
-
   REFUNDED: "refunded",
-
 });
-
-
-
-
-// ======================================
-// Payment Schema
-// ======================================
 
 const paymentSchema = new mongoose.Schema(
-
   {
-
-
-    // ======================================
-    // User Information
-    // ======================================
-
-    user: {
-
-      type: mongoose.Schema.Types.ObjectId,
-
-      ref: "User",
-
-      required: true,
-
-      index: true,
-
-    },
-
-
-
-    // ======================================
-    // Booking Reference
-    // ======================================
-
-    booking: {
-
-      type: mongoose.Schema.Types.ObjectId,
-    
-      ref: "Booking",
-    
-      required: true,
-    
-    },
-
-
-
-    // ======================================
-    // Razorpay Details
-    // ======================================
-
-    razorpayOrderId: {
-
-      type: String,
-
-      required: true,
-
-      index: true,
-
-    },
-
-
-    razorpayPaymentId: {
-
-      type: String,
-
-      default: "",
-
-    },
-
-
-    razorpaySignature: {
-
-      type: String,
-
-      default: "",
-
-    },
-
-
-
-    // ======================================
-    // Amount Details
-    // ======================================
-
-    amount: {
-
-      type: Number,
-
-      required: true,
-
-    },
-
-
-    currency: {
-
-      type: String,
-
-      default: "INR",
-
-    },
-
-
-
-    // ======================================
-    // Payment Status
-    // ======================================
-
-    status: {
-
-      type: String,
-
-      enum: Object.values(PAYMENT_STATUS),
-
-      default: PAYMENT_STATUS.PENDING,
-
-      index: true,
-
-    },
-
-
-
-    // ======================================
-    // Payment Date
-    // ======================================
-
-    paidAt: {
-
-      type: Date,
-
-    },
-
-
-
-    // ======================================
-    // Extra Data
-    // ======================================
-
-    metadata: {
-
-      type: Object,
-
-      default: {},
-
-    },
-
-
-    // ======================================
-    // Soft Delete
-    // ======================================
-
-    isDeleted: {
-
-      type: Boolean,
-
-      default: false,
-
-    },
-
-
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    booking: { type: mongoose.Schema.Types.ObjectId, ref: "Booking", required: true, index: true },
+    razorpayOrderId: { type: String, required: true, index: true },
+    razorpayPaymentId: { type: String, default: "", index: true },
+    razorpaySignature: { type: String, default: "" },
+    invoiceNumber: { type: String, default: "", trim: true, index: true },
+    invoiceGeneratedAt: { type: Date, default: null },
+    amount: { type: Number, required: true },
+    currency: { type: String, default: "INR" },
+    status: { type: String, enum: Object.values(PAYMENT_STATUS), default: PAYMENT_STATUS.PENDING, index: true },
+    paidAt: { type: Date, default: null },
+    refundedAt: { type: Date, default: null },
+    loyaltyProcessedAt: { type: Date, default: null },
+    metadata: { type: mongoose.Schema.Types.Mixed, default: {} },
+    isDeleted: { type: Boolean, default: false, index: true },
   },
-
-  {
-
-    timestamps: true,
-
-  }
-
+  { timestamps: true }
 );
 
+paymentSchema.index({ user: 1, createdAt: -1 });
+paymentSchema.index({ booking: 1, status: 1 });
 
-
-// ======================================
-// Indexes
-// ======================================
-
-paymentSchema.index({
-
-  user: 1,
-
-  createdAt: -1,
-
-});
-
-
-paymentSchema.index({
-
-  booking: 1,
-
-});
-
-
-
-// ======================================
-// Export
-// ======================================
-
-module.exports = mongoose.model(
-  "Payment",
-  paymentSchema
-);
+module.exports = mongoose.model("Payment", paymentSchema);
+module.exports.PAYMENT_STATUS = PAYMENT_STATUS;
