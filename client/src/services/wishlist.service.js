@@ -1,16 +1,9 @@
-import axiosInstance from './axios';
-import { API_ENDPOINTS } from '../constants/api';
+import api from "./axios";
 
 export const wishlistService = {
-  getWishlist: () => {
-    return axiosInstance.get(API_ENDPOINTS.WISHLIST.BASE);
-  },
-
-  addToWishlist: (apartmentId) => {
-    return axiosInstance.post(API_ENDPOINTS.WISHLIST.BASE, { apartmentId });
-  },
-
-  removeFromWishlist: (apartmentId) => {
-    return axiosInstance.delete(API_ENDPOINTS.WISHLIST.ITEM(apartmentId));
-  },
+  getWishlist: async () => (await api.get("/api/wishlist")).data,
+  addToWishlist: async (apartmentId) => (await api.post("/api/wishlist", { apartmentId })).data,
+  removeFromWishlist: async (apartmentId) => (await api.delete(`/api/wishlist/${apartmentId}`)).data,
 };
+
+export default wishlistService;

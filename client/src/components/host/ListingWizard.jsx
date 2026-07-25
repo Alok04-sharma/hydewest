@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
   FiAlertCircle,
@@ -22,7 +23,9 @@ import {
   PRICING_UNITS,
   PROPERTY_TYPES,
   WIZARD_STEPS,
+  calculateSuggestedRates,
   createDefaultListing,
+  createPresetCoupons,
   formatPriceUnit,
 } from "../../constants/listingWizard";
 
@@ -42,12 +45,23 @@ const normalizeInitialData = (source) => {
     ...defaults,
     ...source,
     location: { ...defaults.location, ...(source.location || {}) },
-    pricing: {
-      ...defaults.pricing,
-      ...(source.pricing || {}),
-      basePrice:
-        source.pricing?.basePrice || source.pricing?.pricePerNight || defaults.pricing.basePrice,
-    },
+    pricing: (() => {
+      const dayPrice = Number(
+        source.pricing?.rates?.day ||
+          source.pricing?.basePrice ||
+          source.pricing?.pricePerNight ||
+          defaults.pricing.basePrice
+      );
+      const rates = calculateSuggestedRates(dayPrice, source.pricing?.rates || {});
+      return {
+        ...defaults.pricing,
+        ...(source.pricing || {}),
+        basePrice: rates.day,
+        pricePerNight: rates.night,
+        priceUnit: "day",
+        rates,
+      };
+    })(),
     coupons: (source.coupons || []).map((coupon) => ({
       ...coupon,
       code: String(coupon.code || "").toUpperCase(),
@@ -110,7 +124,7 @@ const NumberCounter = ({ label, helper, value, min = 0, max = 50, onChange }) =>
 
 const StepHeading = ({ title, description }) => (
   <div className="mb-8">
-    <p className="text-xs font-black uppercase tracking-[0.22em] text-[#FF385C]">StayNest Host Setup</p>
+    <p className="text-xs font-black uppercase tracking-[0.22em] text-[#FF385C]">hydewest Host Studio</p>
     <h1 className="mt-3 text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">{title}</h1>
     <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500 sm:text-base">{description}</p>
   </div>
@@ -142,12 +156,21 @@ const getStepError = (step, data, images) => {
         return "Valid map coordinates are required.";
       }
       return "";
-    case 7:
-      if (Number(data.pricing.basePrice) <= 0) return "Base price must be greater than zero.";
+    case 7: {
+      if (Number(data.pricing.basePrice) <= 0) {
+        return "Daily price must be greater than zero.";
+      }
+      const invalidRate = PRICING_UNITS.find(
+        ([unit]) => Number(data.pricing.rates?.[unit]) <= 0
+      );
+      if (invalidRate) {
+        return `Add a valid ${invalidRate[1].toLowerCase()} price.`;
+      }
       if (Number(data.pricing.baseGuestCount) > Number(data.guests)) {
         return "Included guest count cannot exceed maximum guests.";
       }
       return "";
+    }
     case 8: {
       const codes = data.coupons.map((coupon) => coupon.code.trim().toUpperCase()).filter(Boolean);
       if (new Set(codes).size !== codes.length) return "Coupon codes must be unique.";
@@ -179,6 +202,7 @@ const getStepError = (step, data, images) => {
 export default function ListingWizard({ mode = "create", initialData = null, listingId = "" }) {
   const navigate = useNavigate();
   const inputRef = useRef(null);
+  const stepRailRef = useRef(null);
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState("forward");
   const [error, setError] = useState("");
@@ -223,6 +247,18 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
   }, [data, mode]);
 
   useEffect(() => {
+    const activeStep = stepRailRef.current?.querySelector(
+      `[data-step-index="${step}"]`
+    );
+
+    activeStep?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [step]);
+
+  useEffect(() => {
     return () => {
       images.forEach((image) => {
         if (image.kind === "new" && image.url) URL.revokeObjectURL(image.url);
@@ -239,6 +275,77 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
       ...previous,
       [group]: { ...previous[group], [field]: value },
     }));
+
+  const handleDailyPriceChange = (value) => {
+    if (value === "") {
+      setData((previous) => ({
+        ...previous,
+        pricing: {
+          ...previous.pricing,
+          basePrice: "",
+          pricePerNight: "",
+          priceUnit: "day",
+          rates: { hour: "", night: "", day: "", week: "", month: "" },
+          autoRateMultipliers: true,
+        },
+      }));
+      return;
+    }
+
+    const dayPrice = Math.max(Number(value), 0);
+    const rates = calculateSuggestedRates(dayPrice);
+
+    setData((previous) => ({
+      ...previous,
+      pricing: {
+        ...previous.pricing,
+        basePrice: dayPrice,
+        pricePerNight: rates.night,
+        priceUnit: "day",
+        rates,
+        autoRateMultipliers: true,
+      },
+    }));
+  };
+
+  const updateRate = (unit, value) => {
+    if (unit === "day") {
+      handleDailyPriceChange(value);
+      return;
+    }
+
+    const amount = value === "" ? "" : Math.max(Number(value), 0);
+
+    setData((previous) => ({
+      ...previous,
+      pricing: {
+        ...previous.pricing,
+        pricePerNight:
+          unit === "night" ? amount : previous.pricing.pricePerNight,
+        autoRateMultipliers: false,
+        rates: {
+          ...previous.pricing.rates,
+          [unit]: amount,
+        },
+      },
+    }));
+  };
+
+  const resetSuggestedRates = () => {
+    setData((previous) => {
+      const rates = calculateSuggestedRates(previous.pricing.basePrice);
+      return {
+        ...previous,
+        pricing: {
+          ...previous.pricing,
+          priceUnit: "day",
+          pricePerNight: rates.night,
+          rates,
+          autoRateMultipliers: true,
+        },
+      };
+    });
+  };
 
   const goToStep = (nextStep) => {
     setDirection(nextStep > step ? "forward" : "backward");
@@ -322,6 +429,8 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
         ...previous.coupons,
         {
           code: "",
+          label: "Custom Offer",
+          description: "",
           discountType: "percentage",
           discountValue: 10,
           minBookingAmount: 0,
@@ -331,6 +440,9 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
           usageLimit: 0,
           usedCount: 0,
           isActive: true,
+          premiumOnly: false,
+          paymentMethod: "any",
+          source: "custom",
         },
       ],
     }));
@@ -352,6 +464,13 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
       ...previous,
       coupons: previous.coupons.filter((_, couponIndex) => couponIndex !== index),
     }));
+  };
+
+  const restorePresetCoupons = () => {
+    setData((previous) => {
+      const customCoupons = previous.coupons.filter((coupon) => coupon.source !== "preset");
+      return { ...previous, coupons: [...createPresetCoupons(), ...customCoupons] };
+    });
   };
 
   const addRule = () => {
@@ -559,40 +678,355 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
       case 7:
         return (
           <>
-            <StepHeading title="Build your pricing" description="Choose the billing unit and add optional charges. Guests will see a transparent price breakdown." />
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              {PRICING_UNITS.map(([value, label, helper]) => (
-                <button key={value} type="button" onClick={() => updateNested("pricing", "priceUnit", value)} className={`rounded-2xl border p-4 text-left transition ${data.pricing.priceUnit === value ? "border-[#FF385C] bg-rose-50 ring-2 ring-rose-100" : "border-gray-200 bg-white hover:border-gray-400"}`}>
-                  <p className="font-black text-gray-900">{label}</p><p className="mt-1 text-[11px] leading-4 text-gray-500">{helper}</p>
-                </button>
-              ))}
+            <StepHeading
+              title="Build a pricing ladder guests understand"
+              description="Enter one fair daily price. hydewest immediately prepares hourly, nightly, weekly and monthly options. Longer stays become better value, and you can still edit every generated amount."
+            />
+
+            <div className="grid gap-5 xl:grid-cols-[0.92fr_1.35fr]">
+              <motion.section
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="relative overflow-hidden rounded-[30px] border border-rose-200 bg-[radial-gradient(circle_at_top_right,rgba(255,56,92,.15),transparent_16rem),linear-gradient(145deg,#fff8f8,#fce7ed)] p-5 shadow-[0_24px_65px_rgba(120,20,55,.12)] sm:p-6"
+              >
+                <span className="absolute -right-7 -top-10 text-[8rem] opacity-[0.055]">
+                  ₹
+                </span>
+
+                <div className="relative">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <span className="rounded-full border border-rose-200 bg-white/70 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-[#b20b3b]">
+                      Daily reference price
+                    </span>
+                    <span className="rounded-full bg-emerald-100 px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                      Host controlled
+                    </span>
+                  </div>
+
+                  <h3 className="mt-5 text-3xl font-black tracking-tight text-slate-950">
+                    What should one full day cost?
+                  </h3>
+                  <p className="mt-2 text-sm font-medium leading-6 text-slate-600">
+                    This is your main price. Smart rates are calculated from it,
+                    while your cleaning and extra-guest charges remain separate.
+                  </p>
+
+                  <div className="mt-6 rounded-[26px] border border-white/80 bg-white/75 p-5 shadow-xl shadow-rose-100/70 backdrop-blur">
+                    <FieldLabel>Price per day</FieldLabel>
+                    <div className="flex items-center rounded-2xl border border-rose-200 bg-[#fffafa] px-4 transition focus-within:border-[#FF385C] focus-within:ring-4 focus-within:ring-rose-100">
+                      <span className="text-2xl font-black text-[#b20b3b]">₹</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={data.pricing.basePrice}
+                        onChange={(event) =>
+                          handleDailyPriceChange(event.target.value)
+                        }
+                        placeholder="2500"
+                        className="min-w-0 flex-1 bg-transparent px-3 py-4 text-3xl font-black text-slate-950 outline-none placeholder:text-slate-300"
+                      />
+                      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                        per day
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {[1500, 2500, 4000, 6000].map((amount) => (
+                        <button
+                          key={amount}
+                          type="button"
+                          onClick={() => handleDailyPriceChange(String(amount))}
+                          className={`rounded-full border px-3 py-1.5 text-[10px] font-black transition ${
+                            Number(data.pricing.basePrice) === amount
+                              ? "border-[#b20b3b] bg-[#b20b3b] text-white"
+                              : "border-rose-200 bg-white/70 text-slate-600 hover:border-rose-300 hover:text-[#b20b3b]"
+                          }`}
+                        >
+                          ₹{amount.toLocaleString("en-IN")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-rose-200/70 bg-white/55 p-4">
+                      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                        Night suggestion
+                      </p>
+                      <p className="mt-1 text-xl font-black text-slate-950">
+                        ₹{Number(data.pricing.rates?.night || 0).toLocaleString("en-IN")}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-rose-200/70 bg-white/55 p-4">
+                      <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                        Monthly suggestion
+                      </p>
+                      <p className="mt-1 text-xl font-black text-slate-950">
+                        ₹{Number(data.pricing.rates?.month || 0).toLocaleString("en-IN")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={resetSuggestedRates}
+                    className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white/70 px-4 py-3 text-sm font-black text-[#b20b3b] shadow-sm transition hover:border-rose-300 hover:bg-white"
+                  >
+                    <FiStar /> Recalculate smart prices
+                  </button>
+                </div>
+              </motion.section>
+
+              <motion.section
+                initial={{ opacity: 0, x: 16 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="overflow-hidden rounded-[30px] border border-slate-200 bg-[radial-gradient(circle_at_90%_0%,rgba(255,56,92,.12),transparent_19rem),linear-gradient(145deg,#fffdfd,#fff1f4)] p-5 text-slate-950 shadow-[0_24px_70px_rgba(120,20,55,.12)] sm:p-6"
+              >
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-600">
+                      Guest pricing menu
+                    </p>
+                    <h3 className="mt-2 text-2xl font-black text-slate-950">
+                      Smart first. Editable always.
+                    </h3>
+                    <p className="mt-2 max-w-xl text-xs font-semibold leading-5 text-slate-600">
+                      Short bookings carry convenience pricing. Longer bookings
+                      receive controlled value so guests save without creating a
+                      major Host loss.
+                    </p>
+                  </div>
+
+                  <span
+                    className={`w-fit rounded-full border px-3 py-1.5 text-[10px] font-black uppercase tracking-wide ${
+                      data.pricing.autoRateMultipliers
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-amber-200 bg-amber-50 text-amber-700"
+                    }`}
+                  >
+                    {data.pricing.autoRateMultipliers
+                      ? "Auto pricing active"
+                      : "Custom pricing active"}
+                  </span>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {PRICING_UNITS.map(([unit, label, helper, icon], index) => {
+                    const amount = Number(data.pricing.rates?.[unit] || 0);
+                    const dayPrice = Number(
+                      data.pricing.rates?.day || data.pricing.basePrice || 0
+                    );
+                    const benchmark =
+                      unit === "night"
+                        ? dayPrice
+                        : unit === "week"
+                          ? dayPrice * 7
+                          : unit === "month"
+                            ? dayPrice * 30
+                            : 0;
+                    const saving =
+                      benchmark > 0
+                        ? Math.max(
+                            Math.round((1 - amount / benchmark) * 100),
+                            0
+                          )
+                        : 0;
+                    const featured = unit === "day";
+
+                    return (
+                      <motion.div
+                        key={unit}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.045 }}
+                        whileHover={{ y: -3 }}
+                        className={`relative overflow-hidden rounded-[22px] border p-4 transition ${
+                          featured
+                            ? "border-rose-300 bg-rose-100/80 shadow-sm"
+                            : "border-slate-200 bg-white/85 hover:border-rose-300 hover:bg-rose-50"
+                        }`}
+                      >
+                        {featured && (
+                          <span className="absolute right-3 top-3 rounded-full bg-rose-300 px-2 py-1 text-[8px] font-black uppercase tracking-wide text-slate-950">
+                            Reference
+                          </span>
+                        )}
+
+                        <div className="flex items-start gap-3">
+                          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-xl text-slate-700">
+                            {icon}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-black text-slate-950">{label}</p>
+                            <p className="mt-1 text-[10px] font-semibold leading-4 text-slate-500">
+                              {helper}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center rounded-2xl border border-slate-200 bg-slate-50 px-3 transition focus-within:border-rose-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-rose-100">
+                          <span className="font-black text-slate-500">₹</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={data.pricing.rates?.[unit] ?? ""}
+                            onChange={(event) =>
+                              updateRate(unit, event.target.value)
+                            }
+                            className="min-w-0 flex-1 bg-transparent px-2 py-3 text-lg font-black text-slate-950 outline-none placeholder:text-slate-300"
+                          />
+                          <span className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                            /{unit}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex min-h-6 items-center justify-between gap-2">
+                          <span className="text-[9px] font-bold text-slate-500">
+                            {unit === "hour"
+                              ? "Flexible short-stay rate"
+                              : unit === "day"
+                                ? "Host reference amount"
+                                : "Longer stay value"}
+                          </span>
+                          {saving > 0 && (
+                            <span className="rounded-full bg-emerald-100 px-2 py-1 text-[9px] font-black text-emerald-700">
+                              Guest saves {saving}%
+                            </span>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.section>
             </div>
-            <div className="mt-6 grid gap-5 rounded-3xl border border-gray-200 bg-gray-50 p-5 sm:grid-cols-2 lg:grid-cols-3">
-              <div><FieldLabel>Base price / {formatPriceUnit(data.pricing.priceUnit)}</FieldLabel><TextInput type="number" min="1" value={data.pricing.basePrice} onChange={(event) => updateNested("pricing", "basePrice", event.target.value)} /></div>
-              <div><FieldLabel>Cleaning charge</FieldLabel><TextInput type="number" min="0" value={data.pricing.cleaningFee} onChange={(event) => updateNested("pricing", "cleaningFee", event.target.value)} /></div>
-              <div><FieldLabel optional>Platform/service charge</FieldLabel><TextInput type="number" min="0" value={data.pricing.serviceFee} onChange={(event) => updateNested("pricing", "serviceFee", event.target.value)} /></div>
-              <div><FieldLabel>Guests included in base price</FieldLabel><TextInput type="number" min="1" max={data.guests} value={data.pricing.baseGuestCount} onChange={(event) => updateNested("pricing", "baseGuestCount", event.target.value)} /></div>
-              <div><FieldLabel>Extra guest charge / unit</FieldLabel><TextInput type="number" min="0" value={data.pricing.extraGuestFee} onChange={(event) => updateNested("pricing", "extraGuestFee", event.target.value)} /></div>
-              <div><FieldLabel>Currency</FieldLabel><select value={data.pricing.currency} onChange={(event) => updateNested("pricing", "currency", event.target.value)} className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3.5 text-sm font-bold outline-none focus:border-[#FF385C] focus:ring-4 focus:ring-rose-100"><option value="INR">INR — Indian Rupee</option><option value="USD">USD — US Dollar</option></select></div>
-            </div>
+
+            <section className="mt-6 overflow-hidden rounded-[30px] border border-rose-200/70 bg-[linear-gradient(145deg,rgba(255,248,248,.92),rgba(244,233,237,.86))] shadow-sm">
+              <div className="border-b border-rose-200/60 px-5 py-4 sm:px-6">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#b20b3b]">
+                  Additional pricing controls
+                </p>
+                <h3 className="mt-1 text-xl font-black text-slate-950">
+                  Fees, included guests and currency
+                </h3>
+              </div>
+
+              <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-3 sm:p-6">
+                <div>
+                  <FieldLabel>Cleaning charge</FieldLabel>
+                  <TextInput
+                    type="number"
+                    min="0"
+                    value={data.pricing.cleaningFee}
+                    onChange={(event) =>
+                      updateNested("pricing", "cleaningFee", event.target.value)
+                    }
+                  />
+                </div>
+                <div>
+                  <FieldLabel optional>Platform/service charge</FieldLabel>
+                  <TextInput
+                    type="number"
+                    min="0"
+                    value={data.pricing.serviceFee}
+                    onChange={(event) =>
+                      updateNested("pricing", "serviceFee", event.target.value)
+                    }
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Guests included in base price</FieldLabel>
+                  <TextInput
+                    type="number"
+                    min="1"
+                    max={data.guests}
+                    value={data.pricing.baseGuestCount}
+                    onChange={(event) =>
+                      updateNested("pricing", "baseGuestCount", event.target.value)
+                    }
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Extra guest charge / selected unit</FieldLabel>
+                  <TextInput
+                    type="number"
+                    min="0"
+                    value={data.pricing.extraGuestFee}
+                    onChange={(event) =>
+                      updateNested("pricing", "extraGuestFee", event.target.value)
+                    }
+                  />
+                </div>
+                <div>
+                  <FieldLabel>Currency</FieldLabel>
+                  <select
+                    value={data.pricing.currency}
+                    onChange={(event) =>
+                      updateNested("pricing", "currency", event.target.value)
+                    }
+                    className="w-full rounded-2xl border border-rose-200 bg-[#fffafa] px-4 py-3.5 text-sm font-bold text-slate-900 outline-none focus:border-[#FF385C] focus:ring-4 focus:ring-rose-100"
+                  >
+                    <option value="INR">INR — Indian Rupee</option>
+                    <option value="USD">USD — US Dollar</option>
+                  </select>
+                </div>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-emerald-700">
+                    Pricing status
+                  </p>
+                  <p className="mt-2 flex items-center gap-2 text-sm font-black text-emerald-900">
+                    <FiCheck /> All rates remain editable
+                  </p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-emerald-700">
+                    Changing the daily reference recalculates the complete ladder.
+                    Editing an individual rate switches the ladder to custom mode.
+                  </p>
+                </div>
+              </div>
+            </section>
           </>
         );
       case 8:
         return (
           <>
-            <StepHeading title="Create discount coupons" description="Add multiple offers. Coupon limits are checked by the backend and usage is counted after successful payment." />
-            <button type="button" onClick={addCoupon} className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-3 text-sm font-black text-white transition hover:bg-[#FF385C]"><FiPlus /> Add coupon</button>
+            <StepHeading
+              title="Ready-made coupons, plus your own offers"
+              description="hydewest has already prepared practical normal and Premium guest coupons. Keep, edit or remove them, and create unlimited custom offers whenever you need."
+            />
+
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={addCoupon} className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-3 text-sm font-black text-white transition hover:bg-[#FF385C]"><FiPlus /> Create custom coupon</button>
+              <button type="button" onClick={restorePresetCoupons} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-black text-[#FF385C] transition hover:bg-rose-100"><FiStar /> Restore recommended coupons</button>
+            </div>
+
+            <div className="mt-5 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+              <strong>How payment coupons work:</strong> UPI and Card coupons automatically open Razorpay with the matching payment method. Premium coupons remain visible to free guests but stay locked until they activate Premium.
+            </div>
+
             <div className="mt-5 space-y-4">
-              {data.coupons.length === 0 && <div className="rounded-3xl border border-dashed border-gray-300 p-10 text-center text-sm text-gray-500">No coupons added. This step is optional.</div>}
+              {data.coupons.length === 0 && <div className="rounded-3xl border border-dashed border-gray-300 p-10 text-center text-sm text-gray-500">No coupons added. You can restore hydewest recommendations or create your own.</div>}
               {data.coupons.map((coupon, index) => (
-                <div key={`${coupon._id || "coupon"}-${index}`} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <div className="flex items-center justify-between"><h3 className="font-black text-gray-900">Coupon {index + 1}</h3><button type="button" onClick={() => removeCoupon(index)} className="rounded-xl p-2 text-red-500 hover:bg-red-50"><FiTrash2 /></button></div>
+                <div key={`${coupon._id || coupon.code || "coupon"}-${index}`} className={`rounded-3xl border p-5 shadow-sm ${coupon.premiumOnly ? "border-amber-200 bg-gradient-to-br from-amber-50 to-white" : "border-gray-200 bg-white"}`}>
+                  <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-black text-gray-900">{coupon.label || `Coupon ${index + 1}`}</h3>
+                      <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${coupon.source === "preset" ? "bg-violet-100 text-violet-700" : "bg-slate-100 text-slate-600"}`}>{coupon.source === "preset" ? "hydewest preset" : "Custom"}</span>
+                      {coupon.premiumOnly && <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-amber-800">👑 Premium only</span>}
+                      {coupon.paymentMethod !== "any" && <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-blue-700">{coupon.paymentMethod} payment</span>}
+                    </div>
+                    <button type="button" onClick={() => removeCoupon(index)} className="w-fit rounded-xl p-2 text-red-500 hover:bg-red-50"><FiTrash2 /></button>
+                  </div>
+
                   <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div><FieldLabel>Offer name</FieldLabel><TextInput value={coupon.label || ""} onChange={(event) => updateCoupon(index, "label", event.target.value)} placeholder="Weekend Saver" /></div>
                     <div><FieldLabel>Code</FieldLabel><TextInput value={coupon.code} onChange={(event) => updateCoupon(index, "code", event.target.value.replace(/\s/g, ""))} placeholder="WELCOME20" /></div>
+                    <div className="sm:col-span-2"><FieldLabel optional>Description shown to guests</FieldLabel><TextInput value={coupon.description || ""} onChange={(event) => updateCoupon(index, "description", event.target.value)} placeholder="Explain when this offer is useful" /></div>
                     <div><FieldLabel>Discount type</FieldLabel><select value={coupon.discountType} onChange={(event) => updateCoupon(index, "discountType", event.target.value)} className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3.5 text-sm font-bold outline-none"><option value="percentage">Percentage</option><option value="fixed">Fixed amount</option></select></div>
                     <div><FieldLabel>Discount value</FieldLabel><TextInput type="number" min="1" max={coupon.discountType === "percentage" ? 100 : undefined} value={coupon.discountValue} onChange={(event) => updateCoupon(index, "discountValue", event.target.value)} /></div>
                     <div><FieldLabel>Minimum booking</FieldLabel><TextInput type="number" min="0" value={coupon.minBookingAmount} onChange={(event) => updateCoupon(index, "minBookingAmount", event.target.value)} /></div>
                     <div><FieldLabel optional>Maximum discount</FieldLabel><TextInput type="number" min="0" value={coupon.maxDiscount} onChange={(event) => updateCoupon(index, "maxDiscount", event.target.value)} /></div>
+                    <div><FieldLabel>Guest access</FieldLabel><select value={coupon.premiumOnly ? "premium" : "all"} onChange={(event) => updateCoupon(index, "premiumOnly", event.target.value === "premium")} className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3.5 text-sm font-bold outline-none"><option value="all">All guests</option><option value="premium">Premium guests only</option></select></div>
+                    <div><FieldLabel>Payment method</FieldLabel><select value={coupon.paymentMethod || "any"} onChange={(event) => updateCoupon(index, "paymentMethod", event.target.value)} className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3.5 text-sm font-bold outline-none"><option value="any">Any payment method</option><option value="upi">UPI only</option><option value="card">Card only</option></select></div>
                     <div><FieldLabel>Valid from</FieldLabel><TextInput type="date" value={coupon.validFrom} onChange={(event) => updateCoupon(index, "validFrom", event.target.value)} /></div>
                     <div><FieldLabel optional>Valid until</FieldLabel><TextInput type="date" value={coupon.validUntil || ""} onChange={(event) => updateCoupon(index, "validUntil", event.target.value)} /></div>
                     <div><FieldLabel optional>Usage limit (0 = unlimited)</FieldLabel><TextInput type="number" min="0" value={coupon.usageLimit} onChange={(event) => updateCoupon(index, "usageLimit", event.target.value)} /></div>
@@ -687,45 +1121,194 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7]">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_5%_0%,rgba(255,56,92,.11),transparent_28rem),radial-gradient(circle_at_95%_5%,rgba(124,58,237,.07),transparent_30rem),linear-gradient(180deg,#fff5f6,#f4e9ed_48%,#edf1f6)] pb-14">
       <style>{`
-        @keyframes wizardForward { from { opacity: 0; transform: translateX(28px) scale(.99); } to { opacity: 1; transform: translateX(0) scale(1); } }
-        @keyframes wizardBackward { from { opacity: 0; transform: translateX(-28px) scale(.99); } to { opacity: 1; transform: translateX(0) scale(1); } }
+        @keyframes wizardForward {
+          from { opacity: 0; transform: translateX(28px) scale(.99); }
+          to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes wizardBackward {
+          from { opacity: 0; transform: translateX(-28px) scale(.99); }
+          to { opacity: 1; transform: translateX(0) scale(1); }
+        }
         .wizard-forward { animation: wizardForward .38s cubic-bezier(.22,.8,.32,1); }
         .wizard-backward { animation: wizardBackward .38s cubic-bezier(.22,.8,.32,1); }
       `}</style>
 
-      <div className="sticky top-16 z-30 border-b border-gray-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <div><p className="text-xs font-black uppercase tracking-wide text-gray-400">{mode === "edit" ? "Edit property" : "Create property"}</p><p className="mt-0.5 text-sm font-black text-gray-900">Step {step + 1} of {WIZARD_STEPS.length}: {WIZARD_STEPS[step][0]}</p></div>
-            <div className="flex items-center gap-2 text-sm font-black text-[#FF385C]"><FiSave /> {mode === "create" ? "Draft auto-saved" : "Editing saved listing"}</div>
-          </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-gradient-to-r from-[#FF385C] to-[#D70466] transition-all duration-500" style={{ width: `${progress}%` }} /></div>
-        </div>
-      </div>
+      <div className="mx-auto max-w-7xl px-4 pb-3 pt-5 sm:px-6 sm:pt-7 lg:px-8">
+        <motion.header
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="overflow-hidden rounded-[30px] border border-rose-200/70 bg-[radial-gradient(circle_at_95%_0%,rgba(255,56,92,.16),transparent_18rem),linear-gradient(145deg,rgba(255,248,248,.94),rgba(244,233,237,.9))] shadow-[0_24px_70px_rgba(83,23,45,.12)]"
+        >
+          <div className="flex flex-col justify-between gap-4 px-5 pb-4 pt-5 sm:flex-row sm:items-center sm:px-6">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#b20b3b]">
+                {mode === "edit" ? "Edit property" : "Create property"}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <h1 className="text-xl font-black text-slate-950 sm:text-2xl">
+                  {WIZARD_STEPS[step][0]}
+                </h1>
+                <span className="rounded-full border border-rose-200 bg-white/70 px-3 py-1 text-[10px] font-black text-slate-500">
+                  Step {step + 1} of {WIZARD_STEPS.length}
+                </span>
+              </div>
+              <p className="mt-1 text-xs font-semibold text-slate-500">
+                {WIZARD_STEPS[step][1]}
+              </p>
+            </div>
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[260px_1fr] lg:px-8">
-        <aside className="hidden rounded-3xl border border-gray-200 bg-white p-4 shadow-sm lg:block">
-          <div className="space-y-1">
-            {WIZARD_STEPS.map(([title], index) => (
-              <button key={title} type="button" onClick={() => index <= step && goToStep(index)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-bold transition ${index === step ? "bg-gray-900 text-white" : index < step ? "text-emerald-700 hover:bg-emerald-50" : "cursor-default text-gray-400"}`}>
-                <span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs ${index < step ? "bg-emerald-100 text-emerald-700" : index === step ? "bg-white/15 text-white" : "bg-gray-100"}`}>{index < step ? <FiCheck /> : index + 1}</span>{title}
-              </button>
-            ))}
+            <div className="flex items-center gap-3">
+              <div className="min-w-28 text-right">
+                <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                  Completion
+                </p>
+                <p className="mt-1 text-lg font-black text-[#b20b3b]">
+                  {progress}%
+                </p>
+              </div>
+              <div className="grid h-11 w-11 place-items-center rounded-2xl border border-rose-200 bg-white/70 text-[#b20b3b] shadow-sm">
+                <FiSave />
+              </div>
+            </div>
           </div>
-        </aside>
 
-        <main className="min-w-0">
-          {success && <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700">🎉 {success}</div>}
-          {error && <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700"><FiAlertCircle className="mt-0.5 shrink-0" /> {error}</div>}
-          <section key={step} className={`min-h-[560px] rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8 lg:p-10 ${direction === "forward" ? "wizard-forward" : "wizard-backward"}`}>
+          <div className="px-5 sm:px-6">
+            <div className="h-2 overflow-hidden rounded-full bg-rose-100/80">
+              <motion.div
+                initial={false}
+                animate={{ width: `${progress}%` }}
+                transition={{ type: "spring", stiffness: 220, damping: 28 }}
+                className="h-full rounded-full bg-gradient-to-r from-[#FF385C] via-[#d3134c] to-violet-600"
+              />
+            </div>
+          </div>
+
+          <div
+            ref={stepRailRef}
+            className="no-scrollbar mt-4 flex gap-2 overflow-x-auto border-t border-rose-200/60 px-5 py-4 sm:px-6"
+          >
+            {WIZARD_STEPS.map(([title], index) => {
+              const completed = index < step;
+              const active = index === step;
+              const reachable = index <= step;
+
+              return (
+                <motion.button
+                  key={title}
+                  data-step-index={index}
+                  type="button"
+                  disabled={!reachable}
+                  onClick={() => reachable && goToStep(index)}
+                  whileHover={reachable ? { y: -2 } : undefined}
+                  whileTap={reachable ? { scale: 0.97 } : undefined}
+                  className={`flex shrink-0 items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-black transition ${
+                    active
+                      ? "border-slate-950 bg-slate-950 text-white shadow-lg"
+                      : completed
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "cursor-not-allowed border-slate-200/80 bg-white/45 text-slate-400"
+                  }`}
+                >
+                  <span
+                    className={`grid h-7 w-7 place-items-center rounded-xl text-[10px] ${
+                      active
+                        ? "bg-white/12"
+                        : completed
+                          ? "bg-emerald-100"
+                          : "bg-slate-100"
+                    }`}
+                  >
+                    {completed ? <FiCheck /> : index + 1}
+                  </span>
+                  <span>{title}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.header>
+
+        <main className="mx-auto mt-6 max-w-6xl">
+          {success && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 font-bold text-emerald-700"
+            >
+              🎉 {success}
+            </motion.div>
+          )}
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-5 flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700"
+            >
+              <FiAlertCircle className="mt-0.5 shrink-0" /> {error}
+            </motion.div>
+          )}
+
+          <motion.section
+            key={step}
+            initial={{ opacity: 0, x: direction === "forward" ? 22 : -22 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+            className={`min-h-[560px] overflow-hidden rounded-[32px] border border-rose-200/65 bg-[linear-gradient(145deg,rgba(255,251,251,.92),rgba(250,241,244,.88))] p-5 shadow-[0_28px_85px_rgba(61,21,38,.11)] sm:p-8 lg:p-10 ${
+              direction === "forward" ? "wizard-forward" : "wizard-backward"
+            }`}
+          >
             {renderStep()}
-          </section>
+          </motion.section>
 
-          <div className="mt-5 flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-            <button type="button" onClick={() => step === 0 ? navigate("/host/listings") : goToStep(step - 1)} className="inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black text-gray-700 transition hover:bg-gray-100"><FiArrowLeft /> {step === 0 ? "Cancel" : "Previous"}</button>
-            {step < WIZARD_STEPS.length - 1 ? <button type="button" onClick={goNext} className="inline-flex items-center gap-2 rounded-xl bg-[#FF385C] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#E31C5F]">Next <FiArrowRight /></button> : <button type="button" onClick={submitListing} disabled={submitting} className="inline-flex items-center gap-2 rounded-xl bg-gray-950 px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#FF385C] disabled:cursor-not-allowed disabled:opacity-50">{submitting ? "Saving property..." : mode === "edit" ? "Save & resubmit" : "Submit for approval"}<FiCheck /></button>}
+          <div className="mt-5 flex flex-col-reverse items-stretch justify-between gap-3 rounded-[24px] border border-rose-200/70 bg-[#fff8f8]/88 p-4 shadow-[0_16px_45px_rgba(86,20,42,.09)] backdrop-blur sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() =>
+                step === 0 ? navigate("/host/listings") : goToStep(step - 1)
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white/65 px-4 py-3 text-sm font-black text-slate-700 transition hover:border-rose-300 hover:bg-white hover:text-[#b20b3b]"
+            >
+              <FiArrowLeft /> {step === 0 ? "Cancel" : "Previous"}
+            </button>
+
+            <div className="hidden text-center sm:block">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">
+                {mode === "create" ? "Draft auto-saved" : "Editing saved listing"}
+              </p>
+              <p className="mt-1 text-xs font-bold text-slate-600">
+                Your information stays safe while you move between steps.
+              </p>
+            </div>
+
+            {step < WIZARD_STEPS.length - 1 ? (
+              <motion.button
+                type="button"
+                whileHover={{ x: 3 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={goNext}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF385C] to-[#a90836] px-5 py-3 text-sm font-black text-white shadow-lg shadow-rose-200"
+              >
+                Next <FiArrowRight />
+              </motion.button>
+            ) : (
+              <motion.button
+                type="button"
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={submitListing}
+                disabled={submitting}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-[#b20b3b] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting
+                  ? "Saving property..."
+                  : mode === "edit"
+                    ? "Save & resubmit"
+                    : "Submit for approval"}
+                <FiCheck />
+              </motion.button>
+            )}
           </div>
         </main>
       </div>

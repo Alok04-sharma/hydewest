@@ -1,25 +1,13 @@
-import api from './axios';
+import api from "./axios";
 
 const bookingService = {
-  // Guest - Create booking
-  createBooking: (bookingData) => {
-    return api.post('/api/bookings/create', bookingData);
-  },
-
-  // Guest - Get my bookings
-  getMyBookings: () => {
-    return api.get('/api/bookings/my');
-  },
-
-  // Guest - Cancel booking
-  cancelBooking: (id) => {
-    return api.patch(`/api/bookings/${id}/cancel`);
-  },
-
-  // Host - Get guest bookings for host's properties
-  getHostBookings: () => {
-    return api.get('/api/bookings/host');
-  },
+  getQuote: async (payload) => (await api.post("/api/bookings/quote", payload)).data,
+  createBooking: async (payload) => (await api.post("/api/bookings/create", payload)).data,
+  getMyBookings: async () => (await api.get("/api/bookings/my")).data,
+  getMyBookingDetails: async (id) => (await api.get(`/api/bookings/my/${id}`)).data,
+  cancelBooking: async (id, reason = "") => (await api.patch(`/api/bookings/${id}/cancel`, { reason })).data,
+  getHostBookings: async () => (await api.get("/api/bookings/host")).data,
 };
 
 export default bookingService;
+export { bookingService };

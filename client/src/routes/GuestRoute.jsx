@@ -1,17 +1,13 @@
-import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
-import { useSelector } from 'react-redux';
-import { ROUTES } from '../constants/routes';
-import { ROLES } from '../constants/roles';
+import React from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 export default function GuestRoute() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-
-  if (isAuthenticated && user) {
-    if (user.role === ROLES.OWNER) return <Navigate to={ROUTES.OWNER_DASHBOARD} replace />;
-    if (user.role === ROLES.HOST) return <Navigate to={ROUTES.HOST_DASHBOARD} replace />;
-    return <Navigate to={ROUTES.HOME} replace />;
-  }
-
+  const location = useLocation();
+  if (!isAuthenticated) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  const role = String(user?.role || "").toLowerCase();
+  if (["owner", "super_admin", "admin"].includes(role)) return <Navigate to="/owner/dashboard" replace />;
+  if (role === "host" || user?.isHost) return <Navigate to="/host/dashboard" replace />;
   return <Outlet />;
 }

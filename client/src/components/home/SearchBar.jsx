@@ -1,16 +1,31 @@
-import React, { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { searchListingsThunk, setFilter } from '../../redux/slices/listingSlice';
+import React, { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { useDispatch } from "react-redux";
+import {
+  searchListingsThunk,
+  setFilter,
+} from "../../redux/slices/listingSlice";
 
-export default function SearchBar() {
-  const [city, setCityInput] = useState('');
-  const [propertyType, setPropertyType] = useState('');
-  const [guests, setGuests] = useState('');
+const types = [
+  "Apartment",
+  "House",
+  "Villa",
+  "Cabin",
+  "Farm House",
+  "Hotel",
+  "Resort",
+];
+
+export default function SearchBar({ compact = false }) {
+  const [city, setCityInput] = useState("");
+  const [propertyType, setPropertyType] = useState("");
+  const [guests, setGuests] = useState("");
   const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
   const dispatch = useDispatch();
 
-  const handleSearch = (e) => {
-    if (e) e.preventDefault();
+  const handleSearch = (event) => {
+    event?.preventDefault();
+
     const query = {};
     if (city.trim()) query.city = city.trim();
     if (propertyType) query.propertyType = propertyType;
@@ -19,189 +34,257 @@ export default function SearchBar() {
     dispatch(setFilter(query));
     dispatch(searchListingsThunk(query));
     setIsMobileModalOpen(false);
+
+    window.requestAnimationFrame(() => {
+      document
+        .getElementById("home-properties")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  const clear = () => {
+    setCityInput("");
+    setPropertyType("");
+    setGuests("");
   };
 
   return (
     <>
-      {/* ========================================================= */}
-      {/* MOBILE APP FLOATING SEARCH TRIGGER (Visible on Mobile)    */}
-      {/* ========================================================= */}
-      <div className="block md:hidden px-4 py-2">
-        <button
-          onClick={() => setIsMobileModalOpen(true)}
-          className="w-full bg-white border border-gray-200 shadow-md hover:shadow-lg rounded-full px-4 py-3 flex items-center justify-between transition-all active:scale-[0.98]"
-        >
-          <div className="flex items-center gap-3">
-            <span className="text-xl text-[#FF385C]">🔍</span>
-            <div className="text-left">
-              <p className="text-xs font-bold text-gray-900">
-                {city.trim() ? city : 'Where to?'}
-              </p>
-              <p className="text-[11px] text-gray-500 font-medium">
-                {propertyType ? propertyType : 'Anywhere'} · {guests ? `${guests} Guests` : 'Add guests'}
-              </p>
-            </div>
-          </div>
-          <div className="h-8 w-8 rounded-full border border-gray-200 flex items-center justify-center text-xs text-gray-600">
-            ⚙️
-          </div>
-        </button>
-      </div>
-
-      {/* ========================================================= */}
-      {/* DESKTOP HORIZONTAL PILL SEARCH BAR (Visible on Web/Tablet) */}
-      {/* ========================================================= */}
-      <div className="hidden md:block w-full max-w-4xl mx-auto px-4 my-2">
-        <form
-          onSubmit={handleSearch}
-          className="bg-white p-2 rounded-full shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-300 flex items-center"
-        >
-          <div className="flex-1 px-5 py-1.5 border-r border-gray-200">
-            <label className="block text-[10px] font-bold text-gray-800 uppercase tracking-wider">
-              Where
-            </label>
-            <input
-              type="text"
-              placeholder="Search destination (e.g. Goa, Delhi)"
-              value={city}
-              onChange={(e) => setCityInput(e.target.value)}
-              className="w-full text-sm focus:outline-none text-gray-800 placeholder-gray-400 bg-transparent font-medium"
-            />
-          </div>
-
-          <div className="flex-1 px-5 py-1.5 border-r border-gray-200">
-            <label className="block text-[10px] font-bold text-gray-800 uppercase tracking-wider">
-              Type
-            </label>
-            <select
-              value={propertyType}
-              onChange={(e) => setPropertyType(e.target.value)}
-              className="w-full text-sm focus:outline-none text-gray-800 bg-transparent cursor-pointer font-medium -ml-1"
-            >
-              <option value="">Any Type</option>
-              <option value="Apartment">Apartment</option>
-              <option value="House">House</option>
-              <option value="Villa">Villa</option>
-              <option value="Cabin">Cabin</option>
-              <option value="Farm House">Farm House</option>
-              <option value="Hotel">Hotel</option>
-              <option value="Resort">Resort</option>
-            </select>
-          </div>
-
-          <div className="flex-1 px-5 py-1.5">
-            <label className="block text-[10px] font-bold text-gray-800 uppercase tracking-wider">
-              Guests
-            </label>
-            <input
-              type="number"
-              min="1"
-              placeholder="Add guests"
-              value={guests}
-              onChange={(e) => setGuests(e.target.value)}
-              className="w-full text-sm focus:outline-none text-gray-800 placeholder-gray-400 bg-transparent font-medium"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="bg-[#FF385C] hover:bg-[#E00B41] text-white h-12 w-12 rounded-full font-bold flex items-center justify-center transition-all shadow-md active:scale-95 shrink-0"
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.98 }}
+        onClick={() => setIsMobileModalOpen(true)}
+        className={`flex w-full items-center justify-between border border-rose-200/70 bg-[#fff8f8]/94 text-left shadow-[0_14px_35px_rgba(86,20,42,.12)] backdrop-blur md:hidden ${
+          compact ? "rounded-2xl px-3 py-2" : "rounded-[22px] px-4 py-3"
+        }`}
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span
+            className={`grid shrink-0 place-items-center bg-gradient-to-br from-[#ff385c] to-[#b20b3b] text-white ${
+              compact ? "h-8 w-8 rounded-xl text-sm" : "h-10 w-10 rounded-2xl"
+            }`}
           >
-            🔍
+            ⌕
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-xs font-black text-slate-950">
+              {city.trim() || "Where do you want to stay?"}
+            </span>
+            {!compact && (
+              <span className="mt-0.5 block truncate text-[10px] font-semibold text-slate-500">
+                {propertyType || "Any property"} · {guests ? `${guests} guests` : "Add guests"}
+              </span>
+            )}
+          </span>
+        </span>
+        <span className="shrink-0 text-[#bd123f]">☰</span>
+      </motion.button>
+
+      <form
+        onSubmit={handleSearch}
+        className={`hidden w-full items-center border border-rose-200/70 bg-[#fff8f8]/94 shadow-[0_16px_45px_rgba(86,20,42,.13)] backdrop-blur transition duration-300 hover:shadow-[0_22px_60px_rgba(86,20,42,.17)] md:flex ${
+          compact
+            ? "gap-0.5 rounded-[20px] p-1"
+            : "gap-1 rounded-[24px] p-1.5"
+        }`}
+      >
+        <label
+          className={`min-w-0 flex-[1.35] transition hover:bg-rose-100/60 ${
+            compact ? "rounded-2xl px-3 py-1.5" : "rounded-[18px] px-4 py-2"
+          }`}
+        >
+          {!compact && (
+            <span className="block text-[9px] font-black uppercase tracking-[0.16em] text-[#b20b3b]">
+              Destination
+            </span>
+          )}
+          <input
+            type="text"
+            placeholder={compact ? "Search destination" : "Goa, Jaipur, beach..."}
+            value={city}
+            onChange={(event) => setCityInput(event.target.value)}
+            className={`w-full bg-transparent font-bold text-slate-900 outline-none placeholder:text-slate-400 ${
+              compact ? "text-xs" : "mt-0.5 text-sm"
+            }`}
+          />
+        </label>
+
+        <span className={`${compact ? "h-7" : "h-9"} w-px bg-rose-200/70`} />
+
+        <label
+          className={`min-w-0 flex-1 transition hover:bg-rose-100/60 ${
+            compact ? "rounded-2xl px-3 py-1.5" : "rounded-[18px] px-4 py-2"
+          }`}
+        >
+          {!compact && (
+            <span className="block text-[9px] font-black uppercase tracking-[0.16em] text-[#b20b3b]">
+              Property
+            </span>
+          )}
+          <select
+            value={propertyType}
+            onChange={(event) => setPropertyType(event.target.value)}
+            className={`w-full cursor-pointer bg-transparent font-bold text-slate-900 outline-none ${
+              compact ? "text-xs" : "mt-0.5 text-sm"
+            }`}
+          >
+            <option value="">Any type</option>
+            {types.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <span className={`${compact ? "h-7" : "h-9"} w-px bg-rose-200/70`} />
+
+        <label
+          className={`min-w-0 flex-[0.65] transition hover:bg-rose-100/60 ${
+            compact ? "rounded-2xl px-3 py-1.5" : "rounded-[18px] px-4 py-2"
+          }`}
+        >
+          {!compact && (
+            <span className="block text-[9px] font-black uppercase tracking-[0.16em] text-[#b20b3b]">
+              Guests
+            </span>
+          )}
+          <input
+            type="number"
+            min="1"
+            placeholder={compact ? "Guests" : "Add guests"}
+            value={guests}
+            onChange={(event) => setGuests(event.target.value)}
+            className={`w-full bg-transparent font-bold text-slate-900 outline-none placeholder:text-slate-400 ${
+              compact ? "text-xs" : "mt-0.5 text-sm"
+            }`}
+          />
+        </label>
+
+        {(city || propertyType || guests) && !compact && (
+          <button
+            type="button"
+            onClick={clear}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-xs font-black text-slate-500 transition hover:bg-rose-100 hover:text-[#b20b3b]"
+            aria-label="Clear search"
+          >
+            ×
           </button>
-        </form>
-      </div>
+        )}
 
-      {/* ========================================================= */}
-      {/* MOBILE SEARCH OVERLAY / MODAL (App-like Bottom Drawer)   */}
-      {/* ========================================================= */}
-      {isMobileModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col justify-end md:hidden animate-fade-in">
-          <div className="bg-white rounded-t-3xl p-6 space-y-5 max-h-[85vh] overflow-y-auto border-t border-gray-100 shadow-2xl">
-            <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-              <h3 className="text-lg font-extrabold text-gray-900">Search Stays</h3>
-              <button
-                onClick={() => setIsMobileModalOpen(false)}
-                className="h-8 w-8 rounded-full bg-gray-100 text-gray-600 font-bold flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
+        <motion.button
+          type="submit"
+          whileHover={{ scale: 1.04, rotate: -2 }}
+          whileTap={{ scale: 0.94 }}
+          className={`grid shrink-0 place-items-center bg-gradient-to-br from-[#ff385c] to-[#a90836] font-black text-white shadow-lg shadow-rose-200 ${
+            compact
+              ? "h-9 w-9 rounded-[14px] text-sm"
+              : "h-12 w-12 rounded-[18px] text-lg"
+          }`}
+          aria-label="Search"
+        >
+          ⌕
+        </motion.button>
+      </form>
 
-            {/* Mobile Inputs */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Where
-                </label>
-                <input
-                  type="text"
-                  placeholder="Where are you going? (e.g. Goa)"
-                  value={city}
-                  onChange={(e) => setCityInput(e.target.value)}
-                  className="w-full p-3.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF385C]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Property Type
-                </label>
-                <select
-                  value={propertyType}
-                  onChange={(e) => setPropertyType(e.target.value)}
-                  className="w-full p-3.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF385C] bg-white"
+      <AnimatePresence>
+        {isMobileModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex flex-col justify-end bg-slate-950/65 backdrop-blur-sm md:hidden"
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="rounded-t-[30px] border-t border-rose-200 bg-[#fff4f5] p-5 shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-rose-200/70 pb-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#bd123f]">
+                    hydewest search
+                  </p>
+                  <h3 className="mt-1 text-xl font-black text-slate-950">
+                    Find your next stay
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileModalOpen(false)}
+                  className="grid h-10 w-10 place-items-center rounded-2xl bg-rose-100 text-slate-700"
                 >
-                  <option value="">Any Type</option>
-                  <option value="Apartment">Apartment</option>
-                  <option value="House">House</option>
-                  <option value="Villa">Villa</option>
-                  <option value="Cabin">Cabin</option>
-                  <option value="Farm House">Farm House</option>
-                  <option value="Hotel">Hotel</option>
-                  <option value="Resort">Resort</option>
-                </select>
+                  ×
+                </button>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">
-                  Guests Count
+              <div className="mt-5 space-y-4">
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-slate-500">
+                    Destination
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Goa, Jaipur, beach..."
+                    value={city}
+                    onChange={(event) => setCityInput(event.target.value)}
+                    className="w-full rounded-2xl border border-rose-200 bg-[#fff8f8] p-3.5 text-sm font-bold outline-none focus:border-[#d3134c]"
+                  />
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="Number of guests"
-                  value={guests}
-                  onChange={(e) => setGuests(e.target.value)}
-                  className="w-full p-3.5 rounded-xl border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#FF385C]"
-                />
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-slate-500">
+                    Property type
+                  </span>
+                  <select
+                    value={propertyType}
+                    onChange={(event) => setPropertyType(event.target.value)}
+                    className="w-full rounded-2xl border border-rose-200 bg-[#fff8f8] p-3.5 text-sm font-bold outline-none"
+                  >
+                    <option value="">Any type</option>
+                    {types.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-black uppercase tracking-wide text-slate-500">
+                    Guests
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Number of guests"
+                    value={guests}
+                    onChange={(event) => setGuests(event.target.value)}
+                    className="w-full rounded-2xl border border-rose-200 bg-[#fff8f8] p-3.5 text-sm font-bold outline-none"
+                  />
+                </label>
               </div>
-            </div>
 
-            {/* Mobile Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-100 gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setCityInput('');
-                  setPropertyType('');
-                  setGuests('');
-                }}
-                className="text-sm font-semibold text-gray-600 underline px-2 py-2"
-              >
-                Clear all
-              </button>
-              <button
-                type="button"
-                onClick={handleSearch}
-                className="flex-1 bg-[#FF385C] text-white py-3.5 rounded-xl font-bold text-sm shadow-md active:scale-95 flex items-center justify-center gap-2"
-              >
-                <span>🔍</span> Search Stays
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="mt-5 flex gap-3 border-t border-rose-200/70 pt-4">
+                <button
+                  type="button"
+                  onClick={clear}
+                  className="rounded-2xl border border-rose-200 px-4 py-3 text-sm font-black text-slate-600"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  className="flex-1 rounded-2xl bg-gradient-to-r from-[#ff385c] to-[#a90836] py-3 text-sm font-black text-white shadow-lg shadow-rose-200"
+                >
+                  Search stays
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

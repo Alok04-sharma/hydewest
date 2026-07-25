@@ -1,251 +1,706 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import {
-  FiArrowLeft,
-  FiCalendar,
-  FiCheck,
-  FiClock,
-  FiCopy,
-  FiDroplet,
-  FiHeart,
-  FiHome,
-  FiMapPin,
-  FiMoon,
-  FiShare2,
-  FiShield,
-  FiStar,
-  FiUser,
-  FiUsers,
-  FiX,
-} from "react-icons/fi";
-import { Link, useParams } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 
-import {
-  clearSelectedListing,
-  fetchListingById,
-} from "../../redux/slices/listingSlice";
+import listingService from "../../services/listing.service";
+import bookingService from "../../services/booking.service";
+import wishlistService from "../../services/wishlist.service";
+import guestMembershipService from "../../services/guestMembership.service";
+import chatService from "../../services/chat.service";
+import guestService from "../../services/guest.service";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=85";
 
-const money = (value, currency = "INR") => {
-  try {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: currency || "INR",
-      maximumFractionDigits: 0,
-    }).format(Number(value || 0));
-  } catch {
-    return `₹${Number(value || 0).toLocaleString("en-IN")}`;
-  }
+const BOOKING_UNITS = [
+  {
+    value: "hour",
+    label: "Hour",
+    plural: "Hours",
+    short: "hr",
+    icon: "⏱️",
+    description: "Short daytime use",
+  },
+  {
+    value: "night",
+    label: "Night",
+    plural: "Nights",
+    short: "night",
+    icon: "🌙",
+    description: "Best overnight value",
+  },
+  {
+    value: "day",
+    label: "Day",
+    plural: "Days",
+    short: "day",
+    icon: "☀️",
+    description: "Full 24-hour stay",
+  },
+  {
+    value: "week",
+    label: "Week",
+    plural: "Weeks",
+    short: "week",
+    icon: "🗓️",
+    description: "Long-stay savings",
+  },
+  {
+    value: "month",
+    label: "Month",
+    plural: "Months",
+    short: "month",
+    icon: "📆",
+    description: "Maximum monthly value",
+  },
+];
+
+const RATE_MULTIPLIERS = Object.freeze({
+  hour: 0.08,
+  night: 0.9,
+  day: 1,
+  week: 6,
+  month: 24,
+});
+
+const money = (value) =>
+  `₹${Number(value || 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 0,
+  })}`;
+
+const positiveNumber = (value) => {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
 };
 
-const formatDate = (value) => {
-  if (!value) {
-    return "Not specified";
+const inferDailyRate = (pricing = {}) => {
+  const rates = pricing.rates || {};
+
+  if (positiveNumber(rates.day)) return positiveNumber(rates.day);
+
+  const basePrice = positiveNumber(pricing.basePrice);
+  const legacyUnit = String(pricing.priceUnit || "").toLowerCase();
+
+  if (basePrice && RATE_MULTIPLIERS[legacyUnit]) {
+    return basePrice / RATE_MULTIPLIERS[legacyUnit];
   }
 
-  const date = new Date(value);
+  const nightRate =
+    positiveNumber(rates.night) || positiveNumber(pricing.pricePerNight);
 
-  if (Number.isNaN(date.getTime())) {
-    return "Not specified";
+  if (nightRate) return nightRate / RATE_MULTIPLIERS.night;
+  if (positiveNumber(rates.hour)) {
+    return positiveNumber(rates.hour) / RATE_MULTIPLIERS.hour;
+  }
+  if (positiveNumber(rates.week)) {
+    return positiveNumber(rates.week) / RATE_MULTIPLIERS.week;
+  }
+  if (positiveNumber(rates.month)) {
+    return positiveNumber(rates.month) / RATE_MULTIPLIERS.month;
   }
 
-  return date.toLocaleDateString("en-IN", {
+  return basePrice;
+};
+
+const getRate = (apartment, unit) => {
+  const pricing = apartment?.pricing || {};
+  const explicitRate = positiveNumber(pricing.rates?.[unit]);
+
+  if (explicitRate) return explicitRate;
+
+  const dailyRate = inferDailyRate(pricing);
+  return Math.max(Math.round(dailyRate * (RATE_MULTIPLIERS[unit] || 1)), 0);
+};
+
+const getLocalDate = () => {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 10);
+};
+
+const getLocalDateTime = () => {
+  const date = new Date();
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+};
+
+const toLocalInputValue = (date, includeTime) => {
+  const localDate = new Date(date);
+  localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
+  return localDate.toISOString().slice(0, includeTime ? 16 : 10);
+};
+
+const getMinimumCount = (unit, minimumDays) => {
+  const days = Math.max(Number(minimumDays || 1), 1);
+
+  if (unit === "hour") {
+    return days > 1 ? days * 24 : 1;
+  }
+  if (unit === "week") {
+    return Math.max(Math.ceil(days / 7), 1);
+  }
+  if (unit === "month") {
+    return Math.max(Math.ceil(days / 30), 1);
+  }
+
+  return days;
+};
+
+const calculateCheckout = (checkIn, bookingUnit, unitCount) => {
+  if (!checkIn) return "";
+
+  const count = Math.max(Number(unitCount || 1), 1);
+  const isHourly = bookingUnit === "hour";
+  const start = new Date(isHourly ? checkIn : `${checkIn}T12:00:00`);
+
+  if (Number.isNaN(start.getTime())) return "";
+
+  const end = new Date(start);
+
+  if (bookingUnit === "hour") {
+    end.setHours(end.getHours() + count);
+  } else if (bookingUnit === "week") {
+    end.setDate(end.getDate() + count * 7);
+  } else if (bookingUnit === "month") {
+    end.setMonth(end.getMonth() + count);
+  } else {
+    end.setDate(end.getDate() + count);
+  }
+
+  return toLocalInputValue(end, isHourly);
+};
+
+const formatDate = (value, includeTime = false) => {
+  if (!value) return "Not selected";
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "Not selected";
+
+  return parsed.toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    ...(includeTime
+      ? {
+          hour: "2-digit",
+          minute: "2-digit",
+        }
+      : {}),
   });
 };
 
-function DetailChip({ icon: Icon, label, value }) {
+const couponValueText = (coupon) =>
+  coupon?.discountType === "fixed"
+    ? `${money(coupon.discountValue)} OFF`
+    : `${Number(coupon?.discountValue || 0)}% OFF`;
+
+function InfoPill({ icon, title, value, premium }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-rose-50 text-lg text-[#FF385C]">
-        <Icon aria-hidden="true" />
-      </span>
-
-      <span className="min-w-0">
-        <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-          {label}
+    <div
+      className={`rounded-2xl border p-4 ${
+        premium
+          ? "border-amber-300/15 bg-white/[0.05]"
+          : "border-rose-200/70 bg-rose-50/60"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <span className="text-xl" aria-hidden="true">
+          {icon}
         </span>
-
-        <span className="mt-1 block truncate text-sm font-black text-slate-900">
-          {value}
+        <span className="min-w-0">
+          <span
+            className={`block text-[9px] font-black uppercase tracking-[0.16em] ${
+              premium ? "text-amber-200/55" : "text-slate-400"
+            }`}
+          >
+            {title}
+          </span>
+          <span
+            className={`mt-1 block truncate text-sm font-black ${
+              premium ? "text-white" : "text-slate-950"
+            }`}
+          >
+            {value}
+          </span>
         </span>
-      </span>
+      </div>
     </div>
   );
 }
 
-function ListingDetailsSkeleton() {
+function CouponCard({
+  coupon,
+  selected,
+  premiumActive,
+  premiumTheme,
+  onApply,
+  onUpgrade,
+}) {
+  const premiumLocked = Boolean(coupon.premiumOnly && !premiumActive);
+  const locked = Boolean(coupon.isLocked || coupon.canApply === false);
+
   return (
-    <div className="mx-auto min-h-[70vh] max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="skeleton-shimmer h-8 w-2/3 rounded-full sm:w-1/2" />
-
-      <div className="mt-5 grid gap-3 lg:grid-cols-[1.45fr_.55fr]">
-        <div className="skeleton-shimmer aspect-[16/10] rounded-[30px]" />
-
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-          <div className="skeleton-shimmer min-h-40 rounded-[24px]" />
-          <div className="skeleton-shimmer min-h-40 rounded-[24px]" />
-        </div>
+    <motion.article
+      whileHover={{ y: -2 }}
+      className={`rounded-2xl border p-3 transition ${
+        selected
+          ? premiumTheme
+            ? "border-amber-300 bg-amber-300/15"
+            : "border-[#c01042] bg-rose-100/75"
+          : premiumTheme
+            ? "border-amber-300/15 bg-white/[0.04]"
+            : "border-rose-200/65 bg-[#fff7f8]/70"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span
+          className={`rounded-xl px-2.5 py-1 text-[10px] font-black ${
+            premiumTheme
+              ? "bg-amber-300 text-slate-950"
+              : "bg-slate-950 text-white"
+          }`}
+        >
+          {coupon.code}
+        </span>
+        <strong
+          className={`text-xs ${
+            premiumTheme ? "text-emerald-300" : "text-emerald-700"
+          }`}
+        >
+          {couponValueText(coupon)}
+        </strong>
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
-          <div className="skeleton-shimmer h-24 rounded-[28px]" />
-          <div className="skeleton-shimmer h-52 rounded-[28px]" />
-        </div>
+      <p
+        className={`mt-2 text-xs font-black ${
+          premiumTheme ? "text-white" : "text-slate-900"
+        }`}
+      >
+        {coupon.label || "Host offer"}
+      </p>
+      <p
+        className={`mt-1 text-[10px] leading-4 ${
+          premiumTheme ? "text-white/45" : "text-slate-500"
+        }`}
+      >
+        {premiumLocked
+          ? "Premium membership required."
+          : coupon.lockedReason || coupon.description || "Eligible booking offer."}
+      </p>
 
-        <div className="skeleton-shimmer h-80 rounded-[28px]" />
-      </div>
-    </div>
+      <button
+        type="button"
+        onClick={() => {
+          if (premiumLocked) onUpgrade();
+          else if (!locked || selected) onApply(coupon.code);
+        }}
+        className={`mt-3 w-full rounded-xl px-3 py-2 text-[10px] font-black transition ${
+          premiumLocked
+            ? "bg-amber-300 text-slate-950"
+            : selected
+              ? "bg-emerald-600 text-white"
+              : locked
+                ? premiumTheme
+                  ? "cursor-not-allowed bg-white/[0.06] text-white/30"
+                  : "cursor-not-allowed bg-slate-100 text-slate-400"
+                : premiumTheme
+                  ? "bg-white/10 text-amber-200 hover:bg-amber-300 hover:text-slate-950"
+                  : "bg-slate-950 text-white hover:bg-[#c01042]"
+        }`}
+      >
+        {premiumLocked
+          ? "Unlock Premium"
+          : selected
+            ? "Remove coupon"
+            : locked
+              ? "Not eligible yet"
+              : "Apply coupon"}
+      </button>
+    </motion.article>
   );
 }
 
 export default function ListingDetails() {
   const { id } = useParams();
-  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
 
-  const {
-    selectedListing: apartment,
-    loading,
-    error,
-  } = useSelector((state) => state.listing);
+  const [apartment, setApartment] = useState(null);
+  const [membership, setMembership] = useState(null);
+  const [wishlistIds, setWishlistIds] = useState(new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [activeImage, setActiveImage] = useState("");
+  const [quote, setQuote] = useState(null);
+  const [quoting, setQuoting] = useState(false);
+  const [booking, setBooking] = useState(false);
+  const [couponOpen, setCouponOpen] = useState(false);
+  const [priceAlertSaving, setPriceAlertSaving] = useState(false);
+  const [priceAlertNotice, setPriceAlertNotice] = useState("");
 
-  const { isAuthenticated } = useSelector((state) => state.auth);
+  const [form, setForm] = useState({
+    bookingUnit: "night",
+    unitCount: 1,
+    checkIn: "",
+    checkOut: "",
+    guestsCount: 1,
+    couponCode: "",
+    paymentMethod: "any",
+    loyaltyPointsToRedeem: 0,
+    bookingInsurance: false,
+    message: "",
+  });
 
-  const [activeImage, setActiveImage] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const role = String(user?.role || "").toLowerCase();
+  const isGuest = role === "guest";
 
   useEffect(() => {
-    if (id) {
-      dispatch(fetchListingById(id));
+    let active = true;
+
+    async function loadPage() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const listingResponse = await listingService.getPublicById(id);
+
+        if (!active) return;
+        setApartment(listingResponse.data);
+
+        if (isAuthenticated && isGuest) {
+          const [membershipResponse, wishlistResponse] = await Promise.allSettled([
+            guestMembershipService.getMyMembership(),
+            wishlistService.getWishlist(),
+          ]);
+
+          if (membershipResponse.status === "fulfilled") {
+            setMembership(membershipResponse.value.data || null);
+          }
+
+          if (wishlistResponse.status === "fulfilled") {
+            setWishlistIds(
+              new Set(
+                (wishlistResponse.value.data?.apartments || []).map(
+                  (item) => item._id
+                )
+              )
+            );
+          }
+        }
+      } catch (requestError) {
+        if (active) {
+          setError(
+            requestError.response?.data?.message ||
+              "Property details load nahi hui."
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
     }
+
+    loadPage();
 
     return () => {
-      dispatch(clearSelectedListing());
+      active = false;
     };
-  }, [dispatch, id]);
+  }, [id, isAuthenticated, isGuest]);
 
   const images = useMemo(() => {
-    const normalizedImages = Array.isArray(apartment?.images)
-      ? apartment.images
-          .map((image, index) => {
-            if (typeof image === "string") {
-              return {
-                url: image,
-                publicId: image,
-                isCover: index === 0,
-                order: index,
-              };
-            }
-
-            return {
-              ...image,
-              url: image?.url,
-              order: Number(image?.order ?? index),
-            };
-          })
-          .filter((image) => Boolean(image.url))
-      : [];
-
-    if (normalizedImages.length === 0) {
-      return [
-        {
-          url: FALLBACK_IMAGE,
-          publicId: "fallback-image",
-          isCover: true,
-          order: 0,
-        },
-      ];
-    }
-
-    return normalizedImages.sort((firstImage, secondImage) => {
-      if (firstImage.isCover && !secondImage.isCover) {
-        return -1;
-      }
-
-      if (!firstImage.isCover && secondImage.isCover) {
-        return 1;
-      }
-
-      return (
-        Number(firstImage.order || 0) -
-        Number(secondImage.order || 0)
+    const normalized = (apartment?.images || [])
+      .map((image, index) =>
+        typeof image === "string"
+          ? { url: image, order: index }
+          : { ...image, order: Number(image.order ?? index) }
+      )
+      .filter((image) => image.url)
+      .sort(
+        (first, second) =>
+          Number(Boolean(second.isCover)) - Number(Boolean(first.isCover)) ||
+          first.order - second.order
       );
-    });
+
+    return normalized.length ? normalized : [{ url: FALLBACK_IMAGE }];
   }, [apartment]);
 
-  const handleShare = async () => {
+  const premiumActive = Boolean(membership?.isActive);
+  const exclusiveLocked = Boolean(
+    apartment?.premium?.isExclusive && !premiumActive
+  );
+  const wished = wishlistIds.has(id);
+  const minimumStayDays = Math.max(
+    Number(apartment?.policies?.minBookingDays || 1),
+    1
+  );
+  const maximumStayDays = Math.max(
+    Number(apartment?.policies?.maxBookingDays || 365),
+    minimumStayDays
+  );
+  const selectedUnit =
+    BOOKING_UNITS.find((item) => item.value === form.bookingUnit) ||
+    BOOKING_UNITS[1];
+  const selectedRate = getRate(apartment, form.bookingUnit);
+  const isHourly = form.bookingUnit === "hour";
+  const minimumInput = isHourly ? getLocalDateTime() : getLocalDate();
+  const minimumUnitCount = getMinimumCount(
+    form.bookingUnit,
+    minimumStayDays
+  );
+
+  useEffect(() => {
+    if (!apartment) return;
+
+    const count = getMinimumCount("night", minimumStayDays);
+
+    setForm((current) => ({
+      ...current,
+      unitCount: Math.max(Number(current.unitCount || 1), count),
+    }));
+  }, [apartment, minimumStayDays]);
+
+  useEffect(() => {
+    const calculatedCheckout = calculateCheckout(
+      form.checkIn,
+      form.bookingUnit,
+      form.unitCount
+    );
+
+    setForm((current) =>
+      current.checkOut === calculatedCheckout
+        ? current
+        : { ...current, checkOut: calculatedCheckout }
+    );
+    setQuote(null);
+  }, [form.checkIn, form.bookingUnit, form.unitCount]);
+
+  const rawCoupons = useMemo(() => {
+    if (quote?.availableCoupons?.length) return quote.availableCoupons;
+
+    return (apartment?.coupons || []).map((coupon) => ({
+      ...coupon,
+      code: String(coupon.code || "").toUpperCase(),
+      canApply: !coupon.premiumOnly || premiumActive,
+      isLocked: Boolean(coupon.premiumOnly && !premiumActive),
+      lockedReason:
+        coupon.premiumOnly && !premiumActive
+          ? "Premium membership required."
+          : "Choose your stay and calculate the price to validate this coupon.",
+    }));
+  }, [apartment, premiumActive, quote]);
+
+  const updateForm = (name, value) => {
+    setForm((current) => ({ ...current, [name]: value }));
+    setQuote(null);
+    setError("");
+  };
+
+  const changeBookingUnit = (unit) => {
+    const nextCount = getMinimumCount(unit, minimumStayDays);
+
+    setForm((current) => ({
+      ...current,
+      bookingUnit: unit,
+      unitCount: nextCount,
+      checkOut: calculateCheckout(current.checkIn, unit, nextCount),
+      couponCode: "",
+      paymentMethod: "any",
+    }));
+    setQuote(null);
+    setError("");
+  };
+
+  const changeUnitCount = (difference) => {
+    setForm((current) => {
+      const next = Math.max(
+        Number(current.unitCount || minimumUnitCount) + difference,
+        minimumUnitCount
+      );
+
+      return {
+        ...current,
+        unitCount: next,
+        checkOut: calculateCheckout(current.checkIn, current.bookingUnit, next),
+      };
+    });
+    setQuote(null);
+  };
+
+  const buildPayload = (overrides = {}) => ({
+    apartmentId: id,
+    ...form,
+    ...overrides,
+    unitCount: Number(overrides.unitCount ?? form.unitCount),
+    guestsCount: Number(overrides.guestsCount ?? form.guestsCount),
+    loyaltyPointsToRedeem: Number(
+      overrides.loyaltyPointsToRedeem ?? form.loyaltyPointsToRedeem ?? 0
+    ),
+  });
+
+  const calculate = async (overrides = {}) => {
+    if (!isAuthenticated) {
+      navigate("/login");
+      return null;
+    }
+
+    if (!isGuest) {
+      setError("Booking sirf Guest account se ki ja sakti hai.");
+      return null;
+    }
+
+    if (!form.checkIn || !form.checkOut) {
+      setError("Please select check-in and stay duration first.");
+      return null;
+    }
+
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: apartment?.title || "StayNest property",
-          text: `Check out ${
-            apartment?.title || "this property"
-          } on StayNest`,
-          url: window.location.href,
+      setQuoting(true);
+      setError("");
+      const response = await bookingService.getQuote(buildPayload(overrides));
+      const nextQuote = response.data;
+      setQuote(nextQuote);
+      return nextQuote;
+    } catch (requestError) {
+      setQuote(null);
+      setError(
+        requestError.response?.data?.message || "Quote calculate nahi hua."
+      );
+      return null;
+    } finally {
+      setQuoting(false);
+    }
+  };
+
+  const applyCoupon = async (code) => {
+    const nextCode = form.couponCode === code ? "" : code;
+    const selectedCoupon = rawCoupons.find((coupon) => coupon.code === nextCode);
+    const requiredMethod = ["upi", "card"].includes(
+      selectedCoupon?.paymentMethod
+    )
+      ? selectedCoupon.paymentMethod
+      : "any";
+
+    setForm((current) => ({
+      ...current,
+      couponCode: nextCode,
+      paymentMethod: requiredMethod,
+    }));
+
+    if (form.checkIn && form.checkOut) {
+      await calculate({
+        couponCode: nextCode,
+        paymentMethod: requiredMethod,
+      });
+    }
+  };
+
+  const confirmBooking = async () => {
+    if (exclusiveLocked) {
+      navigate("/guest/premium");
+      return;
+    }
+
+    const freshQuote = quote || (await calculate());
+    if (!freshQuote) return;
+
+    try {
+      setBooking(true);
+      setError("");
+      const response = await bookingService.createBooking(buildPayload());
+      navigate(`/guest/checkout/${response.data._id}`);
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message || "Booking create nahi hui."
+      );
+    } finally {
+      setBooking(false);
+    }
+  };
+
+  const toggleWishlist = async () => {
+    if (!isAuthenticated) return navigate("/login");
+
+    try {
+      if (wished) {
+        await wishlistService.removeFromWishlist(id);
+        setWishlistIds((current) => {
+          const next = new Set(current);
+          next.delete(id);
+          return next;
         });
-
-        return;
+      } else {
+        await wishlistService.addToWishlist(id);
+        setWishlistIds((current) => new Set([...current, id]));
       }
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message || "Wishlist update nahi hui."
+      );
+    }
+  };
 
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(window.location.href);
+  const startChat = async () => {
+    if (!isAuthenticated) return navigate("/login");
 
-        setCopied(true);
-
-        window.setTimeout(() => {
-          setCopied(false);
-        }, 1800);
+    try {
+      const response = await chatService.startConversation(id);
+      navigate(`/guest/messages/${response.data._id}`);
+    } catch (requestError) {
+      if (requestError.response?.status === 403) {
+        navigate("/guest/premium");
+      } else {
+        setError(requestError.response?.data?.message || "Chat start nahi hui.");
       }
-    } catch {
-      // User may cancel the share window or deny clipboard permission.
+    }
+  };
+
+  const enablePriceAlert = async () => {
+    if (!isAuthenticated) return navigate("/login");
+    if (!premiumActive) return navigate("/guest/premium");
+
+    try {
+      setPriceAlertSaving(true);
+      setError("");
+      const targetPrice = Math.max(Math.floor(selectedRate * 0.9), 1);
+      await guestService.createPriceAlert({ apartmentId: id, targetPrice });
+      setPriceAlertNotice(`Price alert active at ${money(targetPrice)}.`);
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message || "Price alert save nahi hua."
+      );
+    } finally {
+      setPriceAlertSaving(false);
     }
   };
 
   if (loading) {
-    return <ListingDetailsSkeleton />;
+    return (
+      <div className="mx-auto min-h-[75vh] max-w-7xl px-4 py-10">
+        <div className="skeleton-shimmer h-10 w-2/3 rounded-full" />
+        <div className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_.6fr]">
+          <div className="skeleton-shimmer h-[520px] rounded-[32px]" />
+          <div className="skeleton-shimmer h-[520px] rounded-[32px]" />
+        </div>
+      </div>
+    );
   }
 
-  if (error || !apartment) {
+  if (!apartment) {
     return (
-      <div className="grid min-h-[68vh] place-items-center px-4 py-12">
-        <motion.div
-          initial={{
-            opacity: 0,
-            y: 16,
-          }}
-          animate={{
-            opacity: 1,
-            y: 0,
-          }}
-          className="w-full max-w-lg rounded-[32px] border border-red-200 bg-white p-8 text-center shadow-xl"
-        >
-          <div className="mx-auto grid h-16 w-16 place-items-center rounded-3xl bg-red-50 text-3xl">
-            🏠
-          </div>
-
-          <h1 className="mt-5 text-2xl font-black text-slate-950">
-            This stay is unavailable
-          </h1>
-
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            {error ||
-              "The listing may have been removed, suspended or is no longer public."}
+      <div className="grid min-h-[70vh] place-items-center px-4">
+        <div className="max-w-lg rounded-[30px] border border-red-200 bg-red-50/80 p-8 text-center">
+          <div className="text-5xl">🏠</div>
+          <h1 className="mt-4 text-2xl font-black">Property unavailable</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            {error || "This listing is no longer public."}
           </p>
-
           <Link
             to="/"
-            className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white transition hover:bg-[#FF385C]"
+            className="mt-5 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white"
           >
-            <FiArrowLeft aria-hidden="true" />
-            Back to approved stays
+            Back to home
           </Link>
-        </motion.div>
+        </div>
       </div>
     );
   }
@@ -255,596 +710,609 @@ export default function ListingDetails() {
     apartment.location?.landmark,
     apartment.location?.city,
     apartment.location?.state,
-    apartment.location?.country,
   ]
     .filter(Boolean)
     .join(", ");
 
-  const shortLocation = [
-    apartment.location?.city,
-    apartment.location?.state,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  const price = Number(
-    apartment.pricing?.basePrice ||
-      apartment.pricing?.pricePerNight ||
-      0
-  );
-
-  const priceUnit = apartment.pricing?.priceUnit || "night";
-  const currency = apartment.pricing?.currency || "INR";
-
-  const hostAvatar =
-    typeof apartment.host?.avatar === "string"
-      ? apartment.host.avatar
-      : apartment.host?.avatar?.url || "";
-
-  const rawLatitude = apartment.location?.latitude;
-  const rawLongitude = apartment.location?.longitude;
-
-  const latitude = Number(rawLatitude);
-  const longitude = Number(rawLongitude);
-
-  const hasValidCoordinates =
-    rawLatitude !== undefined &&
-    rawLatitude !== null &&
-    rawLatitude !== "" &&
-    rawLongitude !== undefined &&
-    rawLongitude !== null &&
-    rawLongitude !== "" &&
-    Number.isFinite(latitude) &&
-    Number.isFinite(longitude) &&
-    latitude >= -90 &&
-    latitude <= 90 &&
-    longitude >= -180 &&
-    longitude <= 180;
+  const cardTheme = premiumActive
+    ? "border-amber-300/20 bg-[radial-gradient(circle_at_90%_0%,rgba(251,191,36,.16),transparent_18rem),linear-gradient(160deg,#15100a_0%,#111827_55%,#241306_100%)] text-white shadow-[0_28px_90px_rgba(8,7,5,.38)]"
+    : "border-rose-200/70 bg-[radial-gradient(circle_at_100%_0%,rgba(255,56,92,.12),transparent_18rem),linear-gradient(160deg,#fff8f8_0%,#fcecef_100%)] text-slate-950 shadow-[0_28px_80px_rgba(86,20,42,.15)]";
 
   return (
-    <div className="min-h-screen bg-transparent pb-14">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {/* Page heading */}
+    <div
+      className={`min-h-screen pb-14 ${
+        premiumActive
+          ? "bg-[radial-gradient(circle_at_90%_0%,rgba(251,191,36,.10),transparent_30rem),linear-gradient(180deg,#0b1020_0%,#151827_100%)]"
+          : "bg-[radial-gradient(circle_at_8%_0%,rgba(255,56,92,.10),transparent_30rem),linear-gradient(180deg,#fff1f3_0%,#eef2f7_100%)]"
+      }`}
+    >
+      <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-          <div className="min-w-0">
+          <div>
             <Link
               to="/"
-              className="inline-flex items-center gap-2 text-xs font-black text-slate-500 transition hover:text-[#FF385C]"
+              className={`text-xs font-black ${
+                premiumActive ? "text-amber-300" : "text-[#bd123f]"
+              }`}
             >
-              <FiArrowLeft aria-hidden="true" />
-              Back to stays
+              ← Back to properties
             </Link>
-
-            <h1 className="mt-3 text-balance text-3xl font-black tracking-tight text-slate-950 sm:text-4xl lg:text-5xl">
-              {apartment.title || "StayNest property"}
+            <h1
+              className={`mt-3 text-3xl font-black tracking-tight sm:text-5xl ${
+                premiumActive ? "text-white" : "text-slate-950"
+              }`}
+            >
+              {apartment.title}
             </h1>
-
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-semibold text-slate-500">
-              <span className="inline-flex items-center gap-1.5 text-amber-600">
-                <FiStar
-                  aria-hidden="true"
-                  className="fill-current"
-                />
-
-                {Number(apartment.rating || 0) > 0
-                  ? Number(apartment.rating).toFixed(1)
-                  : "New"}
-
-                <span className="text-slate-400">
-                  ({Number(apartment.totalReviews || 0)} reviews)
-                </span>
-              </span>
-
-              <span className="inline-flex items-center gap-1.5">
-                <FiMapPin aria-hidden="true" />
-
-                {shortLocation || "Location not specified"}
-              </span>
-
-              {apartment.isFeatured && (
-                <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-violet-700">
-                  Featured
-                </span>
-              )}
-            </div>
+            <p
+              className={`mt-2 text-sm font-semibold ${
+                premiumActive ? "text-white/50" : "text-slate-600"
+              }`}
+            >
+              ⭐ {Number(apartment.rating || 0).toFixed(1)} · 📍 {locationText}
+            </p>
           </div>
 
-          <div className="flex shrink-0 flex-wrap gap-2">
-            <motion.button
+          <div className="flex gap-2">
+            <button
               type="button"
-              whileHover={{
-                y: -2,
-              }}
-              whileTap={{
-                scale: 0.96,
-              }}
-              onClick={handleShare}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm transition hover:border-rose-200 hover:text-[#FF385C]"
+              onClick={toggleWishlist}
+              className={`rounded-2xl border px-4 py-2.5 text-xs font-black ${
+                premiumActive
+                  ? "border-amber-300/20 bg-white/[0.06] text-amber-100"
+                  : "border-rose-200 bg-rose-50 text-slate-700"
+              }`}
             >
-              {copied ? (
-                <FiCopy aria-hidden="true" />
-              ) : (
-                <FiShare2 aria-hidden="true" />
-              )}
-
-              {copied ? "Copied" : "Share"}
-            </motion.button>
-
-            <motion.button
+              {wished ? "♥ Saved" : "♡ Save"}
+            </button>
+            <button
               type="button"
-              whileHover={{
-                y: -2,
-              }}
-              whileTap={{
-                scale: 0.96,
-              }}
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-black text-slate-700 shadow-sm transition hover:border-rose-200 hover:text-[#FF385C]"
+              onClick={startChat}
+              className={`rounded-2xl px-4 py-2.5 text-xs font-black ${
+                premiumActive
+                  ? "bg-amber-300 text-slate-950"
+                  : "bg-slate-950 text-white"
+              }`}
             >
-              <FiHeart aria-hidden="true" />
-              Save
-            </motion.button>
+              {premiumActive ? "💬 Chat with Host" : "🔒 Premium chat"}
+            </button>
           </div>
         </div>
 
-        {/* Image gallery */}
-        <section className="mt-6 grid gap-3 overflow-hidden rounded-[30px] lg:grid-cols-[1.45fr_.55fr]">
-          <motion.button
+        <section className="mt-6 grid gap-3 overflow-hidden rounded-[30px] lg:grid-cols-[1.5fr_.5fr]">
+          <button
             type="button"
-            whileHover={{
-              scale: 1.005,
-            }}
             onClick={() => setActiveImage(images[0].url)}
-            className="group relative aspect-[16/10] overflow-hidden bg-slate-200 text-left lg:aspect-auto lg:min-h-[520px]"
+            className="group relative min-h-[330px] overflow-hidden bg-slate-200 lg:min-h-[520px]"
           >
             <img
               src={images[0].url}
-              alt={apartment.title || "Property cover"}
+              alt={apartment.title}
               className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
             />
-
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/35 to-transparent" />
-
-            <span className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-xs font-black text-slate-800 shadow-lg backdrop-blur">
-              Cover photo
-            </span>
-          </motion.button>
-
+          </button>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
             {images.slice(1, 3).map((image, index) => (
-              <motion.button
+              <button
                 type="button"
-                whileHover={{
-                  scale: 1.01,
-                }}
                 key={image.publicId || image.url || index}
                 onClick={() => setActiveImage(image.url)}
-                className="group relative min-h-40 overflow-hidden bg-slate-200 text-left"
+                className="group relative min-h-40 overflow-hidden bg-slate-200"
               >
                 <img
                   src={image.url}
-                  alt={`${apartment.title || "Property"} ${index + 2}`}
+                  alt={`${apartment.title} ${index + 2}`}
                   className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
                 />
-
-                {index === 1 && images.length > 3 && (
-                  <span className="absolute bottom-3 right-3 rounded-full bg-slate-950/75 px-3 py-1.5 text-xs font-black text-white backdrop-blur">
-                    +{images.length - 3} photos
-                  </span>
-                )}
-              </motion.button>
+              </button>
             ))}
-
-            {images.length === 1 && (
-              <>
-                <div className="grid min-h-40 place-items-center bg-gradient-to-br from-rose-50 to-violet-50 px-4 text-center text-sm font-black text-slate-400">
-                  More photos coming soon
-                </div>
-
-                <div className="grid min-h-40 place-items-center bg-gradient-to-br from-slate-50 to-rose-50 px-4 text-center text-sm font-black text-slate-400 lg:hidden">
-                  Property gallery
-                </div>
-              </>
-            )}
-
-            {images.length === 2 && (
-              <div className="grid min-h-40 place-items-center bg-gradient-to-br from-rose-50 to-violet-50 px-4 text-center text-sm font-black text-slate-400">
+            {images.length < 2 && (
+              <div className="grid min-h-40 place-items-center bg-rose-100/55 text-sm font-black text-slate-500">
                 More photos coming soon
               </div>
             )}
           </div>
         </section>
 
-        <div className="mt-8 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_370px] xl:gap-10">
-          <div className="min-w-0 space-y-7">
-            {/* Host information */}
-            <section className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-              <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FF385C]">
-                    {apartment.propertyType ||
-                      apartment.category ||
-                      "Property"}
-                  </p>
-
-                  <h2 className="mt-2 text-2xl font-black text-slate-950">
-                    Hosted by{" "}
-                    {apartment.host?.name || "StayNest Host"}
-                  </h2>
-
-                  <p className="mt-2 text-sm font-semibold text-slate-500">
-                    {Number(apartment.guests || 1)} guests
-                    {" · "}
-                    {Number(apartment.bedrooms || 0)} bedrooms
-                    {" · "}
-                    {Number(apartment.beds || 1)} beds
-                    {" · "}
-                    {Number(apartment.bathrooms || 1)} bathrooms
-                  </p>
-                </div>
-
-                <div className="relative grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-[22px] bg-gradient-to-br from-rose-500 to-orange-400 text-xl font-black text-white shadow-lg">
-                  {hostAvatar ? (
-                    <img
-                      src={hostAvatar}
-                      alt={apartment.host?.name || "Host"}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    apartment.host?.name
-                      ?.charAt(0)
-                      ?.toUpperCase() || "H"
-                  )}
-
-                  <span className="absolute bottom-1 right-1 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
-                </div>
-              </div>
-            </section>
-
-            {/* Property facts */}
-            <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              <DetailChip
-                icon={FiUsers}
-                label="Guests"
-                value={Number(apartment.guests || 1)}
-              />
-
-              <DetailChip
-                icon={FiMoon}
-                label="Beds"
-                value={Number(apartment.beds || 1)}
-              />
-
-              <DetailChip
-                icon={FiHome}
-                label="Bedrooms"
-                value={Number(apartment.bedrooms || 0)}
-              />
-
-              <DetailChip
-                icon={FiDroplet}
-                label="Bathrooms"
-                value={Number(apartment.bathrooms || 1)}
-              />
-            </section>
-
-            {/* Description */}
-            <section className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-              <h2 className="text-xl font-black text-slate-950">
-                About this place
+        <div className="mt-8 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_430px]">
+          <div className="space-y-6">
+            <section
+              className={`rounded-[30px] border p-6 ${
+                premiumActive
+                  ? "border-amber-300/15 bg-white/[0.05] text-white"
+                  : "border-rose-200/65 bg-rose-50/55"
+              }`}
+            >
+              <p
+                className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                  premiumActive ? "text-amber-300" : "text-[#bd123f]"
+                }`}
+              >
+                {apartment.propertyType || "Property"}
+              </p>
+              <h2 className="mt-2 text-2xl font-black">
+                Hosted by {apartment.host?.name || "hydewest Host"}
               </h2>
-
-              <p className="mt-4 whitespace-pre-line text-sm font-medium leading-7 text-slate-600 sm:text-base">
-                {apartment.description ||
-                  "The host has not added a property description yet."}
+              <p
+                className={`mt-2 text-sm ${
+                  premiumActive ? "text-white/50" : "text-slate-600"
+                }`}
+              >
+                {apartment.guests || 1} guests · {apartment.bedrooms || 0} bedrooms · {apartment.beds || 1} beds · {apartment.bathrooms || 1} bathrooms
               </p>
             </section>
 
-            {/* Amenities */}
-            <section className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-              <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-violet-600">
-                    Comfort and essentials
-                  </p>
-
-                  <h2 className="mt-2 text-xl font-black text-slate-950">
-                    What this place offers
-                  </h2>
-                </div>
-
-                <span className="w-fit rounded-full bg-violet-50 px-3 py-1 text-xs font-black text-violet-700">
-                  {Number(apartment.amenities?.length || 0)} amenities
-                </span>
-              </div>
-
-              {Array.isArray(apartment.amenities) &&
-              apartment.amenities.length > 0 ? (
-                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {apartment.amenities.map((amenity, index) => (
-                    <div
-                      key={`${amenity}-${index}`}
-                      className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700"
-                    >
-                      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white text-emerald-600 shadow-sm">
-                        <FiCheck aria-hidden="true" />
-                      </span>
-
-                      <span className="break-words">{amenity}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-4 text-sm text-slate-500">
-                  Amenities have not been listed yet.
-                </p>
-              )}
+            <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              <InfoPill icon="👥" title="Guests" value={apartment.guests || 1} premium={premiumActive} />
+              <InfoPill icon="🛏️" title="Beds" value={apartment.beds || 1} premium={premiumActive} />
+              <InfoPill icon="🚪" title="Bedrooms" value={apartment.bedrooms || 0} premium={premiumActive} />
+              <InfoPill icon="🚿" title="Bathrooms" value={apartment.bathrooms || 1} premium={premiumActive} />
             </section>
 
-            {/* Timings and rules */}
-            <section className="grid gap-5 md:grid-cols-2">
-              <div className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-                <h2 className="text-xl font-black text-slate-950">
-                  Stay timings
-                </h2>
+            <section
+              className={`rounded-[30px] border p-6 ${
+                premiumActive
+                  ? "border-amber-300/15 bg-white/[0.05] text-white"
+                  : "border-rose-200/65 bg-rose-50/55"
+              }`}
+            >
+              <h2 className="text-xl font-black">About this property</h2>
+              <p
+                className={`mt-4 whitespace-pre-line text-sm leading-7 ${
+                  premiumActive ? "text-white/60" : "text-slate-600"
+                }`}
+              >
+                {apartment.description}
+              </p>
+            </section>
 
-                <div className="mt-5 space-y-3">
-                  <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 text-sm">
-                    <span className="inline-flex items-center gap-2 font-bold text-slate-500">
-                      <FiClock aria-hidden="true" />
-                      Check-in
-                    </span>
-
-                    <strong className="text-slate-950">
-                      {apartment.policies?.checkInTime || "14:00"}
-                    </strong>
+            <section
+              className={`rounded-[30px] border p-6 ${
+                premiumActive
+                  ? "border-amber-300/15 bg-white/[0.05] text-white"
+                  : "border-rose-200/65 bg-rose-50/55"
+              }`}
+            >
+              <h2 className="text-xl font-black">Amenities</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(apartment.amenities || []).map((amenity) => (
+                  <div
+                    key={amenity}
+                    className={`rounded-2xl border px-4 py-3 text-sm font-bold ${
+                      premiumActive
+                        ? "border-amber-300/10 bg-white/[0.04] text-white/70"
+                        : "border-rose-200/60 bg-[#fff8f8]/70 text-slate-700"
+                    }`}
+                  >
+                    ✓ {amenity}
                   </div>
-
-                  <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 text-sm">
-                    <span className="inline-flex items-center gap-2 font-bold text-slate-500">
-                      <FiClock aria-hidden="true" />
-                      Check-out
-                    </span>
-
-                    <strong className="text-slate-950">
-                      {apartment.policies?.checkOutTime || "11:00"}
-                    </strong>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4 text-sm">
-                    <span className="inline-flex items-center gap-2 font-bold text-slate-500">
-                      <FiCalendar aria-hidden="true" />
-                      Available from
-                    </span>
-
-                    <strong className="text-right text-slate-950">
-                      {formatDate(
-                        apartment.availability?.availableFrom
-                      )}
-                    </strong>
-                  </div>
-                </div>
-              </div>
-
-              <div className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-                <h2 className="text-xl font-black text-slate-950">
-                  House rules
-                </h2>
-
-                <div className="mt-5 space-y-3">
-                  {(Array.isArray(apartment.houseRules) &&
-                  apartment.houseRules.length > 0
-                    ? apartment.houseRules
-                    : ["Respect the property and neighbourhood."]
-                  ).map((rule, index) => (
-                    <div
-                      key={`${rule}-${index}`}
-                      className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-600"
-                    >
-                      <FiShield
-                        aria-hidden="true"
-                        className="mt-1 shrink-0 text-[#FF385C]"
-                      />
-
-                      <span>{rule}</span>
-                    </div>
-                  ))}
-                </div>
+                ))}
               </div>
             </section>
 
-            {/* Location */}
-            <section className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-sm">
-              <div className="p-5 sm:p-7">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#FF385C]">
-                  Location
-                </p>
-
-                <h2 className="mt-2 text-xl font-black text-slate-950">
-                  Where you will stay
-                </h2>
-
-                <p className="mt-2 text-sm leading-6 text-slate-500">
-                  {locationText ||
-                    "The exact location will be provided by the host."}
-                </p>
+            <section
+              className={`grid gap-4 rounded-[30px] border p-6 sm:grid-cols-2 ${
+                premiumActive
+                  ? "border-amber-300/15 bg-white/[0.05] text-white"
+                  : "border-rose-200/65 bg-rose-50/55"
+              }`}
+            >
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider opacity-55">Check-in</p>
+                <p className="mt-1 font-black">{apartment.policies?.checkInTime || "14:00"}</p>
               </div>
-
-              {hasValidCoordinates && (
-                <iframe
-                  title={`${apartment.title || "Property"} map`}
-                  loading="lazy"
-                  className="h-72 w-full border-0 sm:h-96"
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${
-                    longitude - 0.02
-                  }%2C${latitude - 0.02}%2C${
-                    longitude + 0.02
-                  }%2C${
-                    latitude + 0.02
-                  }&layer=mapnik&marker=${latitude}%2C${longitude}`}
-                />
-              )}
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider opacity-55">Check-out</p>
+                <p className="mt-1 font-black">{apartment.policies?.checkOutTime || "11:00"}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider opacity-55">Minimum stay</p>
+                <p className="mt-1 font-black">{minimumStayDays} day(s)</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-wider opacity-55">Maximum stay</p>
+                <p className="mt-1 font-black">{maximumStayDays} day(s)</p>
+              </div>
             </section>
           </div>
 
-          {/* Price card */}
-          <aside className="lg:sticky lg:top-24">
-            <motion.div
-              initial={{
-                opacity: 0,
-                x: 18,
-              }}
-              animate={{
-                opacity: 1,
-                x: 0,
-              }}
-              className="overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.14)]"
+          <aside className="lg:sticky lg:top-5">
+            <motion.section
+              initial={{ opacity: 0, x: 18 }}
+              animate={{ opacity: 1, x: 0 }}
+              className={`overflow-hidden rounded-[32px] border ${cardTheme}`}
             >
-              <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-rose-950 p-6 text-white">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/55">
-                  Starting price
-                </p>
-
-                <div className="mt-2 flex flex-wrap items-end gap-2">
-                  <span className="text-3xl font-black">
-                    {money(price, currency)}
-                  </span>
-
-                  <span className="pb-1 text-xs font-bold text-white/55">
-                    / {priceUnit}
-                  </span>
+              <div
+                className={`border-b p-5 sm:p-6 ${
+                  premiumActive ? "border-amber-300/15" : "border-rose-200/65"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p
+                      className={`text-[10px] font-black uppercase tracking-[0.2em] ${
+                        premiumActive ? "text-amber-300" : "text-[#bd123f]"
+                      }`}
+                    >
+                      {premiumActive ? "👑 Premium reservation" : "Reserve this stay"}
+                    </p>
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-3xl font-black">{money(selectedRate)}</span>
+                      <span className="pb-1 text-xs font-bold opacity-50">/{selectedUnit.short}</span>
+                    </div>
+                  </div>
+                  {premiumActive && (
+                    <span className="rounded-full bg-amber-300 px-3 py-1.5 text-[9px] font-black uppercase text-slate-950">
+                      Member pricing
+                    </span>
+                  )}
                 </div>
 
-                <div className="mt-4 flex items-center gap-2 text-xs text-white/65">
-                  <FiShield
-                    aria-hidden="true"
-                    className="shrink-0 text-emerald-400"
-                  />
-
-                  <span>Approved and verified by StayNest</span>
-                </div>
-              </div>
-
-              <div className="p-5 sm:p-6">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-slate-200 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      Check-in
-                    </p>
-
-                    <p className="mt-1 text-xs font-black text-slate-900">
-                      {apartment.policies?.checkInTime || "14:00"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      Check-out
-                    </p>
-
-                    <p className="mt-1 text-xs font-black text-slate-900">
-                      {apartment.policies?.checkOutTime || "11:00"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-2 border-y border-slate-100 py-4 text-sm">
-                  <div className="flex justify-between gap-3 text-slate-500">
-                    <span>Cleaning charge</span>
-
-                    <strong className="text-right text-slate-900">
-                      {money(
-                        apartment.pricing?.cleaningFee,
-                        currency
-                      )}
-                    </strong>
-                  </div>
-
-                  <div className="flex justify-between gap-3 text-slate-500">
-                    <span>Extra guest charge</span>
-
-                    <strong className="text-right text-slate-900">
-                      {money(
-                        apartment.pricing?.extraGuestFee,
-                        currency
-                      )}
-                    </strong>
-                  </div>
-
-                  <div className="flex justify-between gap-3 text-slate-500">
-                    <span>Cancellation</span>
-
-                    <strong className="text-right capitalize text-slate-900">
-                      {apartment.policies?.cancellationPolicy ||
-                        "Moderate"}
-                    </strong>
-                  </div>
-                </div>
-
-                <Link
-                  to={isAuthenticated ? "/profile" : "/login"}
-                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF385C] to-rose-600 px-5 py-3.5 text-sm font-black text-white shadow-lg shadow-rose-200 transition hover:-translate-y-0.5 hover:shadow-xl"
+                <div
+                  className={`mt-4 rounded-2xl border px-4 py-3 text-xs font-semibold ${
+                    premiumActive
+                      ? "border-amber-300/15 bg-amber-300/10 text-amber-100"
+                      : "border-rose-200 bg-rose-100/60 text-slate-700"
+                  }`}
                 >
-                  <FiUser aria-hidden="true" />
-
-                  {isAuthenticated
-                    ? "Continue to booking"
-                    : "Login to book"}
-                </Link>
-
-                <p className="mt-3 text-center text-[11px] font-semibold text-slate-400">
-                  You will review the complete price before payment.
-                </p>
+                  Host rule: minimum {minimumStayDays} day(s), maximum {maximumStayDays} day(s).
+                </div>
               </div>
-            </motion.div>
+
+              <div className="space-y-5 p-5 sm:p-6">
+                {error && (
+                  <div className="rounded-2xl border border-red-300/40 bg-red-500/10 p-3 text-xs font-bold text-red-300">
+                    {error}
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`grid h-8 w-8 place-items-center rounded-xl text-xs font-black ${
+                        premiumActive
+                          ? "bg-amber-300 text-slate-950"
+                          : "bg-[#bd123f] text-white"
+                      }`}
+                    >
+                      1
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-black">Choose your stay type</h3>
+                      <p className="text-[10px] opacity-45">Rates change automatically by duration.</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-2 xl:grid-cols-5">
+                    {BOOKING_UNITS.map((unit) => {
+                      const selected = form.bookingUnit === unit.value;
+                      const rate = getRate(apartment, unit.value);
+
+                      return (
+                        <button
+                          key={unit.value}
+                          type="button"
+                          onClick={() => changeBookingUnit(unit.value)}
+                          className={`rounded-2xl border p-2.5 text-left transition ${
+                            selected
+                              ? premiumActive
+                                ? "border-amber-300 bg-amber-300/15"
+                                : "border-[#bd123f] bg-rose-100/75"
+                              : premiumActive
+                                ? "border-white/10 bg-white/[0.04] hover:border-amber-300/40"
+                                : "border-rose-200/65 bg-[#fff8f8]/70 hover:border-rose-300"
+                          }`}
+                        >
+                          <span className="text-lg">{unit.icon}</span>
+                          <span className="mt-1 block text-[10px] font-black">{unit.label}</span>
+                          <span
+                            className={`mt-0.5 block text-[9px] font-bold ${
+                              premiumActive ? "text-amber-300" : "text-[#bd123f]"
+                            }`}
+                          >
+                            {money(rate)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div
+                    className={`mt-3 flex items-center justify-between rounded-2xl border p-3 ${
+                      premiumActive
+                        ? "border-white/10 bg-white/[0.04]"
+                        : "border-rose-200/65 bg-[#fff8f8]/70"
+                    }`}
+                  >
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-wider opacity-45">Duration</p>
+                      <p className="mt-1 text-sm font-black">
+                        {form.unitCount} {Number(form.unitCount) === 1 ? selectedUnit.label : selectedUnit.plural}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => changeUnitCount(-1)}
+                        disabled={Number(form.unitCount) <= minimumUnitCount}
+                        className={`grid h-9 w-9 place-items-center rounded-xl text-lg font-black disabled:opacity-25 ${
+                          premiumActive
+                            ? "bg-white/10 text-white hover:bg-amber-300 hover:text-slate-950"
+                            : "bg-rose-100 text-slate-700 hover:bg-[#bd123f] hover:text-white"
+                        }`}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        min={minimumUnitCount}
+                        value={form.unitCount}
+                        onChange={(event) =>
+                          updateForm(
+                            "unitCount",
+                            Math.max(Number(event.target.value || 1), minimumUnitCount)
+                          )
+                        }
+                        className={`h-9 w-16 rounded-xl border bg-transparent text-center text-sm font-black outline-none ${
+                          premiumActive
+                            ? "border-amber-300/20 text-white"
+                            : "border-rose-200 text-slate-900"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => changeUnitCount(1)}
+                        className={`grid h-9 w-9 place-items-center rounded-xl text-lg font-black ${
+                          premiumActive
+                            ? "bg-white/10 text-white hover:bg-amber-300 hover:text-slate-950"
+                            : "bg-rose-100 text-slate-700 hover:bg-[#bd123f] hover:text-white"
+                        }`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`grid h-8 w-8 place-items-center rounded-xl text-xs font-black ${
+                        premiumActive
+                          ? "bg-amber-300 text-slate-950"
+                          : "bg-[#bd123f] text-white"
+                      }`}
+                    >
+                      2
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-black">Choose check-in</h3>
+                      <p className="text-[10px] opacity-45">Check-out is calculated automatically.</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <label>
+                      <span className="mb-1.5 block text-[9px] font-black uppercase tracking-wider opacity-50">Check-in</span>
+                      <input
+                        type={isHourly ? "datetime-local" : "date"}
+                        min={minimumInput}
+                        value={form.checkIn}
+                        onChange={(event) => updateForm("checkIn", event.target.value)}
+                        className={`w-full rounded-2xl border px-3 py-3 text-xs font-bold outline-none ${
+                          premiumActive
+                            ? "border-amber-300/15 bg-white/[0.06] text-white [color-scheme:dark]"
+                            : "border-rose-200 bg-[#fff8f8]/80 text-slate-900"
+                        }`}
+                      />
+                    </label>
+                    <label>
+                      <span className="mb-1.5 block text-[9px] font-black uppercase tracking-wider opacity-50">Auto check-out</span>
+                      <div
+                        className={`min-h-[42px] rounded-2xl border px-3 py-3 text-xs font-bold ${
+                          premiumActive
+                            ? "border-amber-300/15 bg-white/[0.04] text-white/70"
+                            : "border-rose-200 bg-rose-100/45 text-slate-700"
+                        }`}
+                      >
+                        {formatDate(form.checkOut, isHourly)}
+                      </div>
+                    </label>
+                  </div>
+
+                  <label className="mt-3 block">
+                    <span className="mb-1.5 block text-[9px] font-black uppercase tracking-wider opacity-50">Guests</span>
+                    <select
+                      value={form.guestsCount}
+                      onChange={(event) => updateForm("guestsCount", event.target.value)}
+                      className={`w-full rounded-2xl border px-3 py-3 text-xs font-bold outline-none ${
+                        premiumActive
+                          ? "border-amber-300/15 bg-[#171208] text-white"
+                          : "border-rose-200 bg-[#fff8f8]/80 text-slate-900"
+                      }`}
+                    >
+                      {Array.from({ length: apartment.guests || 1 }, (_, index) => index + 1).map((count) => (
+                        <option key={count} value={count}>{count} guest{count > 1 ? "s" : ""}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setCouponOpen((current) => !current)}
+                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left ${
+                      premiumActive
+                        ? "border-amber-300/15 bg-white/[0.04]"
+                        : "border-rose-200/65 bg-[#fff8f8]/70"
+                    }`}
+                  >
+                    <span>
+                      <span className="block text-xs font-black">🎟️ Available coupons</span>
+                      <span className="mt-0.5 block text-[10px] opacity-45">{rawCoupons.length} offers · Premium offers stay visible</span>
+                    </span>
+                    <motion.span animate={{ rotate: couponOpen ? 180 : 0 }}>⌄</motion.span>
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {couponOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {rawCoupons.map((coupon) => (
+                            <CouponCard
+                              key={coupon.code}
+                              coupon={coupon}
+                              selected={form.couponCode === coupon.code}
+                              premiumActive={premiumActive}
+                              premiumTheme={premiumActive}
+                              onApply={applyCoupon}
+                              onUpgrade={() => navigate("/guest/premium")}
+                            />
+                          ))}
+                          {!rawCoupons.length && (
+                            <p className="rounded-2xl border border-dashed border-current/15 p-4 text-xs opacity-50 sm:col-span-2">No Host coupons are active for this property.</p>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {premiumActive && (
+                  <label className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${premiumActive ? "border-amber-300/15 bg-amber-300/10" : ""}`}>
+                    <span>
+                      <span className="block text-xs font-black">🛡️ Premium booking protection</span>
+                      <span className="mt-0.5 block text-[10px] opacity-45">Add protection metadata to this booking.</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={form.bookingInsurance}
+                      onChange={(event) => updateForm("bookingInsurance", event.target.checked)}
+                      className="h-5 w-5 accent-amber-400"
+                    />
+                  </label>
+                )}
+
+                {quote && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`rounded-[24px] border p-4 ${
+                      premiumActive
+                        ? "border-amber-300/20 bg-black/20"
+                        : "border-rose-200 bg-[#fff8f8]/75"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[9px] font-black uppercase tracking-wider opacity-45">Stay total</p>
+                        <p className="mt-1 text-sm font-black">{quote.unitCount} × {quote.bookingUnit} at {money(quote.basePrice)}</p>
+                      </div>
+                      {quote.unitSavingsPercent > 0 && (
+                        <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[9px] font-black text-emerald-400">SAVE {quote.unitSavingsPercent}%</span>
+                      )}
+                    </div>
+
+                    <div className="mt-4 space-y-2 text-xs">
+                      <div className="flex justify-between"><span className="opacity-55">Base stay</span><strong>{money(quote.subtotal)}</strong></div>
+                      {quote.extraGuestCharge > 0 && <div className="flex justify-between"><span className="opacity-55">Extra guest</span><strong>{money(quote.extraGuestCharge)}</strong></div>}
+                      {quote.cleaningFee > 0 && <div className="flex justify-between"><span className="opacity-55">Cleaning</span><strong>{money(quote.cleaningFee)}</strong></div>}
+                      {quote.serviceFee > 0 && <div className="flex justify-between"><span className="opacity-55">Service</span><strong>{money(quote.serviceFee)}</strong></div>}
+                      {quote.discountAmount > 0 && <div className="flex justify-between text-emerald-400"><span>Coupon saving</span><strong>− {money(quote.discountAmount)}</strong></div>}
+                      {quote.premiumDiscountAmount > 0 && <div className="flex justify-between text-amber-300"><span>Premium saving</span><strong>− {money(quote.premiumDiscountAmount)}</strong></div>}
+                    </div>
+
+                    <div className="mt-4 flex items-end justify-between border-t border-current/10 pt-4">
+                      <span>
+                        <span className="block text-[9px] font-black uppercase tracking-wider opacity-45">Payable now</span>
+                        <strong className="mt-1 block text-2xl">{money(quote.totalAmount)}</strong>
+                      </span>
+                      {quote.expectedPoints > 0 && <span className="text-right text-[10px] font-bold text-emerald-400">+{quote.expectedPoints} reward points</span>}
+                    </div>
+                  </motion.div>
+                )}
+
+                <div className="grid grid-cols-[.85fr_1.4fr] gap-2">
+                  <button
+                    type="button"
+                    onClick={() => calculate()}
+                    disabled={quoting || !form.checkIn}
+                    className={`rounded-2xl border px-4 py-3 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40 ${
+                      premiumActive
+                        ? "border-amber-300/25 bg-white/[0.06] text-amber-100 hover:bg-white/10"
+                        : "border-rose-200 bg-rose-100/65 text-slate-700 hover:bg-rose-200/70"
+                    }`}
+                  >
+                    {quoting ? "Checking..." : "Check price"}
+                  </button>
+                  <motion.button
+                    type="button"
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={confirmBooking}
+                    disabled={booking || quoting || !form.checkIn}
+                    className={`rounded-2xl px-4 py-3 text-xs font-black shadow-lg disabled:cursor-not-allowed disabled:opacity-40 ${
+                      premiumActive
+                        ? "bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 text-slate-950 shadow-amber-950/30"
+                        : "bg-gradient-to-r from-[#ff385c] to-[#a90836] text-white shadow-rose-200"
+                    }`}
+                  >
+                    {booking
+                      ? "Creating booking..."
+                      : exclusiveLocked
+                        ? "Unlock Premium to book"
+                        : quote
+                          ? `Continue · ${money(quote.totalAmount)}`
+                          : "Reserve and continue"}
+                  </motion.button>
+                </div>
+
+                <p className="text-center text-[9px] font-semibold opacity-40">Payment method will be selected securely on Razorpay Checkout.</p>
+
+                {premiumActive && (
+                  <button
+                    type="button"
+                    onClick={enablePriceAlert}
+                    disabled={priceAlertSaving}
+                    className="w-full rounded-2xl border border-amber-300/15 bg-white/[0.04] px-4 py-3 text-xs font-black text-amber-200"
+                  >
+                    {priceAlertSaving ? "Saving alert..." : priceAlertNotice || "📉 Alert me when the price drops"}
+                  </button>
+                )}
+              </div>
+            </motion.section>
           </aside>
         </div>
       </div>
 
-      {/* Image preview */}
       <AnimatePresence>
         {activeImage && (
           <motion.div
-            initial={{
-              opacity: 0,
-            }}
-            animate={{
-              opacity: 1,
-            }}
-            exit={{
-              opacity: 0,
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/95 p-4 backdrop-blur"
-            onClick={() => setActiveImage(null)}
+            onClick={() => setActiveImage("")}
           >
-            <motion.button
+            <button
               type="button"
-              initial={{
-                opacity: 0,
-                scale: 0.8,
-              }}
-              animate={{
-                opacity: 1,
-                scale: 1,
-              }}
-              onClick={() => setActiveImage(null)}
-              className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-xl text-white backdrop-blur transition hover:bg-white/20"
-              aria-label="Close image preview"
+              onClick={() => setActiveImage("")}
+              className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-xl text-white"
             >
-              <FiX aria-hidden="true" />
-            </motion.button>
-
+              ×
+            </button>
             <motion.img
-              initial={{
-                opacity: 0,
-                scale: 0.94,
-              }}
-              animate={{
-                opacity: 1,
-                scale: 1,
-              }}
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
               src={activeImage}
-              alt={apartment.title || "Property preview"}
-              className="max-h-[88vh] max-w-[94vw] rounded-[28px] object-contain shadow-2xl"
+              alt={apartment.title}
+              className="max-h-[90vh] max-w-[95vw] rounded-[26px] object-contain"
               onClick={(event) => event.stopPropagation()}
             />
           </motion.div>
