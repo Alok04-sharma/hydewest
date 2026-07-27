@@ -35,6 +35,18 @@ const bookingSchema = new mongoose.Schema(
     checkIn: { type: Date, required: true },
     checkOut: { type: Date, required: true },
     guestsCount: { type: Number, required: true, min: 1, default: 1 },
+    totalAmount: { type: Number, default: 0, min: 0 },
+    hostShare: { type: Number, default: 0, min: 0 },
+    adminShare: { type: Number, default: 0, min: 0 },
+    revenueType: {
+      type: String,
+      enum: ["free_host_commission", "subscribed_host_commission"],
+      default: "free_host_commission",
+      index: true,
+    },
+    // Legacy field name retained for backward compatibility. The stored value
+    // is the platform/admin commission percentage (30 for Free, 10 for subscribed).
+    hostCommissionPercentage: { type: Number, default: 30, min: 0, max: 100 },
     pricing: {
       basePrice: { type: Number, default: 0 },
       priceUnit: { type: String, default: "night" },
@@ -103,6 +115,21 @@ const bookingSchema = new mongoose.Schema(
       guestCheckOutSentAt: { type: Date, default: null },
       roomAvailableSentAt: { type: Date, default: null },
       guestCompletedSentAt: { type: Date, default: null },
+    },
+
+    purpose: {
+      category: {
+        type: String,
+        enum: ["leisure", "business", "family_visit", "other"],
+        default: "other",
+        index: true,
+      },
+      details: {
+        type: String,
+        trim: true,
+        maxlength: 300,
+        default: "",
+      },
     },
     message: { type: String, trim: true, maxlength: 500, default: "" },
     history: { type: [bookingHistorySchema], default: [] },

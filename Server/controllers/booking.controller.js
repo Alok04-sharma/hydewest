@@ -15,6 +15,7 @@ const {
 const {
   getActiveGuestMembership,
 } = require("../services/guestMembership.service");
+const { calculateBookingShares } = require("../services/revenue.service");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -24,6 +25,66 @@ const BOOKING_STATUS = Object.freeze({
   CANCELLED: "cancelled",
   COMPLETED: "completed",
 });
+
+const BOOKING_PURPOSES = new Set([
+  "leisure",
+  "business",
+  "family_visit",
+  "other",
+]);
+
+const normalizeBookingPurpose = (body = {}) => {
+  const category = String(body.bookingPurpose || "")
+    .trim()
+    .toLowerCase();
+  const details = String(body.bookingPurposeDetails || "")
+    .trim()
+    .slice(0, 300);
+
+  if (!BOOKING_PURPOSES.has(category)) {
+    throw new Error("Please select a valid purpose for this booking.");
+  }
+
+  if (category === "other" && details.length < 3) {
+    throw new Error("Please briefly describe your booking purpose.");
+  }
+
+  return { category, details };
+};
+
+const formatBookingPeriod = (value) =>
+  new Date(value).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+const createBookingRuleError = (
+  message,
+  { statusCode = 400, code = "BOOKING_RULE_FAILED", data = null } = {}
+) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  error.code = code;
+  error.data = data;
+  return error;
+};
+
+const sendBookingRuleError = (res, error) =>
+  sendResponse(
+    res,
+    Number(error.statusCode || 400),
+    false,
+    error.message,
+    error.data
+      ? {
+          code: error.code || "BOOKING_RULE_FAILED",
+          ...error.data,
+        }
+      : null
+  );
 
 const loadOptionalLoyaltyService = () => {
   try {
@@ -132,15 +193,17 @@ const validateBookingRules = async ({
     throw new Error("The property is not available through this check-out date.");
   }
 
-  const hasBlockedDate = (apartment.availability?.blockedDates || []).some(
-    (value) => {
-      const blockedDate = new Date(value);
-      return blockedDate >= startDate && blockedDate < endDate;
-    }
-  );
+  const unavailableDates = [
+    ...(apartment.availability?.blockedDates || []),
+    ...(apartment.availability?.unavailableDates || []),
+  ];
+  const hasBlockedDate = unavailableDates.some((value) => {
+    const blockedDate = new Date(value);
+    return blockedDate >= startDate && blockedDate < endDate;
+  });
 
   if (hasBlockedDate) {
-    throw new Error("One or more selected dates are blocked by the Host.");
+    throw new Error("One or more selected dates are unavailable or blocked by the Host.");
   }
 
   const overlapQuery = {
@@ -157,8 +220,26 @@ const validateBookingRules = async ({
     overlapQuery._id = { $ne: ignoreBookingId };
   }
 
-  if (await Booking.exists(overlapQuery)) {
-    throw new Error("Selected dates are no longer available.");
+  const conflictingBooking = await Booking.findOne(overlapQuery)
+    .select("checkIn checkOut status")
+    .sort({ checkIn: 1 })
+    .lean();
+
+  if (conflictingBooking) {
+    throw createBookingRuleError(
+      "This property is already booked for the selected dates. Please choose another date.",
+      {
+        statusCode: 409,
+        code: "BOOKING_DATE_CONFLICT",
+        data: {
+          blockedPeriod: {
+            checkIn: conflictingBooking.checkIn,
+            checkOut: conflictingBooking.checkOut,
+          },
+          suggestedCheckIn: conflictingBooking.checkOut,
+        },
+      }
+    );
   }
 };
 
@@ -258,7 +339,7 @@ const getBookingQuote = asyncHandler(async (req, res) => {
       membership: result.membership,
     });
   } catch (error) {
-    return sendResponse(res, 400, false, error.message);
+    return sendBookingRuleError(res, error);
   }
 });
 
@@ -297,10 +378,22 @@ const createBooking = asyncHandler(async (req, res) => {
       },
     });
   } catch (error) {
-    return sendResponse(res, 400, false, error.message);
+    return sendBookingRuleError(res, error);
+  }
+
+  let bookingPurpose;
+
+  try {
+    bookingPurpose = normalizeBookingPurpose(req.body);
+  } catch (error) {
+    return sendBookingRuleError(res, error);
   }
 
   const isPremium = Boolean(result.membership);
+  const revenueShares = await calculateBookingShares({
+    hostId: apartment.host,
+    totalAmount: result.quote.totalAmount,
+  });
 
   const booking = await Booking.create({
     guest: req.user._id,
@@ -309,7 +402,17 @@ const createBooking = asyncHandler(async (req, res) => {
     checkIn: startDate,
     checkOut: endDate,
     guestsCount: Number(req.body.guestsCount || 1),
-    pricing: result.quote,
+    totalAmount: revenueShares.grossAmount,
+    hostShare: revenueShares.hostShare,
+    adminShare: revenueShares.adminShare,
+    hostCommissionPercentage: revenueShares.commissionPercentage,
+    revenueType: revenueShares.isSubscribed
+      ? "subscribed_host_commission"
+      : "free_host_commission",
+    pricing: {
+      ...result.quote,
+      hostPayableAmount: revenueShares.hostShare,
+    },
     membershipSnapshot: {
       isPremium,
       planCode: result.membership?.planCode || "",
@@ -328,6 +431,7 @@ const createBooking = asyncHandler(async (req, res) => {
           : "",
     },
     priorityScore: isPremium ? 100 : 0,
+    purpose: bookingPurpose,
     status: BOOKING_STATUS.PENDING,
     paymentStatus: "pending",
     message: String(req.body.message || "").trim(),

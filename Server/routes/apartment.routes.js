@@ -9,6 +9,11 @@ const activeSubscriptionMiddleware = require("../middleware/activeSubscription.m
 const ROLES = require("../constants/roles");
 
 const {
+  getNameSuggestions,
+  improveDescription,
+} = require("../controllers/listingAi.controller");
+
+const {
   createApartment,
   getAllApartments,
   getApartmentDetails,
@@ -23,6 +28,20 @@ const {
 // Public static routes first.
 router.get("/search", searchApartments);
 router.get("/", getAllApartments);
+
+// Phase-1 OpenRouter helpers. No key is exposed to the browser.
+router.post(
+  "/ai/name-suggestions",
+  authMiddleware,
+  roleMiddleware(ROLES.HOST),
+  getNameSuggestions
+);
+router.post(
+  "/ai/improve-description",
+  authMiddleware,
+  roleMiddleware(ROLES.HOST),
+  improveDescription
+);
 
 // Host-owned listing routes must stay before public /:id.
 router.get(
@@ -49,7 +68,10 @@ router.post(
   authMiddleware,
   roleMiddleware(ROLES.HOST),
   activeSubscriptionMiddleware,
-  upload.array("images", 10),
+  upload.fields([
+    { name: "images", maxCount: 10 },
+    { name: "videos", maxCount: 5 },
+  ]),
   createApartment
 );
 
@@ -61,7 +83,10 @@ router.put(
   authMiddleware,
   roleMiddleware(ROLES.HOST),
   activeSubscriptionMiddleware,
-  upload.array("images", 10),
+  upload.fields([
+    { name: "images", maxCount: 10 },
+    { name: "videos", maxCount: 5 },
+  ]),
   updateApartment
 );
 

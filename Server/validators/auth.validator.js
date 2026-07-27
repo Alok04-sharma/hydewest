@@ -27,8 +27,15 @@ const registerSchema = z.object({
     .optional()
     .default(""),
 
-  // Public signup se sirf guest ya host account create ho sakta hai.
+  // Public signup can create only Guest or Host accounts.
   role: z.enum([ROLES.GUEST, ROLES.HOST]).optional().default(ROLES.GUEST),
+
+  referralCode: z
+    .string()
+    .trim()
+    .max(40, "Referral code is too long")
+    .optional()
+    .default(""),
 });
 
 const sendOTPSchema = z.object({

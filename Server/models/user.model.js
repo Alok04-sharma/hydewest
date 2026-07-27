@@ -108,6 +108,34 @@ const userSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Phase-1 host commercial profile. These fields mirror the active
+    // subscription state for fast authorization and analytics queries.
+    subscriptionStatus: {
+      type: String,
+      enum: ["none", "pending", "active", "scheduled", "expired", "cancelled"],
+      default: "none",
+      index: true,
+    },
+
+    subscriptionExpiry: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+
+    freeListingCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    commissionPercentage: {
+      type: Number,
+      default: 30,
+      min: 0,
+      max: 100,
+    },
+
     // =========================
     // Account Status
     // =========================

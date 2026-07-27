@@ -1,75 +1,41 @@
 const multer = require("multer");
 
-
-// ======================================
-// Storage Configuration
-// ======================================
-
-// Memory storage use kar rahe hain
-// File server me save nahi hogi
-// Direct Cloudinary jayegi
-
 const storage = multer.memoryStorage();
 
+const IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+]);
 
-// ======================================
-// File Filter
-// ======================================
+const VIDEO_TYPES = new Set([
+  "video/mp4",
+  "video/webm",
+  "video/quicktime",
+  "video/x-m4v",
+]);
 
 const fileFilter = (req, file, cb) => {
-
-  const allowedTypes = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-  ];
-
-
-  if (allowedTypes.includes(file.mimetype)) {
-
-    cb(null, true);
-
-  } else {
-
-    cb(
-      new Error(
-        "Only JPG, JPEG, PNG and WEBP images are allowed."
-      ),
-      false
-    );
-
+  if (IMAGE_TYPES.has(file.mimetype) || VIDEO_TYPES.has(file.mimetype)) {
+    return cb(null, true);
   }
 
+  return cb(
+    new Error("Only JPG, PNG, WEBP, MP4, WEBM and MOV media files are allowed."),
+    false
+  );
 };
 
-
-
-// ======================================
-// Multer Configuration
-// ======================================
-
 const upload = multer({
-
   storage,
-
   fileFilter,
-
-
   limits: {
-
-    // 5MB per image
-
-    fileSize: 5 * 1024 * 1024,
-
+    // Videos require a larger ceiling; image limits are also validated in the
+    // controller so large images are still rejected with a clear message.
+    fileSize: 100 * 1024 * 1024,
+    files: 15,
   },
-
 });
-
-
-
-// ======================================
-// Export
-// ======================================
 
 module.exports = upload;

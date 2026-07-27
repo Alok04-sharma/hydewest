@@ -176,6 +176,28 @@ const reverseBookingReward = async ({ guestId, booking, points }) => {
   });
 };
 
+
+const awardReferralPoints = async ({
+  guestId,
+  referredGuestId,
+  points,
+  referralCode,
+}) => {
+  if (!points) return null;
+
+  return createCredit({
+    guestId,
+    points,
+    type: LOYALTY_TRANSACTION_TYPE.REFERRAL_REWARD,
+    referenceKey: `referral-reward:${referredGuestId}`,
+    description: `Referral reward for code ${referralCode}.`,
+    metadata: {
+      referredGuestId,
+      referralCode,
+    },
+  });
+};
+
 const getLoyaltySummary = async (guestId, page = 1, limit = 20) => {
   const account = await getOrCreateAccount(guestId);
   const skip = (page - 1) * limit;
@@ -209,4 +231,5 @@ module.exports = {
   restoreBookingRedemption,
   reverseBookingReward,
   getLoyaltySummary,
+  awardReferralPoints,
 };

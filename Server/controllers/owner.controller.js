@@ -2,11 +2,9 @@ const asyncHandler = require("express-async-handler");
 
 const Apartment = require("../models/apartment.model");
 const Booking = require("../models/booking.model");
-const Payment = require("../models/payment.model");
-const SubscriptionPayment = require(
-  "../models/subscriptionPayment.model"
-);
 const User = require("../models/user.model");
+const Revenue = require("../models/revenue.model");
+const { REVENUE_TYPE } = require("../constants/revenue");
 
 const APARTMENT_STATUS = require(
   "../constants/apartmentStatus"
@@ -153,92 +151,44 @@ const monthlyCount = (
 };
 
 // ======================================
-// Total Successful Revenue
+// Platform Revenue Helpers
 // ======================================
 
-const totalSuccessfulRevenue = (
-  Model,
-  successStatus
-) => {
-  return Model.aggregate([
+const totalRevenueByType = (revenueType) =>
+  Revenue.aggregate([
     {
       $match: {
         ...NOT_DELETED,
-        status: successStatus,
+        revenueType,
       },
     },
-
     {
       $group: {
         _id: null,
-
-        total: {
-          $sum: "$amount",
-        },
+        total: { $sum: "$amount" },
       },
     },
   ]);
-};
 
-// ======================================
-// Monthly Successful Revenue
-// ======================================
-
-const monthlySuccessfulRevenue = (
-  Model,
-  successStatus,
-  startDate
-) => {
-  return Model.aggregate([
+const monthlyRevenueByType = (revenueType, startDate) =>
+  Revenue.aggregate([
     {
       $match: {
         ...NOT_DELETED,
-        status: successStatus,
+        revenueType,
+        date: { $gte: startDate },
       },
     },
-
-    /*
-     * paidAt available ho to use karenge.
-     * Legacy records ke liye createdAt fallback hai.
-     */
-    {
-      $addFields: {
-        effectiveDate: {
-          $ifNull: [
-            "$paidAt",
-            "$createdAt",
-          ],
-        },
-      },
-    },
-
-    {
-      $match: {
-        effectiveDate: {
-          $gte: startDate,
-        },
-      },
-    },
-
     {
       $group: {
         _id: {
-          year: {
-            $year: "$effectiveDate",
-          },
-
-          month: {
-            $month: "$effectiveDate",
-          },
+          year: { $year: "$date" },
+          month: { $month: "$date" },
         },
-
-        value: {
-          $sum: "$amount",
-        },
+        value: { $sum: "$amount" },
       },
     },
   ]);
-};
 
 // ======================================
 // Status Count Helper
@@ -362,16 +312,7 @@ const getDashboard = asyncHandler(
      */
     const hostFilter = {
       ...NOT_DELETED,
-
-      $or: [
-        {
-          role: ROLES.HOST,
-        },
-
-        {
-          isHost: true,
-        },
-      ],
+      role: ROLES.HOST,
     };
 
     const guestFilter = {
@@ -449,15 +390,13 @@ const getDashboard = asyncHandler(
       ),
 
       // Booking payment revenue
-      totalSuccessfulRevenue(
-        Payment,
-        PAYMENT_SUCCESS_STATUS
+      totalRevenueByType(
+        REVENUE_TYPE.GUEST_BOOKING_COMMISSION
       ),
 
       // Host subscription revenue
-      totalSuccessfulRevenue(
-        SubscriptionPayment,
-        SUBSCRIPTION_PAYMENT_STATUS.SUCCESS
+      totalRevenueByType(
+        REVENUE_TYPE.HOST_SUBSCRIPTION
       ),
 
       // Listing Status Breakdown
@@ -502,16 +441,14 @@ const getDashboard = asyncHandler(
       ),
 
       // Monthly Booking Revenue
-      monthlySuccessfulRevenue(
-        Payment,
-        PAYMENT_SUCCESS_STATUS,
+      monthlyRevenueByType(
+        REVENUE_TYPE.GUEST_BOOKING_COMMISSION,
         trendStart
       ),
 
       // Monthly Subscription Revenue
-      monthlySuccessfulRevenue(
-        SubscriptionPayment,
-        SUBSCRIPTION_PAYMENT_STATUS.SUCCESS,
+      monthlyRevenueByType(
+        REVENUE_TYPE.HOST_SUBSCRIPTION,
         trendStart
       ),
     ]);
@@ -600,7 +537,7 @@ const getDashboard = asyncHandler(
     const previousMonth =
       monthlyTrend.at(-2) || {};
 
-    const bookingRevenue =
+    const guestCommissionRevenue =
       Number(
         bookingRevenueResult[0]
           ?.total || 0
@@ -620,7 +557,7 @@ const getDashboard = asyncHandler(
      * Successful subscription payments
      */
     const totalRevenue =
-      bookingRevenue +
+      guestCommissionRevenue +
       subscriptionRevenue;
 
     // ======================================
@@ -646,7 +583,8 @@ const getDashboard = asyncHandler(
            * Extra breakdown future UI ke liye.
            * Existing frontend break nahi hoga.
            */
-          bookingRevenue,
+          guestCommissionRevenue,
+          bookingRevenue: guestCommissionRevenue,
           subscriptionRevenue,
 
           currency: "INR",

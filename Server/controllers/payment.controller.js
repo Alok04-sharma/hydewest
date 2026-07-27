@@ -10,6 +10,10 @@ const NOTIFICATION_TYPE = require("../constants/notificationType");
 const { createUserNotification } = require("../services/notification.service");
 const { awardBookingPoints } = require("../services/loyalty.service");
 const { createBookingReceiptBuffer } = require("../services/invoice.service");
+const {
+  calculateBookingShares,
+  recordBookingCommission,
+} = require("../services/revenue.service");
 
 
 const buildCheckoutConfig = (method) => {
@@ -162,6 +166,51 @@ const verifyPayment = asyncHandler(async (req, res) => {
 
   const couponCode = String(booking.pricing?.couponCode || "").trim().toUpperCase();
   const apartment = await Apartment.findById(booking.apartment);
+
+  const hasRevenueSnapshot =
+    Number(booking.totalAmount || 0) > 0 &&
+    Number(booking.hostShare || 0) >= 0 &&
+    Number(booking.adminShare || 0) > 0;
+
+  const shares = hasRevenueSnapshot
+    ? {
+        grossAmount: Number(booking.totalAmount),
+        hostShare: Number(booking.hostShare),
+        adminShare: Number(booking.adminShare),
+        commissionPercentage: Number(booking.hostCommissionPercentage || 30),
+        isSubscribed: booking.revenueType === "subscribed_host_commission",
+        hostTier:
+          booking.revenueType === "subscribed_host_commission"
+            ? "subscribed"
+            : "free",
+        revenueType: "guest_booking_commission",
+        subscription: null,
+      }
+    : await calculateBookingShares({
+        hostId: booking.host,
+        totalAmount: booking.pricing?.totalAmount || payment.amount,
+      });
+
+  booking.totalAmount = shares.grossAmount;
+  booking.hostShare = shares.hostShare;
+  booking.adminShare = shares.adminShare;
+  booking.hostCommissionPercentage = shares.commissionPercentage;
+  booking.revenueType = shares.isSubscribed
+    ? "subscribed_host_commission"
+    : "free_host_commission";
+  booking.pricing.hostPayableAmount = shares.hostShare;
+
+  payment.totalAmount = shares.grossAmount;
+  payment.hostShare = shares.hostShare;
+  payment.adminShare = shares.adminShare;
+  payment.revenueType = booking.revenueType;
+  payment.metadata = {
+    ...(payment.metadata || {}),
+    hostTier: shares.hostTier,
+    hostCommissionPercentage: shares.commissionPercentage,
+    hostShare: shares.hostShare,
+    adminShare: shares.adminShare,
+  };
   if (couponCode && !booking.couponUsageRecorded && apartment) {
     const coupon = apartment.coupons?.find((item) => String(item.code || "").toUpperCase() === couponCode);
     if (coupon) {
@@ -190,6 +239,14 @@ const verifyPayment = asyncHandler(async (req, res) => {
     apartment.bookingCount = Number(apartment.bookingCount || 0) + 1;
     await apartment.save();
   }
+
+  await recordBookingCommission({
+    booking,
+    payment,
+    apartment,
+    shares,
+  });
+
   await booking.save();
   await payment.save();
 

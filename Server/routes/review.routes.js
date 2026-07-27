@@ -1,95 +1,24 @@
 const express = require("express");
 
-const router = express.Router();
-
-
-
-// ======================================
-// Middleware
-// ======================================
-
 const authMiddleware = require("../middleware/auth.middleware");
-
-
-
-
-// ======================================
-// Controller
-// ======================================
-
+const roleMiddleware = require("../middleware/role.middleware");
+const ROLES = require("../constants/roles");
 const {
-
   createReview,
-
-  getApartmentReviews,
-
   deleteReview,
-
+  getApartmentReviews,
+  getEligibleReviewBookings,
+  getMyReviews,
 } = require("../controllers/review.controller");
 
+const router = express.Router();
 
+router.get("/apartment/:apartmentId", getApartmentReviews);
 
-
-
-
-
-// ======================================
-// Review Routes
-// ======================================
-
-
-
-
-// Create Review
-
-router.post(
-
-  "/:apartmentId",
-
-  authMiddleware,
-
-  createReview
-
-);
-
-
-
-
-
-
-
-// Get Apartment Reviews
-
-router.get(
-
-  "/:apartmentId",
-
-  getApartmentReviews
-
-);
-
-
-
-
-
-
-
-// Delete Review
-
-router.delete(
-
-  "/:reviewId",
-
-  authMiddleware,
-
-  deleteReview
-
-);
-
-
-
-
-
-
+router.use(authMiddleware, roleMiddleware(ROLES.GUEST));
+router.get("/me", getMyReviews);
+router.get("/eligible-bookings", getEligibleReviewBookings);
+router.post("/:apartmentId", createReview);
+router.delete("/:reviewId", deleteReview);
 
 module.exports = router;

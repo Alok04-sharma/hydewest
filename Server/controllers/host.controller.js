@@ -74,7 +74,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       },
       { $unwind: "$bookingData" },
       { $match: { "bookingData.host": hostId, "bookingData.isDeleted": { $ne: true } } },
-      { $group: { _id: null, total: { $sum: "$amount" } } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$bookingData.hostShare", { $ifNull: ["$bookingData.hostShare", { $ifNull: ["$bookingData.pricing.hostPayableAmount", "$amount"] }] }] } } } },
     ]),
     Payment.aggregate([
       { $match: { status: "success", isDeleted: { $ne: true } } },
@@ -97,7 +97,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       {
         $group: {
           _id: { year: { $year: "$paidAt" }, month: { $month: "$paidAt" } },
-          revenue: { $sum: "$amount" },
+          revenue: { $sum: { $ifNull: ["$bookingData.hostShare", { $ifNull: ["$bookingData.hostShare", { $ifNull: ["$bookingData.pricing.hostPayableAmount", "$amount"] }] }] } },
           bookings: { $sum: 1 },
         },
       },

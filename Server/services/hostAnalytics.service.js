@@ -16,18 +16,18 @@ const getRevenueOverview = async (hostId) => {
   const previousStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
 
   const [totals, monthly, propertyWise, bookingStats] = await Promise.all([
-    Payment.aggregate([...hostRevenueMatch(hostId), { $group: { _id: null, total: { $sum: { $ifNull: ["$bookingData.pricing.hostPayableAmount", "$amount"] } }, count: { $sum: 1 } } }]),
+    Payment.aggregate([...hostRevenueMatch(hostId), { $group: { _id: null, total: { $sum: { $ifNull: ["$bookingData.hostShare", { $ifNull: ["$bookingData.pricing.hostPayableAmount", "$amount"] }] } }, count: { $sum: 1 } } }]),
     Payment.aggregate([
       ...hostRevenueMatch(hostId),
       { $match: { paidAt: { $gte: yearStart } } },
-      { $group: { _id: { year: { $year: "$paidAt" }, month: { $month: "$paidAt" } }, revenue: { $sum: { $ifNull: ["$bookingData.pricing.hostPayableAmount", "$amount"] } }, bookings: { $sum: 1 } } },
+      { $group: { _id: { year: { $year: "$paidAt" }, month: { $month: "$paidAt" } }, revenue: { $sum: { $ifNull: ["$bookingData.hostShare", { $ifNull: ["$bookingData.pricing.hostPayableAmount", "$amount"] }] } }, bookings: { $sum: 1 } } },
       { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]),
     Payment.aggregate([
       ...hostRevenueMatch(hostId),
       { $lookup: { from: "apartments", localField: "bookingData.apartment", foreignField: "_id", as: "apartmentData" } },
       { $unwind: "$apartmentData" },
-      { $group: { _id: "$apartmentData._id", title: { $first: "$apartmentData.title" }, cover: { $first: { $arrayElemAt: ["$apartmentData.images", 0] } }, revenue: { $sum: { $ifNull: ["$bookingData.pricing.hostPayableAmount", "$amount"] } }, bookings: { $sum: 1 } } },
+      { $group: { _id: "$apartmentData._id", title: { $first: "$apartmentData.title" }, cover: { $first: { $arrayElemAt: ["$apartmentData.images", 0] } }, revenue: { $sum: { $ifNull: ["$bookingData.hostShare", { $ifNull: ["$bookingData.pricing.hostPayableAmount", "$amount"] }] } }, bookings: { $sum: 1 } } },
       { $sort: { revenue: -1 } },
     ]),
     Booking.aggregate([

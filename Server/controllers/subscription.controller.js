@@ -27,6 +27,8 @@ const {
   createSubscriptionInvoiceBuffer,
 } = require("../services/invoice.service");
 const sendResponse = require("../utils/sendResponse");
+const { recordSubscriptionRevenue } = require("../services/revenue.service");
+const { HOST_COMMISSION } = require("../constants/revenue");
 
 const buildInvoiceNumber = (payment, paidAt = new Date()) => {
   const date = new Date(paidAt);
@@ -389,6 +391,26 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
   subscription.razorpayOrderId = razorpayOrderId;
   subscription.razorpayPaymentId = razorpayPaymentId;
   await subscription.save();
+
+  await User.updateOne(
+    { _id: req.user._id },
+    {
+      $set: {
+        subscriptionStatus:
+          subscriptionStatus === SUBSCRIPTION_STATUS.ACTIVE
+            ? "active"
+            : "scheduled",
+        subscriptionExpiry: expiryDate,
+        commissionPercentage: HOST_COMMISSION.SUBSCRIBED_ADMIN_PERCENT,
+      },
+    }
+  );
+
+  await recordSubscriptionRevenue({
+    hostId: req.user._id,
+    payment,
+    subscription,
+  });
 
   const host = await User.findById(req.user._id).select("name email");
 

@@ -1,14 +1,22 @@
 const express = require("express");
+
 const authMiddleware = require("../middleware/auth.middleware");
 const roleMiddleware = require("../middleware/role.middleware");
 const ROLES = require("../constants/roles");
 const {
-  getDashboard,
-  getPriceAlerts,
   createPriceAlert,
-  deletePriceAlert,
-  getSmartRecommendations,
+  createSupportTicket,
   createTripPlan,
+  deletePriceAlert,
+  getDashboard,
+  getExclusiveListings,
+  getGuestOffers,
+  getMyReferral,
+  getPriceAlerts,
+  getSmartRecommendations,
+  getSupportTickets,
+  getTrendingDestinations,
+  trackReferral,
 } = require("../controllers/guest.controller");
 const { getMyLoyalty } = require("../controllers/loyalty.controller");
 const {
@@ -21,10 +29,20 @@ const {
 } = require("../controllers/guestMembership.controller");
 
 const router = express.Router();
+
 router.get("/membership/plans", getPlans);
+router.post("/referrals/track/:code", trackReferral);
+
 router.use(authMiddleware, roleMiddleware(ROLES.GUEST));
+
 router.get("/dashboard", getDashboard);
 router.get("/loyalty", getMyLoyalty);
+router.get("/offers", getGuestOffers);
+router.get("/trending-destinations", getTrendingDestinations);
+router.get("/exclusive-listings", getExclusiveListings);
+router.get("/referrals/me", getMyReferral);
+router.get("/support", getSupportTickets);
+router.post("/support", createSupportTicket);
 router.get("/price-alerts", getPriceAlerts);
 router.post("/price-alerts", createPriceAlert);
 router.delete("/price-alerts/:alertId", deletePriceAlert);

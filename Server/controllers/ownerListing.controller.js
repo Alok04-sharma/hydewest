@@ -14,6 +14,7 @@ const {
   createUserNotification,
 } = require("../services/notification.service");
 const { getHostSubscriptionSummary } = require("../services/subscription.service");
+const { HOST_COMMISSION } = require("../constants/revenue");
 
 // ======================================
 // Escape Regex
@@ -36,14 +37,14 @@ const validateReason = (reason, label) => {
   if (normalized.length < 10) {
     return {
       valid: false,
-      message: `${label} reason kam se kam 10 characters ka hona chahiye.`,
+      message: `${label} reason must contain at least 10 characters.`,
     };
   }
 
   if (normalized.length > 500) {
     return {
       valid: false,
-      message: `${label} reason maximum 500 characters ka ho sakta hai.`,
+      message: `${label} reason can contain a maximum of 500 characters.`,
     };
   }
 
@@ -539,13 +540,30 @@ const approveListing = asyncHandler(
 
     const subscriptionSummary = await getHostSubscriptionSummary(host._id);
 
+    /*
+     * Phase-1 Host commercial rules:
+     * - Free Host: up to two published listings.
+     * - Subscribed Host: unlimited published listings.
+     *
+     * Approval must therefore not require a subscription. It only blocks a
+     * Free Host when approving this listing would exceed the free allowance.
+     */
     if (!subscriptionSummary.isActive) {
-      return sendResponse(
-        res,
-        409,
-        false,
-        "Host ki active subscription nahi hai. Listing approve karne se pehle Host ko plan purchase ya renew karna hoga."
-      );
+      const otherPublishedListings = await Apartment.countDocuments({
+        _id: { $ne: listing._id },
+        host: host._id,
+        isDeleted: false,
+        status: APARTMENT_STATUS.APPROVED,
+      });
+
+      if (otherPublishedListings >= HOST_COMMISSION.FREE_LISTING_LIMIT) {
+        return sendResponse(
+          res,
+          409,
+          false,
+          `Free Hosts can publish up to ${HOST_COMMISSION.FREE_LISTING_LIMIT} listings. Ask the Host to subscribe or deactivate another published listing.`
+        );
+      }
     }
 
     ensureModerationFields(listing);
@@ -641,7 +659,7 @@ const approveListing = asyncHandler(
       recipient: listing.host,
       type: NOTIFICATION_TYPE.LISTING_APPROVED,
       title: "Your listing was approved",
-      message: `“${listing.title}” has been approved and is now visible to Guests while your Host subscription remains active.`,
+      message: `“${listing.title}” has been approved and is now visible to Guests.`,
       actor: req.user._id,
       entityType: "Apartment",
       entityId: listing._id,
@@ -799,30 +817,45 @@ const suspendListing = asyncHandler(
 
 const removeListing = asyncHandler(
   async (req, res) => {
-    const reasonCheck =
-      validateReason(
-        req.body.reason,
-        "Removal"
-      );
+    const reasonCheck = validateReason(req.body.reason, "Removal");
 
     if (!reasonCheck.valid) {
-      return sendResponse(
-        res,
-        400,
-        false,
-        reasonCheck.message
-      );
+      return sendResponse(res, 400, false, reasonCheck.message);
     }
 
-    const listing =
-      await getListingOrNull(
-        req.params.listingId
-      );
+    if (!mongoose.isValidObjectId(req.params.listingId)) {
+      return sendResponse(res, 404, false, "Listing not found.");
+    }
 
-    if (
-      !listing ||
-      listing.isDeleted
-    ) {
+    const removedAt = new Date();
+    const listing = await Apartment.findOneAndUpdate(
+      {
+        _id: req.params.listingId,
+        isDeleted: { $ne: true },
+      },
+      {
+        $set: {
+          isDeleted: true,
+          status: APARTMENT_STATUS.INACTIVE,
+          isFeatured: false,
+          "moderation.removedAt": removedAt,
+          "moderation.removedBy": req.user._id,
+          "moderation.removalReason": reasonCheck.reason,
+        },
+        $push: {
+          statusHistory: {
+            status: APARTMENT_STATUS.INACTIVE,
+            action: "removed_by_super_admin",
+            reason: reasonCheck.reason,
+            changedBy: req.user._id,
+            changedAt: removedAt,
+          },
+        },
+      },
+      { new: true, runValidators: false }
+    ).select("_id title host moderation isDeleted status");
+
+    if (!listing) {
       return sendResponse(
         res,
         404,
@@ -831,67 +864,39 @@ const removeListing = asyncHandler(
       );
     }
 
-    ensureModerationFields(listing);
+    await User.updateOne(
+      { _id: listing.host },
+      { $inc: { freeListingCount: -1 } }
+    ).catch(() => null);
 
-    listing.isDeleted = true;
+    try {
+      await createUserNotification({
+        recipient: listing.host,
+        type: NOTIFICATION_TYPE.LISTING_REMOVED,
+        title: "Your listing was removed",
+        message: `“${listing.title}” was removed for a policy violation. Reason: ${reasonCheck.reason}`,
+        actor: req.user._id,
+        entityType: "Apartment",
+        entityId: listing._id,
+        actionUrl: "/host/listings",
+        eventKey: `listing-removed:${listing._id}:${removedAt.getTime()}`,
+        metadata: {
+          listingId: listing._id,
+          reason: reasonCheck.reason,
+          removedAt,
+        },
+      });
+    } catch (notificationError) {
+      console.error("Listing removal notification failed:", notificationError.message);
+    }
 
-    listing.status =
-      APARTMENT_STATUS.INACTIVE;
-
-    listing.isFeatured = false;
-
-    listing.moderation.removedAt =
-      new Date();
-
-    listing.moderation.removedBy =
-      req.user._id;
-
-    listing.moderation.removalReason =
-      reasonCheck.reason;
-
-    addHistory(listing, {
-      changedBy: req.user._id,
-
-      action:
-        "removed_by_super_admin",
-
-      reason:
-        reasonCheck.reason,
+    return sendResponse(res, 200, true, "Listing removed successfully.", {
+      _id: listing._id,
+      title: listing.title,
+      adminStatus: "removed",
+      isDeleted: true,
+      moderation: listing.moderation,
     });
-
-    await listing.save();
-
-    await createUserNotification({
-      recipient: listing.host,
-      type: NOTIFICATION_TYPE.LISTING_REMOVED,
-      title: "Your listing was removed",
-      message: `“${listing.title}” was removed for a policy violation. Reason: ${reasonCheck.reason}`,
-      actor: req.user._id,
-      entityType: "Apartment",
-      entityId: listing._id,
-      actionUrl: "/host/dashboard",
-      eventKey: `listing-removed:${listing._id}:${listing.moderation.removedAt.getTime()}`,
-      metadata: {
-        listingId: listing._id,
-        reason: reasonCheck.reason,
-        removedAt: listing.moderation.removedAt,
-      },
-    });
-
-    return sendResponse(
-      res,
-      200,
-      true,
-      "Listing removed successfully.",
-      {
-        _id: listing._id,
-        title: listing.title,
-        adminStatus: "removed",
-        isDeleted: true,
-        moderation:
-          listing.moderation,
-      }
-    );
   }
 );
 

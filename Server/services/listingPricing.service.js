@@ -6,6 +6,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const FALLBACK_BOOKING_UNIT = PRICING_UNIT?.NIGHT || "night";
 const VALID_UNITS = new Set(["hour", "night", "day", "week", "month"]);
+const PUBLIC_BOOKING_UNITS = new Set(["hour", "night", "week", "month"]);
 const VALID_PAYMENT_METHODS = new Set(["any", "upi", "card"]);
 
 const LEGACY_UNIT_TO_DAILY_DIVISOR = Object.freeze({
@@ -87,7 +88,11 @@ const resolveListingRates = (apartment) => {
     };
   }
 
-  return generateRatesFromDailyPrice(dailyPrice, pricing.rates || {});
+  const rates = generateRatesFromDailyPrice(dailyPrice, pricing.rates || {});
+  if (Number(apartment?.policies?.minBookingDays || 1) > 1) {
+    rates.hour = 0;
+  }
+  return rates;
 };
 
 const getDuration = (checkIn, checkOut) => {
@@ -110,7 +115,7 @@ const getDuration = (checkIn, checkOut) => {
 
 const validateUnitDuration = (duration, bookingUnit) => {
   if (bookingUnit === PRICING_UNIT.HOUR && duration.hours > 24) {
-    throw new Error("Hourly booking can be used for a maximum of 24 hours. Choose night or day pricing for a longer stay.");
+    throw new Error("Hourly booking can be used for a maximum of 24 hours. Choose Night, Week or Month pricing for a longer stay.");
   }
 
   if (bookingUnit === PRICING_UNIT.NIGHT && duration.hours < 8) {
@@ -328,6 +333,54 @@ const calculateUnitSavings = ({ rates, bookingUnit, unitCount, duration }) => {
   );
 };
 
+const dateKeyUTC = (value) => {
+  const date = new Date(value);
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+};
+
+const calculateSpecialPriceSubtotal = ({ apartment, duration, unit, unitCount, selectedRate }) => {
+  if (![PRICING_UNIT.DAY, PRICING_UNIT.NIGHT].includes(unit)) {
+    return {
+      subtotal: roundMoney(selectedRate * unitCount),
+      specialPriceAdjustments: [],
+    };
+  }
+
+  const specialPriceMap = new Map(
+    (apartment?.availability?.specialPrices || []).map((item) => [
+      dateKeyUTC(item.date),
+      Number(item.price || 0),
+    ])
+  );
+
+  let subtotal = 0;
+  const specialPriceAdjustments = [];
+  for (let index = 0; index < unitCount; index += 1) {
+    const date = new Date(duration.start.getTime() + index * DAY_MS);
+    const key = dateKeyUTC(date);
+    const dailySpecial = Number(specialPriceMap.get(key) || 0);
+    const effectiveRate =
+      dailySpecial > 0
+        ? unit === PRICING_UNIT.NIGHT
+          ? roundMoney(dailySpecial * 0.9)
+          : roundMoney(dailySpecial)
+        : selectedRate;
+
+    subtotal += effectiveRate;
+    if (dailySpecial > 0) {
+      specialPriceAdjustments.push({
+        date: key,
+        amount: effectiveRate,
+      });
+    }
+  }
+
+  return {
+    subtotal: roundMoney(subtotal),
+    specialPriceAdjustments,
+  };
+};
+
 const calculateListingQuote = ({
   apartment,
   checkIn,
@@ -347,11 +400,29 @@ const calculateListingQuote = ({
     throw new Error("This property is exclusive to Premium guests.");
   }
 
-  const unit = normalizeBookingUnit(bookingUnit);
+  const requestedUnit = String(bookingUnit || PRICING_UNIT.NIGHT)
+    .trim()
+    .toLowerCase();
+
+  if (!PUBLIC_BOOKING_UNITS.has(requestedUnit)) {
+    throw new Error(
+      requestedUnit === PRICING_UNIT.DAY
+        ? "Daily booking is no longer available. Please choose Hour, Night, Week or Month."
+        : "Please select a valid booking unit."
+    );
+  }
+
+  const unit = normalizeBookingUnit(requestedUnit);
   const preferredPaymentMethod = normalizePaymentMethod(paymentMethod);
   const pricing = apartment.pricing || {};
   const rates = resolveListingRates(apartment);
   const selectedRate = toPositiveNumber(rates[unit]);
+
+  if (unit === PRICING_UNIT.HOUR && Number(apartment?.policies?.minBookingDays || 1) > 1) {
+    throw new Error(
+      `Hourly booking is disabled because the Host requires a minimum stay of ${apartment.policies.minBookingDays} days.`
+    );
+  }
 
   if (selectedRate <= 0) {
     const propertyName =
@@ -359,7 +430,7 @@ const calculateListingQuote = ({
       "this listing";
 
     throw new Error(
-      `Pricing is missing for ${propertyName}. Please ask the Host to edit the listing and save a valid daily price.`
+      `Pricing is missing for ${propertyName}. Please ask the Host to edit the listing and save a valid base pricing reference.`
     );
   }
 
@@ -373,7 +444,14 @@ const calculateListingQuote = ({
   );
   const extraGuestCount = Math.max(guestCount - includedGuests, 0);
   const extraGuestFee = Number(pricing.extraGuestFee || 0);
-  const subtotal = roundMoney(selectedRate * unitCount);
+  const specialPricing = calculateSpecialPriceSubtotal({
+    apartment,
+    duration,
+    unit,
+    unitCount,
+    selectedRate,
+  });
+  const subtotal = specialPricing.subtotal;
   const extraGuestCharge = roundMoney(extraGuestCount * extraGuestFee * unitCount);
   const cleaningFee = roundMoney(pricing.cleaningFee || 0);
   const serviceFee = roundMoney(pricing.serviceFee || 0);
@@ -461,6 +539,7 @@ const calculateListingQuote = ({
     totalNights,
     availableRates: rates,
     unitSavingsPercent,
+    specialPriceAdjustments: specialPricing.specialPriceAdjustments,
     subtotal,
     includedGuests,
     extraGuestCount,

@@ -1,9 +1,9 @@
 const Apartment = require("../models/apartment.model");
 const Subscription = require("../models/subscription.model");
+const User = require("../models/user.model");
 const APARTMENT_STATUS = require("../constants/apartmentStatus");
-const {
-  SUBSCRIPTION_STATUS,
-} = require("../constants/subscriptionStatus");
+const { SUBSCRIPTION_STATUS } = require("../constants/subscriptionStatus");
+const { HOST_COMMISSION } = require("../constants/revenue");
 const NOTIFICATION_TYPE = require("../constants/notificationType");
 const {
   createAdminNotifications,
@@ -13,74 +13,93 @@ const {
 const addMonthsUTC = (date, months) => {
   const result = new Date(date);
   const originalDay = result.getUTCDate();
-
   result.setUTCDate(1);
   result.setUTCMonth(result.getUTCMonth() + months);
-
-  const lastDayOfTargetMonth = new Date(
+  const lastDay = new Date(
     Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)
   ).getUTCDate();
-
-  result.setUTCDate(Math.min(originalDay, lastDayOfTargetMonth));
+  result.setUTCDate(Math.min(originalDay, lastDay));
   return result;
 };
 
 const getRemainingTime = (expiryDate, now = new Date()) => {
-  if (!expiryDate) {
-    return {
-      remainingMilliseconds: 0,
-      remainingDays: 0,
-      remainingHours: 0,
-      isExpired: true,
-    };
-  }
-
-  const remainingMilliseconds = Math.max(
-    new Date(expiryDate).getTime() - now.getTime(),
-    0
-  );
+  const remainingMilliseconds = expiryDate
+    ? Math.max(new Date(expiryDate).getTime() - now.getTime(), 0)
+    : 0;
 
   return {
     remainingMilliseconds,
-    remainingDays: Math.ceil(remainingMilliseconds / (24 * 60 * 60 * 1000)),
-    remainingHours: Math.ceil(remainingMilliseconds / (60 * 60 * 1000)),
+    remainingDays: Math.ceil(remainingMilliseconds / 86400000),
+    remainingHours: Math.ceil(remainingMilliseconds / 3600000),
     isExpired: remainingMilliseconds <= 0,
   };
 };
 
-const markHostListingsInactive = async (hostId, reason) => {
-  const listings = await Apartment.find({
+/**
+ * When a subscription expires the Host becomes a Free Host. We never remove
+ * their data. The first two approved listings remain public and any additional
+ * approved listings are moved to inactive status until the Host subscribes
+ * again or removes listings to fit the free allowance.
+ */
+const enforceFreeHostListingLimit = async (hostId, reason) => {
+  const approvedListings = await Apartment.find({
     host: hostId,
     status: APARTMENT_STATUS.APPROVED,
     isDeleted: false,
-  });
+  }).sort({ createdAt: 1, _id: 1 });
 
-  if (!listings.length) {
-    return 0;
-  }
+  const excess = approvedListings.slice(HOST_COMMISSION.FREE_LISTING_LIMIT);
+  if (!excess.length) return 0;
 
   const changedAt = new Date();
-
-  for (const listing of listings) {
-    listing.status = APARTMENT_STATUS.INACTIVE;
-    listing.isFeatured = false;
-
-    if (!Array.isArray(listing.statusHistory)) {
-      listing.statusHistory = [];
-    }
-
-    listing.statusHistory.push({
-      status: APARTMENT_STATUS.INACTIVE,
-      action: "subscription_expired",
-      reason,
-      changedBy: null,
-      changedAt,
-    });
-
-    await listing.save();
+  for (const listing of excess) {
+    await Apartment.updateOne(
+      { _id: listing._id },
+      {
+        $set: {
+          status: APARTMENT_STATUS.INACTIVE,
+          isFeatured: false,
+        },
+        $push: {
+          statusHistory: {
+            status: APARTMENT_STATUS.INACTIVE,
+            action: "free_listing_limit_enforced",
+            reason,
+            changedBy: null,
+            changedAt,
+          },
+        },
+      }
+    );
   }
 
-  return listings.length;
+  return excess.length;
+};
+
+// Backward-compatible exported name used by older jobs/controllers.
+const markHostListingsInactive = enforceFreeHostListingLimit;
+
+const syncHostCommercialProfile = async (hostId, activeSubscription, fallbackStatus = "none") => {
+  const freeListingCount = await Apartment.countDocuments({
+    host: hostId,
+    isDeleted: false,
+  });
+
+  await User.updateOne(
+    { _id: hostId },
+    {
+      $set: {
+        subscriptionStatus: activeSubscription ? "active" : fallbackStatus,
+        subscriptionExpiry: activeSubscription?.expiryDate || null,
+        freeListingCount,
+        commissionPercentage: activeSubscription
+          ? HOST_COMMISSION.SUBSCRIBED_ADMIN_PERCENT
+          : HOST_COMMISSION.FREE_ADMIN_PERCENT,
+      },
+    }
+  );
+
+  return freeListingCount;
 };
 
 const refreshHostSubscriptions = async (hostId, now = new Date()) => {
@@ -89,15 +108,11 @@ const refreshHostSubscriptions = async (hostId, now = new Date()) => {
     isDeleted: false,
     paymentStatus: "success",
     status: {
-      $in: [
-        SUBSCRIPTION_STATUS.ACTIVE,
-        SUBSCRIPTION_STATUS.SCHEDULED,
-      ],
+      $in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.SCHEDULED],
     },
   }).sort({ startDate: 1, expiryDate: 1 });
 
   let changed = false;
-
   for (const subscription of subscriptions) {
     if (
       subscription.expiryDate &&
@@ -105,9 +120,9 @@ const refreshHostSubscriptions = async (hostId, now = new Date()) => {
       subscription.status !== SUBSCRIPTION_STATUS.EXPIRED
     ) {
       subscription.status = SUBSCRIPTION_STATUS.EXPIRED;
-      subscription.expiredAt = now;
-      changed = true;
+      subscription.expiredAt = subscription.expiredAt || now;
       await subscription.save();
+      changed = true;
     }
   }
 
@@ -138,76 +153,93 @@ const refreshHostSubscriptions = async (hostId, now = new Date()) => {
     .sort({ expiryDate: -1 })
     .populate("payment");
 
-  return {
-    activeSubscription,
-    changed,
-  };
+  return { activeSubscription, changed };
 };
 
 const getHostSubscriptionSummary = async (hostId) => {
   const now = new Date();
   const { activeSubscription } = await refreshHostSubscriptions(hostId, now);
 
-  const latestPaidSubscription = await Subscription.findOne({
-    host: hostId,
-    isDeleted: false,
-    paymentStatus: "success",
-  }).sort({ expiryDate: -1, createdAt: -1 });
-
-  const upcomingSubscription = await Subscription.findOne({
-    host: hostId,
-    isDeleted: false,
-    paymentStatus: "success",
-    status: SUBSCRIPTION_STATUS.SCHEDULED,
-    expiryDate: { $gt: now },
-  }).sort({ startDate: 1 });
+  const [latestPaidSubscription, upcomingSubscription, freeListingCount] =
+    await Promise.all([
+      Subscription.findOne({
+        host: hostId,
+        isDeleted: false,
+        paymentStatus: "success",
+      }).sort({ expiryDate: -1, createdAt: -1 }),
+      Subscription.findOne({
+        host: hostId,
+        isDeleted: false,
+        paymentStatus: "success",
+        status: SUBSCRIPTION_STATUS.SCHEDULED,
+        expiryDate: { $gt: now },
+      }).sort({ startDate: 1 }),
+      Apartment.countDocuments({ host: hostId, isDeleted: false }),
+    ]);
 
   const referenceSubscription = activeSubscription || latestPaidSubscription;
+  const status = activeSubscription
+    ? SUBSCRIPTION_STATUS.ACTIVE
+    : referenceSubscription?.status || "none";
   const remaining = getRemainingTime(referenceSubscription?.expiryDate, now);
+  const isActive = Boolean(activeSubscription);
+  const freeListingsRemaining = Math.max(
+    HOST_COMMISSION.FREE_LISTING_LIMIT - freeListingCount,
+    0
+  );
+
+  await User.updateOne(
+    { _id: hostId },
+    {
+      $set: {
+        subscriptionStatus: status,
+        subscriptionExpiry: activeSubscription?.expiryDate || referenceSubscription?.expiryDate || null,
+        freeListingCount,
+        commissionPercentage: isActive
+          ? HOST_COMMISSION.SUBSCRIBED_ADMIN_PERCENT
+          : HOST_COMMISSION.FREE_ADMIN_PERCENT,
+      },
+    }
+  );
 
   return {
-    isActive: Boolean(activeSubscription),
-    status: activeSubscription
-      ? SUBSCRIPTION_STATUS.ACTIVE
-      : referenceSubscription?.status || "none",
+    isActive,
+    status,
     activeSubscription,
     latestSubscription: latestPaidSubscription,
     upcomingSubscription,
     nextRenewalDate: activeSubscription?.expiryDate || null,
+    hostTier: isActive ? "subscribed" : "free",
+    commissionPercentage: isActive
+      ? HOST_COMMISSION.SUBSCRIBED_ADMIN_PERCENT
+      : HOST_COMMISSION.FREE_ADMIN_PERCENT,
+    hostRevenuePercentage: isActive ? 90 : 70,
+    freeListingLimit: HOST_COMMISSION.FREE_LISTING_LIMIT,
+    freeListingCount,
+    freeListingsRemaining,
+    canCreateListing: isActive || freeListingsRemaining > 0,
     ...remaining,
   };
 };
 
 const expireSubscriptions = async () => {
   const now = new Date();
-
   const expiredCandidates = await Subscription.find({
     isDeleted: false,
     paymentStatus: "success",
-    status: {
-      $in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.SCHEDULED],
-    },
+    status: { $in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.SCHEDULED] },
     expiryDate: { $lte: now },
   }).populate("host", "name email");
 
   const processedHosts = new Set();
-
   for (const subscription of expiredCandidates) {
     subscription.status = SUBSCRIPTION_STATUS.EXPIRED;
     subscription.expiredAt = subscription.expiredAt || now;
     await subscription.save();
-
     processedHosts.add(String(subscription.host?._id || subscription.host));
   }
 
-  /*
-   * Backward compatibility:
-   *
-   * Old expired records may already have the Super Admin notification
-   * timestamp but no Host notification timestamp. Add those Hosts to this
-   * run so the missing Host alert is generated after this update.
-   */
-  const unnotifiedExpiredHostIds = await Subscription.distinct("host", {
+  const unnotifiedHostIds = await Subscription.distinct("host", {
     isDeleted: false,
     paymentStatus: "success",
     status: SUBSCRIPTION_STATUS.EXPIRED,
@@ -218,19 +250,12 @@ const expireSubscriptions = async () => {
       { hostExpiryNotifiedAt: { $exists: false } },
     ],
   });
-
-  unnotifiedExpiredHostIds.forEach((hostId) => {
-    processedHosts.add(String(hostId));
-  });
+  unnotifiedHostIds.forEach((hostId) => processedHosts.add(String(hostId)));
 
   for (const hostId of processedHosts) {
     const { activeSubscription } = await refreshHostSubscriptions(hostId, now);
-
-    /*
-     * A scheduled renewal may have become active at the same instant.
-     * In that case coverage did not end, so no expiry warning is required.
-     */
     if (activeSubscription) {
+      await syncHostCommercialProfile(hostId, activeSubscription, "active");
       continue;
     }
 
@@ -243,39 +268,28 @@ const expireSubscriptions = async () => {
       .sort({ expiryDate: -1 })
       .populate("host", "name email");
 
-    if (!lastExpired) {
-      continue;
-    }
+    if (!lastExpired) continue;
 
-    const hostName =
-      lastExpired.host?.name ||
-      lastExpired.host?.email ||
-      "Host";
-
-    await markHostListingsInactive(
+    await enforceFreeHostListingLimit(
       hostId,
-      "Host subscription expired. Listing requires an active subscription and fresh review."
+      "Host subscription expired. The free Host plan keeps up to two approved listings active."
     );
+    await syncHostCommercialProfile(hostId, null, SUBSCRIPTION_STATUS.EXPIRED);
 
+    const hostName = lastExpired.host?.name || lastExpired.host?.email || "Host";
     if (!lastExpired.expiryNotifiedAt) {
       await createAdminNotifications({
         type: NOTIFICATION_TYPE.SUBSCRIPTION_EXPIRED,
         title: "Host subscription expired",
-        message: `${hostName}'s ${lastExpired.planName} subscription has expired.`,
+        message: `${hostName}'s ${lastExpired.planName} subscription has expired. The account now follows Free Host limits.`,
         actor: lastExpired.host?._id || hostId,
         entityType: "Subscription",
         entityId: lastExpired._id,
         actionUrl: "/owner/subscriptions",
         eventKey: `subscription-expired:${lastExpired._id}`,
-        metadata: {
-          hostId,
-          planCode: lastExpired.planCode,
-          expiryDate: lastExpired.expiryDate,
-        },
+        metadata: { hostId, planCode: lastExpired.planCode, expiryDate: lastExpired.expiryDate },
       });
-
       lastExpired.expiryNotifiedAt = now;
-      await lastExpired.save();
     }
 
     if (!lastExpired.hostExpiryNotifiedAt) {
@@ -283,51 +297,19 @@ const expireSubscriptions = async () => {
         recipient: lastExpired.host?._id || hostId,
         type: NOTIFICATION_TYPE.SUBSCRIPTION_EXPIRED,
         title: "Your Host subscription has expired",
-        message: `Your ${lastExpired.planName} plan expired on ${new Date(
-          lastExpired.expiryDate
-        ).toLocaleDateString("en-IN", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-          timeZone: "UTC",
-        })}. Renew your subscription to create or edit listings. Approved listings have been moved to inactive status.`,
+        message:
+          "Your account is now on the Free Host plan. You can keep up to two listings active and receive 70% of each paid booking. Renew to unlock unlimited listings and a 90% Host share.",
         actor: null,
         entityType: "Subscription",
         entityId: lastExpired._id,
         actionUrl: "/host/subscription/plans",
         eventKey: `host-subscription-expired:${lastExpired._id}`,
-        metadata: {
-          hostId,
-          planCode: lastExpired.planCode,
-          planName: lastExpired.planName,
-          expiryDate: lastExpired.expiryDate,
-          subscriptionId: lastExpired._id,
-        },
+        metadata: { hostId, planCode: lastExpired.planCode, expiryDate: lastExpired.expiryDate },
       });
-
       lastExpired.hostExpiryNotifiedAt = now;
-      await lastExpired.save();
     }
-  }
 
-  // Enforce subscription requirement for legacy hosts that have approved
-  // listings but have never purchased an active subscription.
-  const approvedListingHostIds = await Apartment.distinct("host", {
-    status: APARTMENT_STATUS.APPROVED,
-    isDeleted: false,
-  });
-
-  for (const hostId of approvedListingHostIds) {
-    const hostKey = String(hostId);
-    const { activeSubscription } = await refreshHostSubscriptions(hostId, now);
-
-    if (!activeSubscription) {
-      await markHostListingsInactive(
-        hostId,
-        "Active Host subscription required. Listing moved to inactive status."
-      );
-      processedHosts.add(hostKey);
-    }
+    await lastExpired.save();
   }
 
   return {
@@ -343,4 +325,6 @@ module.exports = {
   refreshHostSubscriptions,
   expireSubscriptions,
   markHostListingsInactive,
+  enforceFreeHostListingLimit,
+  syncHostCommercialProfile,
 };

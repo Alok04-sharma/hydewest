@@ -3,11 +3,24 @@ const LOYALTY_CONFIG = Object.freeze({
   PREMIUM_POINTS_PER_100: Number(
     process.env.LOYALTY_PREMIUM_POINTS_PER_100 || 15
   ),
+
+  /*
+   * 100 points = ₹1 by default.
+   * This keeps the wallet useful without turning points into an
+   * unrealistically large cash discount.
+   */
   POINTS_PER_RUPEE_DISCOUNT: Number(
-    process.env.LOYALTY_POINTS_PER_RUPEE || 10
+    process.env.LOYALTY_POINTS_PER_RUPEE || 100
   ),
+
+  /* A booking can use loyalty value for at most 15% of the payable amount. */
   MAX_REDEMPTION_PERCENT: Number(
-    process.env.LOYALTY_MAX_REDEMPTION_PERCENT || 20
+    process.env.LOYALTY_MAX_REDEMPTION_PERCENT || 15
+  ),
+
+  /* Successful Premium referral reward: 2,500 points = ₹25 by default. */
+  REFERRAL_REWARD_POINTS: Number(
+    process.env.LOYALTY_REFERRAL_REWARD_POINTS || 2500
   ),
 });
 

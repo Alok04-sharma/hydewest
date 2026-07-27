@@ -1,9 +1,7 @@
-
-
 const asyncHandler = require("express-async-handler");
 
 const Apartment = require("../models/apartment.model");
-const Booking = require("../models/booking.model");
+const User = require("../models/user.model");
 const APARTMENT_STATUS = require("../constants/apartmentStatus");
 const NOTIFICATION_TYPE = require("../constants/notificationType");
 const sendResponse = require("../utils/sendResponse");
@@ -15,16 +13,24 @@ const { calculateListingQuote } = require("../services/listingPricing.service");
 const { generateRatesFromDailyPrice, cloneDefaultCouponPresets } = require("../constants/pricingPresets");
 
 const JSON_FIELDS = [
+  "guestCapacity",
+  "bedDetails",
+  "bathroomDetails",
   "location",
   "pricing",
   "coupons",
   "amenities",
   "houseRules",
+  "nearbyInformation",
+  "applianceGuide",
   "availability",
   "policies",
   "existingImages",
   "newImageKeys",
   "imageOrder",
+  "existingVideos",
+  "newVideoKeys",
+  "videoOrder",
 ];
 
 const parseJsonValue = (value, fallback) => {
@@ -63,6 +69,15 @@ const normalizeCoupon = (coupon = {}) => ({
   source: coupon.source === "preset" ? "preset" : "custom",
 });
 
+const toOptionalCoordinate = (value) => {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return null;
+  }
+
+  const coordinate = Number(value);
+  return Number.isFinite(coordinate) ? coordinate : null;
+};
+
 const normalizePayload = (body = {}) => {
   const parsed = { ...body };
 
@@ -70,7 +85,7 @@ const normalizePayload = (body = {}) => {
     if (body[field] !== undefined) {
       parsed[field] = parseJsonValue(
         body[field],
-        ["coupons", "amenities", "houseRules", "existingImages", "newImageKeys", "imageOrder"].includes(field)
+        ["bedDetails", "coupons", "amenities", "houseRules", "applianceGuide", "existingImages", "newImageKeys", "imageOrder", "existingVideos", "newVideoKeys", "videoOrder"].includes(field)
           ? []
           : {}
       );
@@ -91,24 +106,77 @@ const normalizePayload = (body = {}) => {
     description: String(parsed.description || "").trim(),
     propertyType: String(parsed.propertyType || "").trim(),
     guests: Number(parsed.guests || 1),
+    guestCapacity: {
+      adults: Number(parsed.guestCapacity?.adults || parsed.guests || 1),
+      children: Number(parsed.guestCapacity?.children || 0),
+      seniorCitizens: Number(parsed.guestCapacity?.seniorCitizens || 0),
+    },
     bedrooms: Number(parsed.bedrooms ?? 1),
     beds: Number(parsed.beds || 1),
+    bedDetails: Array.isArray(parsed.bedDetails)
+      ? parsed.bedDetails
+          .map((item) => ({
+            type: String(item.type || "Single"),
+            count: Number(item.count || 1),
+            capacityPerBed: Number(item.capacityPerBed || 1),
+          }))
+          .filter((item) => item.count > 0)
+      : [],
     bathrooms: Number(parsed.bathrooms || 1),
+    bathroomDetails: {
+      western: Number(parsed.bathroomDetails?.western || 0),
+      indian: Number(parsed.bathroomDetails?.indian || 0),
+      shower: Number(parsed.bathroomDetails?.shower || 0),
+      bathtub: Number(parsed.bathroomDetails?.bathtub || 0),
+      hotWater: parsed.bathroomDetails?.hotWater === true,
+      accessible: parsed.bathroomDetails?.accessible === true,
+      sunflowerFriendly: parsed.bathroomDetails?.sunflowerFriendly === true,
+      notes: String(parsed.bathroomDetails?.notes || "").trim(),
+    },
     location: {
       country: String(parsed.location?.country || "").trim(),
       state: String(parsed.location?.state || "").trim(),
       city: String(parsed.location?.city || "").trim(),
+      area: String(parsed.location?.area || "").trim(),
       address: String(parsed.location?.address || "").trim(),
       landmark: String(parsed.location?.landmark || "").trim(),
       zipCode: String(parsed.location?.zipCode || "").trim(),
-      latitude: Number(parsed.location?.latitude),
-      longitude: Number(parsed.location?.longitude),
+      latitude: toOptionalCoordinate(parsed.location?.latitude),
+      longitude: toOptionalCoordinate(parsed.location?.longitude),
     },
+    propertyStyle: String(parsed.propertyStyle || "Modern").trim(),
+    nearbyInformation: {
+      nearestAirport: String(parsed.nearbyInformation?.nearestAirport || "").trim(),
+      railwayStation: String(parsed.nearbyInformation?.railwayStation || "").trim(),
+      busStand: String(parsed.nearbyInformation?.busStand || "").trim(),
+      metro: String(parsed.nearbyInformation?.metro || "").trim(),
+      nearbyMarket: String(parsed.nearbyInformation?.nearbyMarket || "").trim(),
+      groceryStore: String(parsed.nearbyInformation?.groceryStore || "").trim(),
+      hospital: String(parsed.nearbyInformation?.hospital || "").trim(),
+      medicalStore: String(parsed.nearbyInformation?.medicalStore || "").trim(),
+      parking: String(parsed.nearbyInformation?.parking || "").trim(),
+      internet: String(parsed.nearbyInformation?.internet || "").trim(),
+      powerBackup: String(parsed.nearbyInformation?.powerBackup || "").trim(),
+      otherFacilities: Array.isArray(parsed.nearbyInformation?.otherFacilities)
+        ? parsed.nearbyInformation.otherFacilities.map((item) => String(item).trim()).filter(Boolean)
+        : [],
+    },
+    applianceGuide: Array.isArray(parsed.applianceGuide)
+      ? parsed.applianceGuide
+          .map((item) => ({
+            appliance: String(item.appliance || "").trim(),
+            instructions: String(item.instructions || "").trim(),
+          }))
+          .filter((item) => item.appliance && item.instructions)
+      : [],
     pricing: {
       basePrice: rates.day,
       pricePerNight: rates.night,
       priceUnit: "day",
-      rates,
+      rates: {
+        ...rates,
+        hour: Number(parsed.policies?.minBookingDays || 1) > 1 ? 0 : rates.hour,
+      },
       autoRateMultipliers: pricing.autoRateMultipliers !== false,
       cleaningFee: Number(pricing.cleaningFee || 0),
       serviceFee: Number(pricing.serviceFee || 0),
@@ -131,6 +199,18 @@ const normalizePayload = (body = {}) => {
       blockedDates: Array.isArray(parsed.availability?.blockedDates)
         ? parsed.availability.blockedDates
         : [],
+      unavailableDates: Array.isArray(parsed.availability?.unavailableDates)
+        ? parsed.availability.unavailableDates
+        : [],
+      specialPrices: Array.isArray(parsed.availability?.specialPrices)
+        ? parsed.availability.specialPrices
+            .map((item) => ({
+              date: item.date,
+              price: Number(item.price || 0),
+              note: String(item.note || "").trim(),
+            }))
+            .filter((item) => item.date && item.price > 0)
+        : [],
     },
     policies: {
       minBookingDays: Number(parsed.policies?.minBookingDays || 1),
@@ -146,6 +226,9 @@ const normalizePayload = (body = {}) => {
     newImageKeys: Array.isArray(parsed.newImageKeys) ? parsed.newImageKeys : [],
     imageOrder: Array.isArray(parsed.imageOrder) ? parsed.imageOrder : [],
     coverImageKey: String(parsed.coverImageKey || ""),
+    existingVideos: Array.isArray(parsed.existingVideos) ? parsed.existingVideos : [],
+    newVideoKeys: Array.isArray(parsed.newVideoKeys) ? parsed.newVideoKeys : [],
+    videoOrder: Array.isArray(parsed.videoOrder) ? parsed.videoOrder : [],
   };
 };
 
@@ -161,20 +244,30 @@ const validateListingPayload = (data) => {
   if (!data.location.city || !data.location.address || !data.location.state || !data.location.country) {
     errors.push("Complete property location is required.");
   }
-  if (!Number.isFinite(data.location.latitude) || !Number.isFinite(data.location.longitude)) {
-    errors.push("Valid latitude and longitude are required.");
+  const hasLatitude = Number.isFinite(data.location.latitude);
+  const hasLongitude = Number.isFinite(data.location.longitude);
+
+  if (hasLatitude !== hasLongitude) {
+    errors.push("Provide both latitude and longitude, or leave both empty and use the manual address.");
   } else if (
-    data.location.latitude < -90 ||
-    data.location.latitude > 90 ||
-    data.location.longitude < -180 ||
-    data.location.longitude > 180
+    hasLatitude &&
+    (data.location.latitude < -90 ||
+      data.location.latitude > 90 ||
+      data.location.longitude < -180 ||
+      data.location.longitude > 180)
   ) {
     errors.push("Latitude or longitude is outside the valid range.");
   }
   if (data.pricing.basePrice <= 0) errors.push("Per-day price must be greater than zero.");
   Object.entries(data.pricing.rates || {}).forEach(([unit, amount]) => {
-    if (!Number.isFinite(Number(amount)) || Number(amount) <= 0) {
-      errors.push(`${unit} price must be greater than zero.`);
+    const hourlyDisabled =
+      unit === "hour" && Number(data.policies?.minBookingDays || 1) > 1;
+    if (
+      !Number.isFinite(Number(amount)) ||
+      (!hourlyDisabled && Number(amount) <= 0) ||
+      (hourlyDisabled && Number(amount) < 0)
+    ) {
+      errors.push(`${unit} price must be configured correctly.`);
     }
   });
   if (data.pricing.baseGuestCount > data.guests) {
@@ -214,18 +307,46 @@ const validateListingPayload = (data) => {
   return errors;
 };
 
-const uploadNewImages = async (files = [], keys = []) => {
+const getUploadedFiles = (req, field) => {
+  if (!req.files) return [];
+  if (Array.isArray(req.files)) return field === "images" ? req.files : [];
+  return Array.isArray(req.files[field]) ? req.files[field] : [];
+};
+
+const cleanupUploadedMedia = async (items = [], resourceType) => {
+  await Promise.all(
+    items
+      .filter((item) => item?.publicId)
+      .map((item) => deleteFromCloudinary(item.publicId, resourceType))
+  );
+};
+
+const uploadNewMedia = async ({ files = [], keys = [], resourceType, folder }) => {
   const uploaded = [];
 
-  for (let index = 0; index < files.length; index += 1) {
-    const result = await uploadToCloudinary(files[index].buffer, "StayNest/Apartments");
-    uploaded.push({
-      ...result,
-      clientKey: keys[index] || `new-${index}`,
-    });
-  }
+  try {
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      if (resourceType === "image" && file.size > 8 * 1024 * 1024) {
+        throw new Error("Each property image must be 8 MB or smaller.");
+      }
 
-  return uploaded;
+      const result = await uploadToCloudinary(file.buffer, folder, {
+        mimetype: file.mimetype,
+        resourceType,
+      });
+
+      uploaded.push({
+        ...result,
+        clientKey: keys[index] || `new-${resourceType}-${index}`,
+      });
+    }
+
+    return uploaded;
+  } catch (error) {
+    await cleanupUploadedMedia(uploaded, resourceType);
+    throw error;
+  }
 };
 
 const arrangeImages = ({ existingImages, uploadedImages, imageOrder, coverImageKey }) => {
@@ -260,6 +381,39 @@ const arrangeImages = ({ existingImages, uploadedImages, imageOrder, coverImageK
   });
 };
 
+const arrangeVideos = ({ existingVideos, uploadedVideos, videoOrder }) => {
+  const videoMap = new Map();
+
+  existingVideos.forEach((video, index) => {
+    const clientKey = video.clientKey || `existing-video-${video.publicId || index}`;
+    videoMap.set(clientKey, {
+      url: video.url,
+      publicId: video.publicId,
+      thumbnailUrl: video.thumbnailUrl || "",
+      duration: Number(video.duration || 0),
+      clientKey,
+    });
+  });
+
+  uploadedVideos.forEach((video) => videoMap.set(video.clientKey, video));
+
+  const orderedKeys = [
+    ...videoOrder.filter((key) => videoMap.has(key)),
+    ...Array.from(videoMap.keys()).filter((key) => !videoOrder.includes(key)),
+  ];
+
+  return orderedKeys.map((key, index) => {
+    const video = videoMap.get(key);
+    return {
+      url: video.url,
+      publicId: video.publicId,
+      thumbnailUrl: video.thumbnailUrl || "",
+      duration: Number(video.duration || 0),
+      order: index,
+    };
+  });
+};
+
 const pushListingHistory = (apartment, entry) => {
   if (!Array.isArray(apartment.statusHistory)) apartment.statusHistory = [];
   apartment.statusHistory.push({
@@ -278,7 +432,10 @@ const createApartment = asyncHandler(async (req, res) => {
 
   if (!hostId) return sendResponse(res, 401, false, "Unauthorized host account.");
   if (errors.length) return sendResponse(res, 400, false, errors[0], { errors });
-  if (!req.files || req.files.length < 3) {
+
+  const imageFiles = getUploadedFiles(req, "images");
+  const videoFiles = getUploadedFiles(req, "videos");
+  if (imageFiles.length < 3) {
     return sendResponse(res, 400, false, "At least three property images are required.");
   }
 
@@ -287,43 +444,93 @@ const createApartment = asyncHandler(async (req, res) => {
     usedCount: 0,
   }));
 
-  const uploadedImages = await uploadNewImages(req.files, apartmentData.newImageKeys);
+  if (imageFiles.length > 10) {
+    return sendResponse(res, 400, false, "Maximum ten property images are allowed.");
+  }
+  if (videoFiles.length > 5) {
+    return sendResponse(res, 400, false, "Maximum five property videos are allowed.");
+  }
+
+  const uploadedImages = await uploadNewMedia({
+    files: imageFiles,
+    keys: apartmentData.newImageKeys,
+    resourceType: "image",
+    folder: "hydewest/apartments/images",
+  });
+
+  let uploadedVideos = [];
+  try {
+    uploadedVideos = await uploadNewMedia({
+      files: videoFiles,
+      keys: apartmentData.newVideoKeys,
+      resourceType: "video",
+      folder: "hydewest/apartments/videos",
+    });
+  } catch (error) {
+    await cleanupUploadedMedia(uploadedImages, "image");
+    throw error;
+  }
+
   const images = arrangeImages({
     existingImages: [],
     uploadedImages,
     imageOrder: apartmentData.imageOrder,
     coverImageKey: apartmentData.coverImageKey,
   });
+  const videos = arrangeVideos({
+    existingVideos: [],
+    uploadedVideos,
+    videoOrder: apartmentData.videoOrder,
+  });
 
   const slug = await generateUniqueSlug(apartmentData.title);
-  const apartment = await Apartment.create({
-    ...apartmentData,
-    existingImages: undefined,
-    newImageKeys: undefined,
-    imageOrder: undefined,
-    coverImageKey: undefined,
-    slug,
-    host: hostId,
-    images,
-    status: APARTMENT_STATUS.PENDING,
-    isDeleted: false,
-    priceHistory: [
-      {
-        amount: apartmentData.pricing.basePrice,
-        priceUnit: apartmentData.pricing.priceUnit,
-        recordedAt: new Date(),
-      },
-    ],
-    statusHistory: [
-      {
-        status: APARTMENT_STATUS.PENDING,
-        action: "submitted_for_review",
-        reason: "New listing submitted by host.",
-        changedBy: hostId,
-        changedAt: new Date(),
-      },
-    ],
-  });
+  let apartment;
+
+  try {
+    apartment = await Apartment.create({
+      ...apartmentData,
+      existingImages: undefined,
+      newImageKeys: undefined,
+      imageOrder: undefined,
+      coverImageKey: undefined,
+      existingVideos: undefined,
+      newVideoKeys: undefined,
+      videoOrder: undefined,
+      slug,
+      host: hostId,
+      images,
+      videos,
+      status: APARTMENT_STATUS.PENDING,
+      isDeleted: false,
+      priceHistory: [
+        {
+          amount: apartmentData.pricing.basePrice,
+          priceUnit: apartmentData.pricing.priceUnit,
+          recordedAt: new Date(),
+        },
+      ],
+      statusHistory: [
+        {
+          status: APARTMENT_STATUS.PENDING,
+          action: "submitted_for_review",
+          reason: "New listing submitted by host.",
+          changedBy: hostId,
+          changedAt: new Date(),
+        },
+      ],
+    });
+  } catch (error) {
+    await Promise.all([
+      cleanupUploadedMedia(uploadedImages, "image"),
+      cleanupUploadedMedia(uploadedVideos, "video"),
+    ]);
+    throw error;
+  }
+
+  await User.updateOne(
+    { _id: hostId },
+    { $set: { freeListingCount: await Apartment.countDocuments({ host: hostId, isDeleted: false }) } }
+  );
 
   await createAdminNotifications({
     type: NOTIFICATION_TYPE.NEW_LISTING_PENDING_APPROVAL,
@@ -351,14 +558,20 @@ const createApartment = asyncHandler(async (req, res) => {
 });
 
 const getAllApartments = asyncHandler(async (req, res) => {
-  const apartments = await Apartment.find({
+  const apartmentDocuments = await Apartment.find({
     status: APARTMENT_STATUS.APPROVED,
     isDeleted: false,
   })
     .populate("host", "name email avatar")
     .sort({ createdAt: -1 });
 
-  return sendResponse(res, 200, true, "Apartments fetched successfully.", apartments);
+  return sendResponse(
+    res,
+    200,
+    true,
+    "Apartments fetched successfully.",
+    apartmentDocuments
+  );
 });
 
 const getApartmentDetails = asyncHandler(async (req, res) => {
@@ -376,7 +589,13 @@ const getApartmentDetails = asyncHandler(async (req, res) => {
     return sendResponse(res, 404, false, "Approved apartment not found or unavailable.");
   }
 
-  return sendResponse(res, 200, true, "Apartment details fetched successfully.", apartment);
+  return sendResponse(
+    res,
+    200,
+    true,
+    "Apartment details fetched successfully.",
+    apartment
+  );
 });
 
 const getHostApartments = asyncHandler(async (req, res) => {
@@ -444,21 +663,60 @@ const updateApartment = asyncHandler(async (req, res) => {
   const removedImages = apartment.images.filter(
     (image) => image.publicId && !retainedPublicIds.has(image.publicId)
   );
+  const retainedVideoPublicIds = new Set(
+    apartmentData.existingVideos.map((video) => video.publicId).filter(Boolean)
+  );
+  const removedVideos = (apartment.videos || []).filter(
+    (video) => video.publicId && !retainedVideoPublicIds.has(video.publicId)
+  );
 
-  const uploadedImages = await uploadNewImages(req.files || [], apartmentData.newImageKeys);
+  const imageFiles = getUploadedFiles(req, "images");
+  const videoFiles = getUploadedFiles(req, "videos");
+  const uploadedImages = await uploadNewMedia({
+    files: imageFiles,
+    keys: apartmentData.newImageKeys,
+    resourceType: "image",
+    folder: "hydewest/apartments/images",
+  });
+
+  let uploadedVideos = [];
+  try {
+    uploadedVideos = await uploadNewMedia({
+      files: videoFiles,
+      keys: apartmentData.newVideoKeys,
+      resourceType: "video",
+      folder: "hydewest/apartments/videos",
+    });
+  } catch (error) {
+    await cleanupUploadedMedia(uploadedImages, "image");
+    throw error;
+  }
+
   const images = arrangeImages({
     existingImages: apartmentData.existingImages,
     uploadedImages,
     imageOrder: apartmentData.imageOrder,
     coverImageKey: apartmentData.coverImageKey,
   });
+  const videos = arrangeVideos({
+    existingVideos: apartmentData.existingVideos,
+    uploadedVideos,
+    videoOrder: apartmentData.videoOrder,
+  });
 
-  if (images.length < 3) {
-    return sendResponse(res, 400, false, "At least three property images must remain.");
-  }
+  if (images.length < 3 || images.length > 10 || videos.length > 5) {
+    await Promise.all([
+      cleanupUploadedMedia(uploadedImages, "image"),
+      cleanupUploadedMedia(uploadedVideos, "video"),
+    ]);
 
-  if (images.length > 10) {
-    return sendResponse(res, 400, false, "Maximum ten property images are allowed.");
+    if (images.length < 3) {
+      return sendResponse(res, 400, false, "At least three property images must remain.");
+    }
+    if (images.length > 10) {
+      return sendResponse(res, 400, false, "Maximum ten property images are allowed.");
+    }
+    return sendResponse(res, 400, false, "Maximum five property videos are allowed.");
   }
 
   if (apartmentData.title !== apartment.title) {
@@ -474,10 +732,17 @@ const updateApartment = asyncHandler(async (req, res) => {
     "description",
     "propertyType",
     "guests",
+    "guestCapacity",
     "bedrooms",
     "beds",
+    "bedDetails",
+    "maximumSleepingCapacity",
     "bathrooms",
+    "bathroomDetails",
     "location",
+    "propertyStyle",
+    "nearbyInformation",
+    "applianceGuide",
     "pricing",
     "coupons",
     "amenities",
@@ -491,6 +756,7 @@ const updateApartment = asyncHandler(async (req, res) => {
     apartment[field] = apartmentData[field];
   });
   apartment.images = images;
+  apartment.videos = videos;
 
   const nextBasePrice = Number(apartmentData.pricing?.basePrice || 0);
   if (nextBasePrice > 0 && nextBasePrice !== previousBasePrice) {
@@ -531,9 +797,20 @@ const updateApartment = asyncHandler(async (req, res) => {
     });
   }
 
-  await apartment.save();
+  try {
+    await apartment.save();
+  } catch (error) {
+    await Promise.all([
+      cleanupUploadedMedia(uploadedImages, "image"),
+      cleanupUploadedMedia(uploadedVideos, "video"),
+    ]);
+    throw error;
+  }
 
-  await Promise.all(removedImages.map((image) => deleteFromCloudinary(image.publicId)));
+  await Promise.all([
+    ...removedImages.map((image) => deleteFromCloudinary(image.publicId, "image")),
+    ...removedVideos.map((video) => deleteFromCloudinary(video.publicId, "video")),
+  ]);
 
   if (apartment.status === APARTMENT_STATUS.PENDING) {
     await createAdminNotifications({
@@ -560,28 +837,44 @@ const updateApartment = asyncHandler(async (req, res) => {
 });
 
 const deleteApartment = asyncHandler(async (req, res) => {
-  const apartment = await Apartment.findOne({
-    _id: req.params.id,
-    host: req.user._id,
-    isDeleted: false,
-  });
+  const hostId = req.user._id;
+  const removedAt = new Date();
+  const apartment = await Apartment.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      host: hostId,
+      isDeleted: false,
+    },
+    {
+      $set: {
+        isDeleted: true,
+        status: APARTMENT_STATUS.INACTIVE,
+        isFeatured: false,
+        "moderation.removedAt": removedAt,
+        "moderation.removedBy": hostId,
+        "moderation.removalReason": "Removed by host.",
+      },
+      $push: {
+        statusHistory: {
+          status: APARTMENT_STATUS.INACTIVE,
+          changedBy: hostId,
+          changedAt: removedAt,
+          action: "removed_by_host",
+          reason: "Host removed the listing.",
+        },
+      },
+    },
+    { new: true }
+  );
 
   if (!apartment) return sendResponse(res, 404, false, "Apartment not found.");
 
-  apartment.isDeleted = true;
-  apartment.status = APARTMENT_STATUS.INACTIVE;
-  apartment.isFeatured = false;
-  apartment.moderation.removedAt = new Date();
-  apartment.moderation.removedBy = req.user._id;
-  apartment.moderation.removalReason = "Removed by host.";
-
-  pushListingHistory(apartment, {
-    changedBy: req.user._id,
-    action: "removed_by_host",
-    reason: "Host removed the listing.",
+  const freeListingCount = await Apartment.countDocuments({
+    host: hostId,
+    isDeleted: false,
   });
+  await User.updateOne({ _id: hostId }, { $set: { freeListingCount } });
 
-  await apartment.save();
   return sendResponse(res, 200, true, "Apartment deleted successfully.");
 });
 
@@ -648,6 +941,7 @@ const searchApartments = asyncHandler(async (req, res) => {
       { "location.city": matcher },
       { "location.state": matcher },
       { "location.address": matcher },
+      { "location.area": matcher },
       { "location.landmark": matcher },
     ];
   }
@@ -674,23 +968,6 @@ const searchApartments = asyncHandler(async (req, res) => {
   if (petFriendly === "true") query["features.petFriendly"] = true;
   if (superLuxury === "true") query["features.superLuxury"] = true;
   if (premiumExclusive === "true") query["premium.isExclusive"] = true;
-
-  if (checkIn && checkOut) {
-    const startDate = new Date(checkIn);
-    const endDate = new Date(checkOut);
-    if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate > startDate) {
-      const bookedIds = await Booking.distinct("apartment", {
-        isDeleted: false,
-        status: { $in: ["pending", "confirmed"] },
-        checkIn: { $lt: endDate },
-        checkOut: { $gt: startDate },
-      });
-      query._id = { $nin: bookedIds };
-      query["availability.availableFrom"] = { $lte: startDate };
-      query["availability.availableTo"] = { $gte: endDate };
-      query["availability.blockedDates"] = { $not: { $elemMatch: { $gte: startDate, $lt: endDate } } };
-    }
-  }
 
   const sortMap = {
     price_low: { "pricing.basePrice": 1 },

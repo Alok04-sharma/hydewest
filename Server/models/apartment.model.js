@@ -29,6 +29,47 @@ const imageSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const videoSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true, trim: true },
+    publicId: { type: String, required: true, trim: true },
+    thumbnailUrl: { type: String, default: "", trim: true },
+    duration: { type: Number, default: 0, min: 0 },
+    order: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const bedDetailSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ["King", "Queen", "Single", "Twin", "Bunk", "Sofa Bed"],
+      required: true,
+    },
+    count: { type: Number, default: 1, min: 1, max: 30 },
+    capacityPerBed: { type: Number, default: 1, min: 1, max: 4 },
+  },
+  { _id: true }
+);
+
+const applianceGuideSchema = new mongoose.Schema(
+  {
+    appliance: { type: String, required: true, trim: true, maxlength: 80 },
+    instructions: { type: String, required: true, trim: true, maxlength: 1200 },
+  },
+  { _id: true }
+);
+
+const specialPriceSchema = new mongoose.Schema(
+  {
+    date: { type: Date, required: true },
+    price: { type: Number, required: true, min: 1 },
+    note: { type: String, trim: true, default: "", maxlength: 120 },
+  },
+  { _id: true }
+);
+
 const couponSchema = new mongoose.Schema(
   {
     code: {
@@ -247,6 +288,12 @@ const apartmentSchema = new mongoose.Schema(
       default: 1,
     },
 
+    guestCapacity: {
+      adults: { type: Number, default: 2, min: 1, max: 50 },
+      children: { type: Number, default: 0, min: 0, max: 30 },
+      seniorCitizens: { type: Number, default: 0, min: 0, max: 30 },
+    },
+
     bedrooms: {
       type: Number,
       required: true,
@@ -261,11 +308,33 @@ const apartmentSchema = new mongoose.Schema(
       default: 1,
     },
 
+    bedDetails: {
+      type: [bedDetailSchema],
+      default: [],
+    },
+
+    maximumSleepingCapacity: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+
     bathrooms: {
       type: Number,
       required: true,
       min: 1,
       default: 1,
+    },
+
+    bathroomDetails: {
+      western: { type: Number, default: 0, min: 0 },
+      indian: { type: Number, default: 0, min: 0 },
+      shower: { type: Number, default: 0, min: 0 },
+      bathtub: { type: Number, default: 0, min: 0 },
+      hotWater: { type: Boolean, default: false },
+      accessible: { type: Boolean, default: false },
+      sunflowerFriendly: { type: Boolean, default: false },
+      notes: { type: String, trim: true, default: "", maxlength: 500 },
     },
 
     location: {
@@ -284,6 +353,11 @@ const apartmentSchema = new mongoose.Schema(
         required: true,
         trim: true,
       },
+      area: {
+        type: String,
+        trim: true,
+        default: "",
+      },
       address: {
         type: String,
         required: true,
@@ -301,11 +375,15 @@ const apartmentSchema = new mongoose.Schema(
       },
       latitude: {
         type: Number,
-        required: true,
+        default: null,
+        min: -90,
+        max: 90,
       },
       longitude: {
         type: Number,
-        required: true,
+        default: null,
+        min: -180,
+        max: 180,
       },
     },
 
@@ -323,8 +401,41 @@ const apartmentSchema = new mongoose.Schema(
       },
     },
 
+    videos: {
+      type: [videoSchema],
+      default: [],
+    },
+
+    nearbyInformation: {
+      nearestAirport: { type: String, trim: true, default: "" },
+      railwayStation: { type: String, trim: true, default: "" },
+      busStand: { type: String, trim: true, default: "" },
+      metro: { type: String, trim: true, default: "" },
+      nearbyMarket: { type: String, trim: true, default: "" },
+      groceryStore: { type: String, trim: true, default: "" },
+      hospital: { type: String, trim: true, default: "" },
+      medicalStore: { type: String, trim: true, default: "" },
+      parking: { type: String, trim: true, default: "" },
+      internet: { type: String, trim: true, default: "" },
+      powerBackup: { type: String, trim: true, default: "" },
+      otherFacilities: { type: [String], default: [] },
+    },
+
+    applianceGuide: {
+      type: [applianceGuideSchema],
+      default: [],
+    },
+
+    propertyStyle: {
+      type: String,
+      trim: true,
+      default: "Modern",
+      maxlength: 80,
+    },
+
     pricing: {
-      // Host enters the per-day price. Other rates are generated from it and remain editable.
+      // The hidden daily reference keeps legacy smart-rate calculations stable.
+      // Guests only see Hour, Night, Week and Month as booking options.
       basePrice: {
         type: Number,
         required: true,
@@ -333,7 +444,7 @@ const apartmentSchema = new mongoose.Schema(
       priceUnit: {
         type: String,
         enum: Object.values(PRICING_UNIT),
-        default: PRICING_UNIT.DAY,
+        default: PRICING_UNIT.NIGHT,
       },
       // Legacy compatibility. This mirrors pricing.rates.night.
       pricePerNight: {
@@ -342,7 +453,7 @@ const apartmentSchema = new mongoose.Schema(
         min: 1,
       },
       rates: {
-        hour: { type: Number, required: true, min: 1 },
+        hour: { type: Number, required: true, min: 0 },
         night: { type: Number, required: true, min: 1 },
         day: { type: Number, required: true, min: 1 },
         week: { type: Number, required: true, min: 1 },
@@ -412,6 +523,15 @@ const apartmentSchema = new mongoose.Schema(
           type: Date,
         },
       ],
+      unavailableDates: [
+        {
+          type: Date,
+        },
+      ],
+      specialPrices: {
+        type: [specialPriceSchema],
+        default: [],
+      },
     },
 
     policies: {
@@ -550,6 +670,26 @@ const apartmentSchema = new mongoose.Schema(
 );
 
 apartmentSchema.pre("validate", function normalizeListing() {
+  if (Array.isArray(this.bedDetails) && this.bedDetails.length > 0) {
+    this.beds = this.bedDetails.reduce(
+      (sum, item) => sum + Number(item.count || 0),
+      0
+    );
+    this.maximumSleepingCapacity = this.bedDetails.reduce(
+      (sum, item) =>
+        sum + Number(item.count || 0) * Number(item.capacityPerBed || 1),
+      0
+    );
+  }
+
+  if (this.guestCapacity) {
+    const totalGuests =
+      Number(this.guestCapacity.adults || 0) +
+      Number(this.guestCapacity.children || 0) +
+      Number(this.guestCapacity.seniorCitizens || 0);
+    if (totalGuests > 0) this.guests = totalGuests;
+  }
+
   if (this.pricing) {
     const dailyPrice = Number(
       this.pricing.rates?.day ||
@@ -559,9 +699,13 @@ apartmentSchema.pre("validate", function normalizeListing() {
     );
     const rates = generateRatesFromDailyPrice(dailyPrice, this.pricing.rates || {});
 
-    this.pricing.basePrice = rates.day;
+    this.pricing.basePrice = rates.night;
     this.pricing.pricePerNight = rates.night;
-    this.pricing.priceUnit = PRICING_UNIT.DAY;
+    this.pricing.priceUnit = PRICING_UNIT.NIGHT;
+    if (Number(this.policies?.minBookingDays || 1) > 1) {
+      rates.hour = 0;
+    }
+
     this.pricing.rates = rates;
   }
 
@@ -622,6 +766,7 @@ apartmentSchema.index({
   "location.country": 1,
   "location.state": 1,
   "location.city": 1,
+  "location.area": 1,
 });
 apartmentSchema.index({ "pricing.basePrice": 1 });
 apartmentSchema.index({ "pricing.rates.hour": 1, "pricing.rates.night": 1, "pricing.rates.week": 1, "pricing.rates.month": 1 });

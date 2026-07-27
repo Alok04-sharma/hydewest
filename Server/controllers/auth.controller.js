@@ -16,6 +16,7 @@ const {
 const generateToken = require("../utils/generateToken");
 const sendResponse = require("../utils/sendResponse");
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
+const { processReferralRegistration } = require("../services/referral.service");
 
 const isSuspended = (user) => {
   return (
@@ -29,8 +30,8 @@ const getSuspensionMessage = (user) => {
     user?.moderation?.suspensionReason;
 
   return reason
-    ? `Aapka account suspend hai: ${reason}`
-    : "Aapka account suspend hai. Kripya platform support se contact karein.";
+    ? `Your account is suspended: ${reason}`
+    : "Your account is suspended. Please contact platform support.";
 };
 
 // ======================================
@@ -53,7 +54,7 @@ const registerUser = asyncHandler(
       req.body.phone || ""
     ).trim();
 
-    // Public signup se sirf guest/host account create hoga.
+    // Public registration can create only Guest or Host accounts.
     const selectedRole =
       req.body.role === ROLES.HOST
         ? ROLES.HOST
@@ -69,7 +70,7 @@ const registerUser = asyncHandler(
         res,
         409,
         false,
-        "Aapka account pehle se bana hua hai! Kripya Login karein."
+        "An account with this email already exists. Please sign in."
       );
     }
 
@@ -84,6 +85,20 @@ const registerUser = asyncHandler(
       status: USER_STATUS.ACTIVE,
     });
 
+    if (selectedRole === ROLES.GUEST && req.body.referralCode) {
+      try {
+        await processReferralRegistration({
+          code: req.body.referralCode,
+          guest: user,
+        });
+      } catch (referralError) {
+        console.error(
+          "Referral Registration Error:",
+          referralError.message
+        );
+      }
+    }
+
     const token = generateToken(
       user._id
     );
@@ -92,7 +107,7 @@ const registerUser = asyncHandler(
       res,
       201,
       true,
-      "Account successfully ban gaya!",
+      "Account created successfully.",
       {
         token,
         user,
@@ -123,7 +138,7 @@ const sendOTP = asyncHandler(
         res,
         404,
         false,
-        "Account nahi mila! Kripya pehle Signup karein."
+        "Account not found. Please register first."
       );
     }
 
@@ -136,7 +151,7 @@ const sendOTP = asyncHandler(
         res,
         403,
         false,
-        "Aapka account platform se remove kar diya gaya hai."
+        "Your account has been removed from the platform."
       );
     }
 
@@ -189,7 +204,7 @@ const sendOTP = asyncHandler(
         res,
         500,
         false,
-        "Email bhejne mein error aaya. Kripya mail settings check karein."
+        "The email could not be sent. Please check the mail configuration."
       );
     }
 
@@ -197,7 +212,7 @@ const sendOTP = asyncHandler(
       res,
       200,
       true,
-      "OTP aapke email par bhej diya gaya hai."
+      "The OTP has been sent to your email address."
     );
   }
 );
@@ -243,7 +258,7 @@ const verifyUserOTP = asyncHandler(
         res,
         404,
         false,
-        "Aapka account nahi mila. Kripya pehle Signup karein!"
+        "Account not found. Please register first."
       );
     }
 
@@ -256,7 +271,7 @@ const verifyUserOTP = asyncHandler(
         res,
         403,
         false,
-        "Aapka account platform se remove kar diya gaya hai."
+        "Your account has been removed from the platform."
       );
     }
 
@@ -322,7 +337,7 @@ const updateProfile = asyncHandler(
         res,
         404,
         false,
-        "User account nahi mila."
+        "User account not found."
       );
     }
 
