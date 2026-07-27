@@ -144,7 +144,7 @@ export default function BookingMonitoring() {
         });
 
         if (!response.success) {
-          throw new Error(response.message || "Bookings load nahi ho saki.");
+          throw new Error(response.message || "Bookings could not be loaded.");
         }
 
         setResult(response.data || EMPTY_RESULT);
@@ -152,7 +152,7 @@ export default function BookingMonitoring() {
         setError(
           requestError.response?.data?.message ||
             requestError.message ||
-            "Booking Monitoring data load nahi ho saka."
+            "Booking Monitoring data could not be loaded."
         );
       } finally {
         setLoading(false);
@@ -200,8 +200,7 @@ export default function BookingMonitoring() {
               Booking Monitoring
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-              Platform ki sabhi bookings, guest-host details, booking status,
-              payment status aur complete history monitor karein.
+              Monitor every platform booking, Guest and Host details, booking status, payment status, and complete booking history.
             </p>
           </div>
 
@@ -277,13 +276,13 @@ export default function BookingMonitoring() {
           {loading ? (
             <div className="flex min-h-80 flex-col items-center justify-center gap-3">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
-              <p className="text-sm font-semibold text-gray-500">Bookings load ho rahi hain...</p>
+              <p className="text-sm font-semibold text-gray-500">Loading bookings...</p>
             </div>
           ) : result.bookings.length === 0 ? (
             <div className="flex min-h-80 flex-col items-center justify-center px-6 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gray-100 text-2xl text-gray-500"><FiCalendar /></div>
               <h2 className="mt-4 text-xl font-black text-gray-900">No bookings found</h2>
-              <p className="mt-2 text-sm text-gray-500">Search ya filters change karke dobara try karein.</p>
+              <p className="mt-2 text-sm text-gray-500">Change the search or filters and try again.</p>
             </div>
           ) : (
             <>

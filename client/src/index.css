@@ -1,3 +1,4 @@
+
 @import "tailwindcss";
 
 :root {
@@ -805,4 +806,110 @@ body,
       radial-gradient(circle at 100% 0%, rgba(251, 191, 36, 0.2), transparent 22rem),
       linear-gradient(160deg, #fffdf7, #fff5d8 52%, #f7edf1);
   }
+}
+
+/* Phase-1 conditional subscribed Host experience. Free Host styles remain unchanged. */
+.premium-host-shell {
+  color-scheme: light;
+  color: #172033;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(251, 191, 36, 0.18), transparent 30rem),
+    radial-gradient(circle at 4% 34%, rgba(99, 102, 241, 0.12), transparent 34rem),
+    linear-gradient(150deg, #f8f1df 0%, #eef4ff 48%, #fff8ec 100%);
+}
+
+.premium-host-content {
+  color: #172033;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(245, 158, 11, 0.10), transparent 28rem),
+    radial-gradient(circle at 0% 50%, rgba(79, 70, 229, 0.08), transparent 32rem),
+    linear-gradient(155deg, rgba(255, 252, 243, 0.96), rgba(239, 245, 255, 0.97) 55%, rgba(255, 248, 236, 0.97));
+}
+
+/* Only replace solid light surfaces. Opacity utilities such as bg-white/10
+   remain untouched so dark hero cards keep their intended contrast. */
+.premium-host-content [class~="min-h-screen"][class~="bg-gray-50"],
+.premium-host-content [class~="min-h-screen"][class~="bg-slate-50"],
+.premium-host-content [class~="min-h-screen"][class~="bg-slate-100"] {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.premium-host-content [class~="bg-white"],
+.premium-host-content [class~="bg-gray-50"],
+.premium-host-content [class~="bg-slate-50"] {
+  border-color: rgba(180, 145, 73, 0.28) !important;
+  background: linear-gradient(145deg, #fffefb, #fff9ed 58%, #f1f6ff) !important;
+  color: #172033 !important;
+  box-shadow: 0 18px 48px rgba(67, 52, 24, 0.10) !important;
+}
+
+.premium-host-content [class~="text-gray-950"],
+.premium-host-content [class~="text-gray-900"],
+.premium-host-content [class~="text-slate-950"],
+.premium-host-content [class~="text-slate-900"],
+.premium-host-content [class~="text-gray-800"] {
+  color: #172033 !important;
+}
+
+.premium-host-content [class~="text-gray-600"],
+.premium-host-content [class~="text-slate-600"],
+.premium-host-content [class~="text-gray-500"],
+.premium-host-content [class~="text-slate-500"],
+.premium-host-content [class~="text-gray-400"],
+.premium-host-content [class~="text-slate-400"] {
+  color: #5b6678 !important;
+}
+
+.premium-host-content input,
+.premium-host-content select,
+.premium-host-content textarea {
+  border-color: rgba(180, 145, 73, 0.34) !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  color: #172033 !important;
+  box-shadow: 0 8px 24px rgba(67, 52, 24, 0.06);
+}
+
+.premium-host-content input::placeholder,
+.premium-host-content textarea::placeholder {
+  color: #8a94a4 !important;
+}
+
+.premium-host-content thead {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.13), rgba(99, 102, 241, 0.08)) !important;
+}
+
+.premium-host-content tbody tr:hover {
+  background: rgba(255, 247, 224, 0.78) !important;
+}
+
+.premium-host-content .host-notification-unread {
+  border-color: rgba(245, 158, 11, 0.34) !important;
+  background: linear-gradient(100deg, #fff3cf, #fffaf0) !important;
+}
+
+.premium-host-content .host-notification-read {
+  background: linear-gradient(145deg, #fffefb, #f5f8ff) !important;
+}
+
+.premium-host-content .host-subscription-info-tile {
+  border-color: rgba(255, 255, 255, 0.32) !important;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(255, 244, 213, 0.92)) !important;
+  color: #172033 !important;
+  box-shadow: 0 14px 35px rgba(31, 24, 12, 0.18);
+}
+
+.premium-host-content .host-subscription-info-tile .host-subscription-value {
+  color: #172033 !important;
+}
+
+.premium-host-content .host-subscription-info-tile .host-subscription-label {
+  color: #74591f !important;
+}
+
+.role-sidebar-host.premium-sidebar-dark {
+  background:
+    radial-gradient(circle at 20% 0%, rgba(251, 191, 36, 0.18), transparent 18rem),
+    linear-gradient(180deg, #171208 0%, #101827 55%, #080d18 100%) !important;
 }

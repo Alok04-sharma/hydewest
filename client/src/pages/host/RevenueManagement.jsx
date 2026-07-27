@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import hostService from "../../services/host.service";
@@ -113,7 +114,7 @@ const createChartGeometry = (items, width = 980, height = 330) => {
   };
 };
 
-function MetricCard({ label, value, helper, tone, symbol, delay = 0 }) {
+function MetricCard({ label, value, helper, tone, symbol, delay = 0, onClick, actionLabel = "Open details" }) {
   const styles = {
     rose: {
       card: "border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50",
@@ -138,12 +139,15 @@ function MetricCard({ label, value, helper, tone, symbol, delay = 0 }) {
   const selected = styles[tone] || styles.slate;
 
   return (
-    <motion.article
+    <motion.button
+      type="button"
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
       whileHover={{ y: -6, scale: 1.015 }}
-      className={`relative overflow-hidden rounded-[28px] border p-5 shadow-sm ${selected.card}`}
+      whileTap={{ scale: 0.985 }}
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-[28px] border p-5 text-left shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-emerald-200 ${selected.card}`}
     >
       <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full bg-current opacity-[0.04]" />
 
@@ -164,7 +168,10 @@ function MetricCard({ label, value, helper, tone, symbol, delay = 0 }) {
           {symbol}
         </span>
       </div>
-    </motion.article>
+      <span className="relative mt-4 inline-flex text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+        {actionLabel} →
+      </span>
+    </motion.button>
   );
 }
 
@@ -299,7 +306,7 @@ function RevenueChart({ items }) {
   );
 }
 
-function BookingDonut({ statistics }) {
+function BookingDonut({ statistics, onSelect }) {
   const entries = useMemo(() => {
     const source = statistics || {};
     const order = ["confirmed", "pending", "completed", "cancelled"];
@@ -351,9 +358,11 @@ function BookingDonut({ statistics }) {
 
       <div className="space-y-3">
         {entries.map((item) => (
-          <div
+          <button
+            type="button"
             key={item.key}
-            className="flex items-center justify-between rounded-2xl bg-white/5 px-4 py-3"
+            onClick={() => onSelect?.(item.key)}
+            className="flex w-full items-center justify-between rounded-2xl bg-white/5 px-4 py-3 text-left transition hover:bg-white/10"
           >
             <span className="flex items-center gap-3">
               <span
@@ -365,7 +374,7 @@ function BookingDonut({ statistics }) {
               </span>
             </span>
             <strong className="text-lg text-white">{item.value}</strong>
-          </div>
+          </button>
         ))}
       </div>
     </div>
@@ -389,6 +398,7 @@ function RevenueLoading() {
 }
 
 export default function RevenueManagement() {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -466,6 +476,13 @@ export default function RevenueManagement() {
   }, [monthlyRevenue]);
 
   const highestPropertyRevenue = Number(propertyWise[0]?.revenue || 0) || 1;
+
+  const scrollToSection = (sectionId) => {
+    document.getElementById(sectionId)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
 
   if (loading) {
     return <RevenueLoading />;
@@ -545,6 +562,8 @@ export default function RevenueManagement() {
                 tone="emerald"
                 symbol="₹"
                 delay={0.02}
+                onClick={() => scrollToSection("monthly-performance")}
+                actionLabel="View monthly trend"
               />
               <MetricCard
                 label="This month"
@@ -553,6 +572,8 @@ export default function RevenueManagement() {
                 tone="rose"
                 symbol="↗"
                 delay={0.06}
+                onClick={() => scrollToSection("monthly-performance")}
+                actionLabel="Compare months"
               />
               <MetricCard
                 label="Successful bookings"
@@ -561,6 +582,8 @@ export default function RevenueManagement() {
                 tone="violet"
                 symbol="✓"
                 delay={0.1}
+                onClick={() => navigate("/host/bookings")}
+                actionLabel="Open paid bookings"
               />
               <MetricCard
                 label="Monthly growth"
@@ -571,10 +594,13 @@ export default function RevenueManagement() {
                 tone="slate"
                 symbol="⌁"
                 delay={0.14}
+                onClick={() => scrollToSection("property-performance")}
+                actionLabel="View property performance"
               />
             </section>
 
             <motion.section
+              id="monthly-performance"
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.12 }}
@@ -633,6 +659,7 @@ export default function RevenueManagement() {
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,.85fr)]">
               <motion.section
+                id="property-performance"
                 initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.16 }}
@@ -665,12 +692,15 @@ export default function RevenueManagement() {
                           : property.cover?.url;
 
                       return (
-                        <motion.div
+                        <motion.button
+                          type="button"
                           key={property._id || `${property.title}-${index}`}
                           initial={{ opacity: 0, x: -12 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.18 + index * 0.04 }}
-                          className="rounded-[24px] border border-slate-100 bg-slate-50/70 p-4"
+                          whileHover={{ x: 4 }}
+                          onClick={() => navigate(`/host/edit-listing/${property._id}`)}
+                          className="w-full rounded-[24px] border border-slate-100 bg-slate-50/70 p-4 text-left transition hover:border-emerald-200 hover:bg-emerald-50/40"
                         >
                           <div className="flex items-center gap-3">
                             <img
@@ -702,7 +732,8 @@ export default function RevenueManagement() {
                               className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-500 to-[#FF385C]"
                             />
                           </div>
-                        </motion.div>
+                          <span className="mt-3 inline-flex text-[10px] font-black uppercase tracking-wider text-emerald-700">Open property →</span>
+                        </motion.button>
                       );
                     })
                   ) : (
@@ -735,7 +766,7 @@ export default function RevenueManagement() {
                   </p>
 
                   <div className="mt-7">
-                    <BookingDonut statistics={data.bookingStatistics} />
+                    <BookingDonut statistics={data.bookingStatistics} onSelect={(status) => navigate(`/host/bookings?tab=${status}`)} />
                   </div>
                 </div>
               </motion.section>
@@ -775,7 +806,11 @@ export default function RevenueManagement() {
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {recentTransactions.map((transaction) => (
-                          <tr key={transaction._id} className="hover:bg-slate-50">
+                          <tr
+                            key={transaction._id}
+                            onClick={() => transaction.booking?._id && navigate(`/host/bookings/${transaction.booking._id}`)}
+                            className="cursor-pointer hover:bg-slate-50"
+                          >
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
                                 <img
@@ -810,7 +845,12 @@ export default function RevenueManagement() {
 
                   <div className="divide-y divide-slate-100 md:hidden">
                     {recentTransactions.map((transaction) => (
-                      <article key={transaction._id} className="p-4">
+                      <button
+                        type="button"
+                        key={transaction._id}
+                        onClick={() => transaction.booking?._id && navigate(`/host/bookings/${transaction.booking._id}`)}
+                        className="block w-full p-4 text-left hover:bg-slate-50"
+                      >
                         <div className="flex items-center gap-3">
                           <img
                             src={getImageUrl(transaction.booking?.apartment?.images)}
@@ -831,7 +871,7 @@ export default function RevenueManagement() {
                             {money(transaction.amount)}
                           </p>
                         </div>
-                      </article>
+                      </button>
                     ))}
                   </div>
                 </>

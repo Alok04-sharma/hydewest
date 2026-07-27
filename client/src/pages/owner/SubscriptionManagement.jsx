@@ -122,7 +122,7 @@ export default function SubscriptionManagement() {
       setError(
         requestError.response?.data?.message ||
           requestError.message ||
-          "Subscription records load nahi ho sake."
+          "Subscription records could not be loaded."
       );
     } finally {
       setLoading(false);
@@ -147,7 +147,7 @@ export default function SubscriptionManagement() {
               Host Subscription Management
             </h1>
             <p className="mt-2 text-sm text-gray-500">
-              Active, scheduled, pending aur expired subscriptions ke saath payment history monitor karein.
+              Monitor active, scheduled, pending, and expired subscriptions together with payment history.
             </p>
           </div>
 

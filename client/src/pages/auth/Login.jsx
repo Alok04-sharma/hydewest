@@ -30,7 +30,7 @@ export default function Login() {
       await dispatch(sendOTP(normalizedEmail)).unwrap();
       navigate("/verify-otp", { replace: true });
     } catch {
-      // Error Redux state me set ho chuka hai.
+      // The Redux state already contains the request error.
     }
   };
 
@@ -44,11 +44,11 @@ export default function Login() {
         </div>
 
         <h2 className="mt-4 text-center text-3xl font-extrabold text-gray-900">
-          Welcome to StayNest
+          Welcome to hydewest
         </h2>
 
         <p className="mt-2 text-center text-sm text-gray-600">
-          Apna registered Email daal kar OTP praapt karein
+          Enter your registered email address to receive an OTP.
         </p>
       </div>
 
@@ -92,17 +92,17 @@ export default function Login() {
               disabled={loading}
               className="w-full py-3.5 px-4 rounded-xl shadow-md text-sm font-bold text-white bg-[#FF385C] hover:bg-[#E00B41] transition disabled:opacity-50"
             >
-              {loading ? "OTP Bheja Ja Raha Hai..." : "Send OTP"}
+              {loading ? "Sending OTP..." : "Send OTP"}
             </button>
           </form>
 
           <div className="mt-6 text-center text-sm border-t border-gray-100 pt-5">
-            <span className="text-gray-500">Naye user hain? </span>
+            <span className="text-gray-500">New to hydewest? </span>
             <Link
               to="/register"
               className="font-semibold text-[#FF385C] hover:underline"
             >
-              Pehle Register/Signup karein
+              Create an account first
             </Link>
           </div>
         </div>

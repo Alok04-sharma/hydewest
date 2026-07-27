@@ -63,7 +63,7 @@ export default function Trips() {
       );
     } catch (requestError) {
       setError(
-        requestError.response?.data?.message || "Bookings load nahi hui."
+        requestError.response?.data?.message || "Bookings could not be loaded."
       );
     } finally {
       setLoading(false);
@@ -104,7 +104,7 @@ export default function Trips() {
       await load();
     } catch (requestError) {
       setError(
-        requestError.response?.data?.message || "Booking cancel nahi hui."
+        requestError.response?.data?.message || "The booking could not be cancelled."
       );
     }
   };
@@ -115,7 +115,7 @@ export default function Trips() {
         <GuestPageHeader
           eyebrow="My Bookings"
           title="Your StayNest trips"
-          description="Upcoming stay, current booking, completed history aur cancellations ek hi jagah manage karein."
+          description="Manage upcoming stays, current bookings, completed history, and cancellations in one place."
           action={
             <Link
               to="/guest/search"
@@ -282,7 +282,7 @@ export default function Trips() {
                   No {activeTabMeta.label.toLowerCase()} bookings
                 </h2>
                 <p className="mt-2 text-sm text-slate-500">
-                  Is category me abhi koi booking available nahi hai.
+                  No booking is currently available in this category.
                 </p>
                 <Link
                   to="/guest/search"

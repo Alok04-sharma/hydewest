@@ -3,6 +3,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import MainLayout from "../layouts/MainLayout";
 import Home from "../pages/home/Home";
 import ListingDetails from "../pages/listing/ListingDetails";
+import HostRules from "../pages/listing/HostRules";
+import ApplianceGuide from "../pages/listing/ApplianceGuide";
 import SearchResults from "../pages/listing/SearchResults";
 import Login from "../pages/auth/Login";
 import SignUpPage from "../pages/auth/SignUpPage";
@@ -36,6 +38,7 @@ import SubscriptionPlans from "../pages/host/SubscriptionPlans";
 import MySubscription from "../pages/host/MySubscription";
 import HostNotifications from "../pages/host/HostNotifications";
 import OwnerDashboard from "../pages/owner/OwnerDashboard";
+import AdminRevenueAnalytics from "../pages/owner/AdminRevenueAnalytics";
 import HostManagement from "../pages/owner/HostManagement";
 import HostProfile from "../pages/owner/HostProfile";
 import ListingManagement from "../pages/owner/ListingManagement";
@@ -56,6 +59,8 @@ export default function AppRoutes() {
       <Route element={<MainLayout />}>
         <Route index element={<Home />} />
         <Route path="apartment/:id" element={<ListingDetails />} />
+        <Route path="apartment/:id/rules" element={<HostRules />} />
+        <Route path="apartment/:id/appliance-guide" element={<ApplianceGuide />} />
         <Route path="listing/:id" element={<ListingDetails />} />
         <Route path="login" element={<Login />} />
         <Route path="register" element={<SignUpPage />} />
@@ -104,6 +109,7 @@ export default function AppRoutes() {
 
         <Route element={<OwnerRoute />}>
           <Route path="owner/dashboard" element={<OwnerDashboard />} />
+          <Route path="owner/revenue-analytics" element={<AdminRevenueAnalytics />} />
           <Route path="owner/hosts" element={<HostManagement />} />
           <Route path="owner/hosts/:hostId" element={<HostProfile />} />
           <Route path="owner/listings" element={<ListingManagement />} />

@@ -1,0 +1,15 @@
+import React, { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Link, useParams } from "react-router-dom";
+import listingService from "../../services/listing.service";
+
+export default function HostRules() {
+  const { id } = useParams();
+  const [listing, setListing] = useState(null);
+  const [error, setError] = useState("");
+  useEffect(() => { let active = true; listingService.getPublicById(id).then((response) => active && setListing(response.data || response)).catch((requestError) => active && setError(requestError.response?.data?.message || "Host rules could not be loaded.")); return () => { active = false; }; }, [id]);
+  if (error) return <div className="grid min-h-[70vh] place-items-center p-6"><p className="rounded-3xl bg-red-50 p-6 font-bold text-red-700">{error}</p></div>;
+  if (!listing) return <div className="grid min-h-[70vh] place-items-center"><div className="h-12 w-12 animate-spin rounded-full border-4 border-rose-600 border-t-transparent" /></div>;
+  const rules = listing.houseRules?.length ? listing.houseRules : ["Respect the property, neighbours and local regulations."];
+  return <div className="min-h-screen bg-[radial-gradient(circle_at_0_0,rgba(225,29,72,.10),transparent_25rem),#f8fafc] px-4 py-8 sm:px-6"><div className="mx-auto max-w-4xl"><Link to={`/apartment/${id}`} className="text-xs font-black text-rose-700">← Back to property</Link><motion.header initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mt-4 rounded-[32px] bg-slate-950 p-7 text-white shadow-2xl"><p className="text-xs font-black uppercase tracking-[.2em] text-rose-300">Guest handbook</p><h1 className="mt-2 text-3xl font-black">Host Rules</h1><p className="mt-2 text-sm text-white/60">{listing.title}</p></motion.header><div className="mt-6 space-y-3">{rules.map((rule, index) => <motion.article key={`${rule}-${index}`} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * .04 }} className="flex gap-4 rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-rose-50 font-black text-rose-700">{index + 1}</span><p className="pt-2 text-sm font-semibold leading-6 text-slate-700">{rule}</p></motion.article>)}</div><div className="mt-6 grid gap-3 sm:grid-cols-2"><div className="rounded-3xl bg-white p-5 shadow-sm"><p className="text-xs font-black uppercase text-slate-400">Check-in</p><p className="mt-2 text-xl font-black">{listing.policies?.checkInTime || "14:00"}</p></div><div className="rounded-3xl bg-white p-5 shadow-sm"><p className="text-xs font-black uppercase text-slate-400">Check-out</p><p className="mt-2 text-xl font-black">{listing.policies?.checkOutTime || "11:00"}</p></div></div></div></div>;
+}

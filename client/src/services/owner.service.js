@@ -7,6 +7,11 @@ const ownerService = {
     return response.data;
   },
 
+  getRevenueAnalytics: async () => {
+    const response = await api.get("/api/owner/analytics/revenue");
+    return response.data;
+  },
+
   // Host Management
   getHosts: async (params = {}) => {
     const response = await api.get("/api/owner/hosts", { params });

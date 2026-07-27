@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   clearAuthMessages,
   registerUser,
@@ -24,6 +24,7 @@ const getDashboardPath = (user) => {
 export default function SignUpPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { loading, error, isAuthenticated, user } = useSelector(
     (state) => state.auth
@@ -70,6 +71,10 @@ export default function SignUpPage() {
       email: formData.email.trim().toLowerCase(),
       phone: formData.phone.trim(),
       role: formData.role,
+      referralCode:
+        new URLSearchParams(location.search).get("ref") ||
+        localStorage.getItem("hydewest_referral_code") ||
+        "",
     };
 
     try {
@@ -90,16 +95,16 @@ export default function SignUpPage() {
         </div>
 
         <h2 className="mt-4 text-center text-3xl font-extrabold text-gray-900">
-          Create your StayNest Account
+          Create your hydewest account
         </h2>
 
         <p className="mt-2 text-center text-sm text-gray-600">
-          Pehle se account hai?{" "}
+          Already have an account?{" "}
           <Link
             to="/login"
             className="font-semibold text-[#FF385C] hover:underline"
           >
-            Login karein
+            Login
           </Link>
         </p>
       </div>
@@ -134,7 +139,7 @@ export default function SignUpPage() {
                 required
                 value={formData.name}
                 onChange={handleChange}
-                placeholder="Aapka naam enter karein"
+                placeholder="Enter your full name"
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FF385C] focus:border-transparent transition text-gray-800 text-sm"
               />
             </div>
@@ -230,7 +235,7 @@ export default function SignUpPage() {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     />
                   </svg>
-                  Account Ban Raha Hai...
+                  Creating account...
                 </span>
               ) : (
                 "Submit & Register"

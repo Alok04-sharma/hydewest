@@ -181,7 +181,7 @@ export default function HostNotifications() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-transparent px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
         <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -227,7 +227,7 @@ export default function HostNotifications() {
         )}
 
         <section className="mt-6 flex flex-col justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
-          <p className="font-black text-gray-900">
+          <p className="font-black text-slate-950">
             {result.unreadCount || 0} unread notification(s)
           </p>
 
@@ -276,8 +276,10 @@ export default function HostNotifications() {
                 return (
                   <article
                     key={notification._id}
-                    className={`flex gap-4 p-5 transition ${
-                      notification.isRead ? "bg-white" : "bg-rose-50/60"
+                    className={`flex gap-4 border-l-4 p-5 transition ${
+                      notification.isRead
+                        ? "host-notification-read border-l-transparent bg-white"
+                        : "host-notification-unread border-l-amber-500 bg-amber-50"
                     }`}
                   >
                     <div
@@ -296,7 +298,7 @@ export default function HostNotifications() {
                       className="min-w-0 flex-1 text-left"
                     >
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="font-black text-gray-900">
+                        <h2 className="font-black text-slate-950">
                           {notification.title}
                         </h2>
 
@@ -307,11 +309,11 @@ export default function HostNotifications() {
                         )}
                       </div>
 
-                      <p className="mt-1 text-sm leading-6 text-gray-600">
+                      <p className="mt-1 text-sm font-medium leading-6 text-slate-700">
                         {notification.message}
                       </p>
 
-                      <p className="mt-2 text-xs font-semibold text-gray-400">
+                      <p className="mt-2 text-xs font-semibold text-slate-500">
                         {formatDate(notification.createdAt)}
                       </p>
                     </button>

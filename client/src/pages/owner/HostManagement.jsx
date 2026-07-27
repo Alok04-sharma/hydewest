@@ -239,8 +239,8 @@ function ActionModal({
 
             <p>
               {isSuspend
-                ? "Host login aur protected APIs access nahi kar payega. Uski listings inactive kar di jayengi."
-                : "Host account soft-remove hoga. Login block rahega aur listings inactive ho jayengi, lekin historical records safe rahenge."}
+                ? "The Host will no longer be able to sign in or access protected APIs. Their listings will be marked inactive."
+                : "The Host account will be soft-removed. Sign-in will remain blocked and listings will be marked inactive, while historical records remain safe."}
             </p>
           </div>
         </div>
@@ -264,7 +264,7 @@ function ActionModal({
           }
           rows={4}
           maxLength={500}
-          placeholder="Minimum 10 characters me clear reason likhein..."
+          placeholder="Write a clear reason of at least 10 characters..."
           className="mt-2 w-full resize-none rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-purple-500 focus:ring-4 focus:ring-purple-100"
         />
 
@@ -443,7 +443,7 @@ export default function HostManagement() {
           ) {
             throw new Error(
               response.message ||
-                "Hosts load nahi ho sake."
+                "Hosts could not be loaded."
             );
           }
 
@@ -461,7 +461,7 @@ export default function HostManagement() {
               ?.message ||
               requestError
                 .message ||
-              "Host Management data load nahi ho saka."
+              "Host Management data could not be loaded."
           );
         } finally {
           setLoading(false);
@@ -585,7 +585,7 @@ export default function HostManagement() {
         ) {
           throw new Error(
             response.message ||
-              "Action complete nahi hua."
+              "The action could not be completed."
           );
         }
 
@@ -606,7 +606,7 @@ export default function HostManagement() {
             ?.message ||
             requestError
               .message ||
-            "Host action complete nahi ho saka."
+            "The Host action could not be completed."
         );
       } finally {
         setActionLoading(
@@ -635,13 +635,7 @@ export default function HostManagement() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-              Registered hosts
-              search karein,
-              profile aur platform
-              activity monitor
-              karein, aur zarurat
-              par account suspend
-              ya remove karein.
+              Search registered Hosts, monitor profiles and platform activity, and suspend or remove an account when required.
             </p>
           </div>
 
@@ -841,8 +835,7 @@ export default function HostManagement() {
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
 
               <p className="text-sm font-semibold text-gray-500">
-                Hosts load ho rahe
-                hain...
+                Loading Hosts...
               </p>
             </div>
           ) : result.hosts
@@ -857,9 +850,7 @@ export default function HostManagement() {
               </h2>
 
               <p className="mt-2 text-sm text-gray-500">
-                Search ya status
-                filters change karke
-                dobara try karein.
+                Change the search or status filters and try again.
               </p>
             </div>
           ) : (

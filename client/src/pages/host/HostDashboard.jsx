@@ -146,7 +146,7 @@ function RevenueAreaChart({ items }) {
   }
 
   return (
-    <div className="relative mt-5 overflow-hidden rounded-[24px] border border-slate-100 bg-gradient-to-b from-slate-50/80 to-white p-2 sm:p-4">
+    <div className="relative mt-5 overflow-hidden rounded-[24px] border border-[#e3d8bd] bg-gradient-to-b from-[#fffdf8] via-[#fffaf2] to-[#f3f7ff] p-2 sm:p-4">
       <svg
         viewBox={`0 0 ${chart.width} ${chart.height}`}
         className="h-[250px] w-full overflow-visible"
@@ -265,17 +265,17 @@ function StatCard({ title, value, helper, icon: Icon, style, to, onNavigate }) {
       }}
       role={to ? "link" : undefined}
       tabIndex={to ? 0 : undefined}
-      className="group relative cursor-pointer overflow-hidden rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-200"
+      className="group relative flex min-h-[154px] cursor-pointer flex-col overflow-hidden rounded-[24px] border border-[#d9caa5] bg-gradient-to-br from-[#fffdf7] via-[#fffaf0] to-[#eef4ff] p-4 shadow-[0_16px_40px_rgba(62,48,24,0.10)] focus:outline-none focus-visible:ring-4 focus-visible:ring-amber-200 sm:p-5"
     >
-      <div className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-rose-100/70 transition duration-300 group-hover:scale-125" />
+      <div className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-amber-200/45 transition duration-300 group-hover:scale-125" />
 
-      <div className="relative flex items-start justify-between gap-4">
+      <div className="relative flex flex-1 items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-gray-500">{title}</p>
-          <p className="mt-2 break-words text-3xl font-black tracking-tight text-gray-950">
+          <p className="min-h-10 text-xs font-black uppercase leading-5 tracking-[0.08em] text-slate-600">{title}</p>
+          <p className="mt-1 break-words text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-[1.7rem]">
             {value}
           </p>
-          <p className="mt-1 text-xs font-semibold text-gray-400">{helper}</p>
+          <p className="mt-2 min-h-8 text-[11px] font-semibold leading-4 text-slate-500">{helper}</p>
         </div>
 
         <motion.div
@@ -286,7 +286,7 @@ function StatCard({ title, value, helper, icon: Icon, style, to, onNavigate }) {
         </motion.div>
       </div>
 
-      <div className="relative mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-[#FF385C] opacity-0 transition group-hover:opacity-100">
+      <div className="relative mt-3 text-[10px] font-black uppercase tracking-[0.16em] text-amber-700 opacity-60 transition group-hover:translate-x-1 group-hover:opacity-100">
         Open details →
       </div>
     </motion.article>
@@ -318,7 +318,7 @@ export default function HostDashboard() {
 
       if (!dashboardResponse?.success) {
         throw new Error(
-          dashboardResponse?.message || "Dashboard load nahi hua."
+          dashboardResponse?.message || "The dashboard could not be loaded."
         );
       }
 
@@ -328,7 +328,7 @@ export default function HostDashboard() {
       setError(
         requestError.response?.data?.message ||
           requestError.message ||
-          "Host dashboard load karne me error aaya."
+          "An error occurred while loading the Host dashboard."
       );
     } finally {
       setLoading(false);
@@ -460,7 +460,7 @@ export default function HostDashboard() {
 
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-xl font-black text-gray-950">
+                      <h2 className="text-xl font-black text-slate-950">
                         Host subscription
                       </h2>
                       <span
@@ -474,55 +474,55 @@ export default function HostDashboard() {
                       </span>
                     </div>
 
-                    <p className="mt-2 text-sm text-gray-600">
+                    <p className={`mt-2 text-sm font-semibold leading-6 ${hasActiveSubscription ? "text-emerald-950/80" : "text-amber-950/80"}`}>
                       {hasActiveSubscription
                         ? `${
                             activeSubscription?.planName || "Host plan"
-                          } active hai. Aap listings create aur edit kar sakte hain.`
-                        : "Listing create/edit continue karne ke liye Host subscription activate karein."}
+                          } is active. You can create and edit listings.`
+                        : "Activate a Host subscription to continue creating and editing listings."}
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  <div className="rounded-2xl bg-white p-4 shadow-sm">
-                    <FiClock aria-hidden="true" className="text-purple-600" />
-                    <p className="mt-2 text-xl font-black text-gray-950">
+                  <div className="rounded-2xl border border-emerald-300/25 bg-gradient-to-br from-emerald-950 to-slate-900 p-4 text-white shadow-lg">
+                    <FiClock aria-hidden="true" className="text-emerald-300" />
+                    <p className="mt-2 text-xl font-black text-white">
                       {subscriptionSummary.remainingDays || 0}
                     </p>
-                    <p className="text-[11px] text-gray-500">Days left</p>
+                    <p className="text-[11px] font-semibold text-emerald-100/70">Days left</p>
                   </div>
 
-                  <div className="rounded-2xl bg-white p-4 shadow-sm">
-                    <FiCalendar aria-hidden="true" className="text-purple-600" />
-                    <p className="mt-2 text-xs font-black text-gray-950">
+                  <div className="rounded-2xl border border-cyan-300/25 bg-gradient-to-br from-cyan-950 to-slate-900 p-4 text-white shadow-lg">
+                    <FiCalendar aria-hidden="true" className="text-cyan-300" />
+                    <p className="mt-2 text-xs font-black text-white">
                       {formatDate(activeSubscription?.expiryDate)}
                     </p>
-                    <p className="text-[11px] text-gray-500">Expiry</p>
+                    <p className="text-[11px] font-semibold text-cyan-100/70">Expiry</p>
                   </div>
 
-                  <div className="rounded-2xl bg-white p-4 shadow-sm">
+                  <div className="rounded-2xl border border-violet-300/25 bg-gradient-to-br from-violet-950 to-slate-900 p-4 text-white shadow-lg">
                     <FiCreditCard
                       aria-hidden="true"
-                      className="text-purple-600"
+                      className="text-violet-300"
                     />
-                    <p className="mt-2 text-xs font-black text-gray-950">
+                    <p className="mt-2 text-xs font-black text-white">
                       {formatDate(
                         subscriptionSummary.nextRenewalDate ||
                           activeSubscription?.nextRenewalDate
                       )}
                     </p>
-                    <p className="text-[11px] text-gray-500">Renewal</p>
+                    <p className="text-[11px] font-semibold text-violet-100/70">Renewal</p>
                   </div>
 
                   <Link
                     to="/host/subscription/plans"
-                    className="flex flex-col justify-center rounded-2xl bg-gray-950 p-4 text-white hover:bg-purple-700"
+                    className="flex flex-col justify-center rounded-2xl border border-rose-300/25 bg-gradient-to-br from-rose-950 to-slate-900 p-4 text-white shadow-lg hover:-translate-y-1 hover:border-rose-300/60"
                   >
                     <p className="text-sm font-black">
                       {hasActiveSubscription ? "Renew plan" : "Buy plan"}
                     </p>
-                    <p className="mt-1 text-[11px] text-white/60">
+                    <p className="mt-1 text-[11px] text-rose-100/65">
                       View durations
                     </p>
                   </Link>
@@ -530,7 +530,7 @@ export default function HostDashboard() {
               </div>
             </section>
 
-            <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <section className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
               <StatCard
                 title="Total listings"
                 value={overview.totalListings || 0}
@@ -577,6 +577,15 @@ export default function HostDashboard() {
                 onNavigate={navigate}
               />
               <StatCard
+                title="Booking cancellations"
+                value={overview.cancelledBookings || 0}
+                helper="Cancelled reservations"
+                icon={FiXCircle}
+                style="bg-orange-100 text-orange-700"
+                to="/host/bookings?tab=cancelled"
+                onNavigate={navigate}
+              />
+              <StatCard
                 title="Total earnings"
                 value={currency(overview.totalEarnings)}
                 helper="Successful payments"
@@ -598,19 +607,19 @@ export default function HostDashboard() {
                 }}
                 role="link"
                 tabIndex={0}
-                className="group cursor-pointer overflow-hidden rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-rose-200 sm:p-6"
+                className="group cursor-pointer overflow-hidden rounded-[32px] border border-[#d9caa5] bg-gradient-to-br from-[#fffdf8] via-[#fffaf0] to-[#eef4ff] p-5 shadow-[0_20px_55px_rgba(62,48,24,0.12)] outline-none focus-visible:ring-4 focus-visible:ring-amber-200 sm:p-6"
               >
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-rose-50 text-[#FF385C]">
+                      <span className="grid h-10 w-10 place-items-center rounded-2xl bg-amber-100 text-amber-800">
                         <FiBarChart2 aria-hidden="true" />
                       </span>
                       <div>
                         <h2 className="text-xl font-black text-gray-950">
                           Revenue momentum
                         </h2>
-                        <p className="text-xs font-semibold text-gray-400">
+                        <p className="text-xs font-semibold text-slate-600">
                           Last 12 months · click for complete analytics
                         </p>
                       </div>
@@ -618,7 +627,7 @@ export default function HostDashboard() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl bg-slate-50 px-3 py-2.5">
+                    <div className="rounded-2xl border border-[#e8dcc1] bg-[#fffdf8] px-3 py-2.5">
                       <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
                         This month
                       </p>
@@ -627,8 +636,8 @@ export default function HostDashboard() {
                       </p>
                     </div>
                     <div
-                      className={`rounded-2xl px-3 py-2.5 ${
-                        revenueGrowth >= 0 ? "bg-emerald-50" : "bg-rose-50"
+                      className={`rounded-2xl border px-3 py-2.5 ${
+                        revenueGrowth >= 0 ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"
                       }`}
                     >
                       <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -711,8 +720,8 @@ export default function HostDashboard() {
             </section>
 
             <section className="mt-6 grid gap-6 xl:grid-cols-2">
-              <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-gray-100 p-5">
+              <div className="overflow-hidden rounded-3xl border border-[#d9caa5] bg-gradient-to-br from-[#fffdf8] to-[#f3f7ff] shadow-[0_18px_48px_rgba(62,48,24,0.10)]">
+                <div className="flex items-center justify-between border-b border-[#e7dcc4] bg-[#fffaf0]/80 p-5">
                   <div>
                     <h2 className="text-lg font-black text-gray-950">
                       Recent properties
@@ -727,7 +736,7 @@ export default function HostDashboard() {
                   </Link>
                 </div>
 
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-[#e7dcc4]">
                   {(dashboard?.recentListings || []).length === 0 ? (
                     <p className="p-8 text-center text-sm text-gray-500">
                       No listings yet.
@@ -737,7 +746,7 @@ export default function HostDashboard() {
                       <Link
                         to={`/host/edit-listing/${listing._id}`}
                         key={listing._id}
-                        className="flex items-center gap-4 p-4 hover:bg-slate-50"
+                        className="flex items-center gap-4 p-4 transition hover:bg-amber-50/70"
                       >
                         <img
                           src={getImageUrl(listing.images)}
@@ -775,8 +784,8 @@ export default function HostDashboard() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-gray-100 p-5">
+              <div className="overflow-hidden rounded-3xl border border-[#d9caa5] bg-gradient-to-br from-[#fffdf8] to-[#f3f7ff] shadow-[0_18px_48px_rgba(62,48,24,0.10)]">
+                <div className="flex items-center justify-between border-b border-[#e7dcc4] bg-[#fffaf0]/80 p-5">
                   <div>
                     <h2 className="text-lg font-black text-gray-950">
                       Recent bookings
@@ -793,7 +802,7 @@ export default function HostDashboard() {
                   </Link>
                 </div>
 
-                <div className="divide-y divide-gray-100">
+                <div className="divide-y divide-[#e7dcc4]">
                   {(dashboard?.recentBookings || []).length === 0 ? (
                     <p className="p-8 text-center text-sm text-gray-500">
                       No bookings yet.
@@ -803,7 +812,7 @@ export default function HostDashboard() {
                       <Link
                         to={`/host/bookings/${booking._id}`}
                         key={booking._id}
-                        className="flex items-center gap-4 p-4 hover:bg-slate-50"
+                        className="flex items-center gap-4 p-4 transition hover:bg-amber-50/70"
                       >
                         <img
                           src={getImageUrl(booking.apartment?.images)}

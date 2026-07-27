@@ -1,26 +1,46 @@
 export const PROPERTY_TYPES = [
-  ["Apartment", "🏢", "Modern flats and serviced apartments"],
-  ["House", "🏠", "Independent homes for families"],
-  ["Villa", "🏡", "Premium private stays"],
-  ["Studio", "🛋️", "Compact open-plan spaces"],
-  ["Room", "🛏️", "Private room inside a property"],
-  ["Cabin", "🪵", "Nature-focused wooden stays"],
-  ["Cottage", "🌿", "Charming countryside homes"],
-  ["Farm House", "🚜", "Spacious farm experiences"],
-  ["Hotel", "🏨", "Professional hospitality rooms"],
-  ["Resort", "🌴", "Leisure and vacation properties"],
-  ["Hostel", "🎒", "Budget social accommodation"],
-  ["Guest House", "🛎️", "Comfortable hosted stays"],
-  ["Tree House", "🌳", "Unique elevated stays"],
-  ["Tent", "⛺", "Camping and glamping spaces"],
+  ["Apartment", "🏢"],
+  ["House", "🏠"],
+  ["Villa", "🏡"],
+  ["Studio", "🛋️"],
+  ["Room", "🛏️"],
+  ["Cabin", "🪵"],
+  ["Cottage", "🌿"],
+  ["Farm House", "🚜"],
+  ["Hotel", "🏨"],
+  ["Resort", "🌴"],
+  ["Hostel", "🎒"],
+  ["Guest House", "🛎️"],
+  ["Tree House", "🌳"],
+  ["Tent", "⛺"],
+];
+
+export const PROPERTY_STYLES = [
+  "Modern",
+  "Luxury",
+  "Minimal",
+  "Traditional",
+  "Rustic",
+  "Bohemian",
+  "Eco-friendly",
+  "Family-friendly",
+  "Business-ready",
+];
+
+export const BED_TYPES = [
+  ["King", 2],
+  ["Queen", 2],
+  ["Single", 1],
+  ["Twin", 1],
+  ["Bunk", 2],
+  ["Sofa Bed", 2],
 ];
 
 export const PRICING_UNITS = [
-  ["hour", "Hourly", "Best for short stays up to 24 hours", "⏱️"],
-  ["night", "Nightly", "A better value than paying for many hours", "🌙"],
-  ["day", "Daily", "Host's main price and pricing reference", "☀️"],
-  ["week", "Weekly", "Built-in long-stay saving", "🗓️"],
-  ["month", "Monthly", "Highest saving for extended stays", "🏡"],
+  ["hour", "Hourly", "Short stays", "⏱️"],
+  ["night", "Nightly", "Overnight value", "🌙"],
+  ["week", "Weekly", "Long-stay saving", "🗓️"],
+  ["month", "Monthly", "Extended-stay saving", "🏡"],
 ];
 
 export const RATE_MULTIPLIERS = Object.freeze({
@@ -51,155 +71,37 @@ export const calculateSuggestedRates = (dayPrice, currentRates = {}) => {
   return Object.fromEntries(
     Object.entries(generated).map(([unit, value]) => {
       const current = Number(currentRates?.[unit]);
-      return [unit, Number.isFinite(current) && current > 0 ? current : value];
+      return [unit, Number.isFinite(current) && current >= 0 ? current : value];
     })
   );
 };
 
 export const createPresetCoupons = () => [
-  {
-    code: "WELCOME10",
-    label: "Welcome Offer",
-    description: "10% off for guests trying this stay.",
-    discountType: "percentage",
-    discountValue: 10,
-    minBookingAmount: 1500,
-    maxDiscount: 1000,
-    usageLimit: 100,
-    usedCount: 0,
-    premiumOnly: false,
-    paymentMethod: "any",
-    source: "preset",
-    isActive: true,
-    validFrom: new Date().toISOString().slice(0, 10),
-    validUntil: "",
-  },
-  {
-    code: "STAYMORE12",
-    label: "Long Stay Saver",
-    description: "12% off on higher-value stays.",
-    discountType: "percentage",
-    discountValue: 12,
-    minBookingAmount: 7000,
-    maxDiscount: 2500,
-    usageLimit: 100,
-    usedCount: 0,
-    premiumOnly: false,
-    paymentMethod: "any",
-    source: "preset",
-    isActive: true,
-    validFrom: new Date().toISOString().slice(0, 10),
-    validUntil: "",
-  },
-  {
-    code: "UPI5",
-    label: "UPI Payment Offer",
-    description: "5% off when the guest pays using UPI.",
-    discountType: "percentage",
-    discountValue: 5,
-    minBookingAmount: 1500,
-    maxDiscount: 500,
-    usageLimit: 200,
-    usedCount: 0,
-    premiumOnly: false,
-    paymentMethod: "upi",
-    source: "preset",
-    isActive: true,
-    validFrom: new Date().toISOString().slice(0, 10),
-    validUntil: "",
-  },
-  {
-    code: "CARD7",
-    label: "Card Payment Offer",
-    description: "7% off when the guest pays using a card.",
-    discountType: "percentage",
-    discountValue: 7,
-    minBookingAmount: 3000,
-    maxDiscount: 750,
-    usageLimit: 200,
-    usedCount: 0,
-    premiumOnly: false,
-    paymentMethod: "card",
-    source: "preset",
-    isActive: true,
-    validFrom: new Date().toISOString().slice(0, 10),
-    validUntil: "",
-  },
-  {
-    code: "PREMIUM15",
-    label: "Premium Member Deal",
-    description: "Extra 15% host offer for active Premium guests.",
-    discountType: "percentage",
-    discountValue: 15,
-    minBookingAmount: 2500,
-    maxDiscount: 3000,
-    usageLimit: 100,
-    usedCount: 0,
-    premiumOnly: true,
-    paymentMethod: "any",
-    source: "preset",
-    isActive: true,
-    validFrom: new Date().toISOString().slice(0, 10),
-    validUntil: "",
-  },
-  {
-    code: "PREMIUM500",
-    label: "Premium Flat Saver",
-    description: "Flat ₹500 off for Premium guests on qualifying stays.",
-    discountType: "fixed",
-    discountValue: 500,
-    minBookingAmount: 5000,
-    maxDiscount: 500,
-    usageLimit: 100,
-    usedCount: 0,
-    premiumOnly: true,
-    paymentMethod: "any",
-    source: "preset",
-    isActive: true,
-    validFrom: new Date().toISOString().slice(0, 10),
-    validUntil: "",
-  },
+  { code: "WELCOME10", label: "Welcome Offer", description: "10% off for first-time guests.", discountType: "percentage", discountValue: 10, minBookingAmount: 1500, maxDiscount: 1000, usageLimit: 100, usedCount: 0, premiumOnly: false, paymentMethod: "any", source: "preset", isActive: true, validFrom: new Date().toISOString().slice(0, 10), validUntil: "" },
+  { code: "STAYMORE12", label: "Long Stay Saver", description: "12% off on qualifying longer stays.", discountType: "percentage", discountValue: 12, minBookingAmount: 7000, maxDiscount: 2500, usageLimit: 100, usedCount: 0, premiumOnly: false, paymentMethod: "any", source: "preset", isActive: true, validFrom: new Date().toISOString().slice(0, 10), validUntil: "" },
+  { code: "UPI5", label: "UPI Payment Offer", description: "5% off when the final payment is made using UPI.", discountType: "percentage", discountValue: 5, minBookingAmount: 1500, maxDiscount: 500, usageLimit: 200, usedCount: 0, premiumOnly: false, paymentMethod: "upi", source: "preset", isActive: true, validFrom: new Date().toISOString().slice(0, 10), validUntil: "" },
+  { code: "CARD7", label: "Card Payment Offer", description: "7% off when the final payment is made using a card.", discountType: "percentage", discountValue: 7, minBookingAmount: 3000, maxDiscount: 750, usageLimit: 200, usedCount: 0, premiumOnly: false, paymentMethod: "card", source: "preset", isActive: true, validFrom: new Date().toISOString().slice(0, 10), validUntil: "" },
+  { code: "PREMIUM15", label: "Premium Member Deal", description: "Extra 15% Host offer for active Premium guests.", discountType: "percentage", discountValue: 15, minBookingAmount: 2500, maxDiscount: 3000, usageLimit: 100, usedCount: 0, premiumOnly: true, paymentMethod: "any", source: "preset", isActive: true, validFrom: new Date().toISOString().slice(0, 10), validUntil: "" },
+  { code: "PREMIUM500", label: "Premium Flat Saver", description: "Flat ₹500 off for Premium guests on qualifying stays.", discountType: "fixed", discountValue: 500, minBookingAmount: 5000, maxDiscount: 500, usageLimit: 100, usedCount: 0, premiumOnly: true, paymentMethod: "any", source: "preset", isActive: true, validFrom: new Date().toISOString().slice(0, 10), validUntil: "" },
 ];
 
 export const AMENITY_GROUPS = [
-  {
-    title: "Essentials",
-    items: ["Wifi", "Air Conditioning", "Heating", "Hot Water", "Power Backup", "Dedicated Workspace"],
-  },
-  {
-    title: "Kitchen & Dining",
-    items: ["Kitchen", "Refrigerator", "Microwave", "Cooking Basics", "Dining Table", "Coffee Maker", "Dishwasher"],
-  },
-  {
-    title: "Entertainment",
-    items: ["TV", "Streaming Services", "Sound System", "Books", "Board Games", "Game Console"],
-  },
-  {
-    title: "Outdoor",
-    items: ["Balcony", "Garden", "Patio", "Terrace", "Barbecue", "Outdoor Dining", "Fire Pit"],
-  },
-  {
-    title: "Parking & Access",
-    items: ["Free Parking", "Paid Parking", "EV Charger", "Lift", "Wheelchair Access", "Private Entrance"],
-  },
-  {
-    title: "Premium",
-    items: ["Swimming Pool", "Hot Tub", "Gym", "Sauna", "Spa", "Lake Access", "Beach Access", "Mountain View"],
-  },
-  {
-    title: "Safety",
-    items: ["Smoke Alarm", "Fire Extinguisher", "First Aid Kit", "CCTV Outside", "Security Guard", "Carbon Monoxide Alarm"],
-  },
-  {
-    title: "Services",
-    items: ["Daily Housekeeping", "Breakfast Included", "Room Service", "Luggage Drop", "Airport Pickup", "Laundry Service"],
-  },
+  { title: "Essentials", items: ["Wifi", "Air Conditioning", "Heating", "Hot Water", "Power Backup", "Dedicated Workspace"] },
+  { title: "Kitchen & Dining", items: ["Kitchen", "Refrigerator", "Microwave", "Cooking Basics", "Dining Table", "Coffee Maker", "Dishwasher"] },
+  { title: "Entertainment", items: ["TV", "Streaming Services", "Sound System", "Books", "Board Games", "Game Console"] },
+  { title: "Outdoor", items: ["Balcony", "Garden", "Patio", "Terrace", "Barbecue", "Outdoor Dining", "Fire Pit"] },
+  { title: "Parking & Access", items: ["Free Parking", "Paid Parking", "EV Charger", "Lift", "Wheelchair Access", "Private Entrance"] },
+  { title: "Premium", items: ["Swimming Pool", "Hot Tub", "Gym", "Sauna", "Spa", "Lake Access", "Beach Access", "Mountain View"] },
+  { title: "Safety", items: ["Smoke Alarm", "Fire Extinguisher", "First Aid Kit", "CCTV Outside", "Security Guard", "Carbon Monoxide Alarm"] },
+  { title: "Services", items: ["Daily Housekeeping", "Breakfast Included", "Room Service", "Luggage Drop", "Airport Pickup", "Laundry Service"] },
 ];
+
+export const ALL_AMENITIES = AMENITY_GROUPS.flatMap((group) => group.items);
 
 export const DEFAULT_HOUSE_RULES = [
   "No smoking inside the property",
   "No parties or events without approval",
-  "Pets allowed only with host approval",
+  "Pets allowed only with Host approval",
   "Quiet hours after 10:00 PM",
 ];
 
@@ -210,71 +112,48 @@ const toDateInput = (date) => date.toISOString().split("T")[0];
 
 export const createDefaultListing = () => {
   const rates = calculateSuggestedRates(2000);
-
   return {
     title: "",
     propertyType: "Apartment",
+    propertyStyle: "Modern",
     guests: 2,
+    guestCapacity: { adults: 2, children: 0, seniorCitizens: 0 },
     bedrooms: 1,
     beds: 1,
+    bedDetails: [{ type: "Queen", count: 1, capacityPerBed: 2 }],
+    maximumSleepingCapacity: 2,
     bathrooms: 1,
+    bathroomDetails: { western: 1, indian: 0, shower: 1, bathtub: 0, hotWater: true, accessible: false, sunflowerFriendly: false, notes: "" },
     description: "",
-    location: {
-      country: "India",
-      state: "",
-      city: "",
-      address: "",
-      landmark: "",
-      zipCode: "",
-      latitude: 28.6139,
-      longitude: 77.209,
-    },
-    pricing: {
-      basePrice: rates.day,
-      pricePerNight: rates.night,
-      priceUnit: "day",
-      rates,
-      autoRateMultipliers: true,
-      cleaningFee: 300,
-      serviceFee: 0,
-      extraGuestFee: 500,
-      baseGuestCount: 2,
-      currency: "INR",
-    },
+    location: { country: "India", state: "", city: "", area: "", address: "", landmark: "", zipCode: "", latitude: "", longitude: "" },
+    nearbyInformation: { nearestAirport: "", railwayStation: "", busStand: "", metro: "", nearbyMarket: "", groceryStore: "", hospital: "", medicalStore: "", parking: "", internet: "", powerBackup: "", otherFacilities: [] },
+    applianceGuide: [],
+    pricing: { basePrice: rates.night, pricePerNight: rates.night, priceUnit: "night", rates, autoRateMultipliers: true, cleaningFee: 300, serviceFee: 0, extraGuestFee: 500, baseGuestCount: 2, currency: "INR" },
     coupons: createPresetCoupons(),
     amenities: ["Wifi", "Kitchen"],
     houseRules: [...DEFAULT_HOUSE_RULES],
-    availability: {
-      availableFrom: toDateInput(today),
-      availableTo: toDateInput(nextYear),
-      blockedDates: [],
-    },
-    policies: {
-      minBookingDays: 1,
-      maxBookingDays: 365,
-      cancellationPolicy: "moderate",
-      checkInTime: "14:00",
-      checkOutTime: "11:00",
-    },
+    availability: { availableFrom: toDateInput(today), availableTo: toDateInput(nextYear), blockedDates: [], unavailableDates: [], specialPrices: [] },
+    policies: { minBookingDays: 1, maxBookingDays: 365, cancellationPolicy: "moderate", checkInTime: "14:00", checkOutTime: "11:00" },
     timezone: "Asia/Kolkata",
   };
 };
 
 export const WIZARD_STEPS = [
-  ["Title", "Give your property a memorable name"],
-  ["Property type", "Choose the closest property category"],
-  ["Guests", "Set the maximum guest capacity"],
-  ["Rooms & beds", "Tell guests about sleeping spaces"],
-  ["Bathrooms", "Add the bathroom count"],
-  ["Description", "Explain what makes the stay special"],
-  ["Location", "Address, landmark and map coordinates"],
-  ["Pricing", "Enter one daily price and review smart long-stay rates"],
-  ["Coupons", "Use ready-made offers or create your own"],
-  ["Amenities", "Show everything the property offers"],
-  ["Rules & availability", "Stay timings, rules and dates"],
-  ["Photos", "Upload at least three and select a cover"],
-  ["Review", "Review everything before submission"],
+  ["Current location", "Use Browser Geolocation or continue manually"],
+  ["Address", "Enter the full postal address and nearby information"],
+  ["Listing name", "Write a title or generate premium OpenRouter suggestions"],
+  ["Property type", "Choose a clean property type and style"],
+  ["Guests", "Set Adults, Children and Senior Citizens"],
+  ["Bedrooms", "Select the number of bedrooms"],
+  ["Bed details", "Choose bed types, quantity and maximum capacity"],
+  ["Bathrooms", "Describe bathroom types and accessibility"],
+  ["Description", "Write manually or improve it with OpenRouter"],
+  ["Pricing", "Keep smart rates and configure minimum booking days"],
+  ["Coupons", "Manage compact ready-made and custom offers"],
+  ["Media", "Upload images and optional Cloudinary videos"],
+  ["Amenities", "Search and select amenities manually"],
+  ["Rules & guides", "Set rules, timings and appliance instructions"],
+  ["Availability", "Block dates, mark unavailable and add special prices"],
 ];
 
-export const formatPriceUnit = (unit) =>
-  ({ hour: "hour", day: "day", night: "night", week: "week", month: "month" })[unit] || "day";
+export const formatPriceUnit = (unit) => ({ hour: "hour", night: "night", week: "week", month: "month" })[unit] || "night";

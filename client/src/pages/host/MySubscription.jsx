@@ -255,13 +255,13 @@ export default function MySubscription() {
               ].map((item) => (
                 <div
                   key={item.label}
-                  className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur"
+                  className="host-subscription-info-tile rounded-2xl border p-4 backdrop-blur"
                 >
                   <span aria-hidden="true">{item.icon}</span>
-                  <p className="mt-2 text-sm font-black sm:text-base">
+                  <p className="host-subscription-value mt-2 text-sm font-black sm:text-base">
                     {item.value}
                   </p>
-                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-white/55">
+                  <p className="host-subscription-label mt-1 text-[10px] font-bold uppercase tracking-wide">
                     {item.label}
                   </p>
                 </div>

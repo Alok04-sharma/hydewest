@@ -156,7 +156,7 @@ export default function ListingManagement() {
         });
 
         if (!response.success) {
-          throw new Error(response.message || "Listings load nahi ho saki.");
+          throw new Error(response.message || "Listings could not be loaded.");
         }
 
         setResult(response.data || EMPTY_RESULT);
@@ -164,7 +164,7 @@ export default function ListingManagement() {
         setError(
           requestError.response?.data?.message ||
             requestError.message ||
-            "Listing Management data load nahi ho saka."
+            "Listing Management data could not be loaded."
         );
       } finally {
         setLoading(false);
@@ -226,7 +226,7 @@ export default function ListingManagement() {
       }
 
       if (!response.success) {
-        throw new Error(response.message || "Listing action complete nahi hua.");
+        throw new Error(response.message || "The listing action could not be completed.");
       }
 
       setNotice(response.message);
@@ -236,7 +236,7 @@ export default function ListingManagement() {
       setError(
         requestError.response?.data?.message ||
           requestError.message ||
-          "Listing action complete nahi ho saka."
+          "The listing action could not be completed."
       );
     } finally {
       setActionLoading(false);
@@ -258,8 +258,7 @@ export default function ListingManagement() {
               Listing Management
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-              Host properties review karein, images/details open karein, new
-              listing approve karein aur policy violation par suspend ya remove karein.
+              Review Host properties, open images and details, approve new listings, and suspend or remove listings that violate platform policies.
             </p>
           </div>
 
@@ -362,7 +361,7 @@ export default function ListingManagement() {
           {loading ? (
             <div className="flex min-h-80 flex-col items-center justify-center gap-3">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
-              <p className="text-sm font-semibold text-gray-500">Listings load ho rahi hain...</p>
+              <p className="text-sm font-semibold text-gray-500">Loading listings...</p>
             </div>
           ) : result.listings.length === 0 ? (
             <div className="flex min-h-80 flex-col items-center justify-center px-6 text-center">
@@ -370,7 +369,7 @@ export default function ListingManagement() {
                 <FiHome />
               </div>
               <h2 className="mt-4 text-xl font-black text-gray-900">No listings found</h2>
-              <p className="mt-2 text-sm text-gray-500">Search ya filters change karke dobara try karein.</p>
+              <p className="mt-2 text-sm text-gray-500">Change the search or filters and try again.</p>
             </div>
           ) : (
             <>
@@ -477,4 +476,4 @@ export default function ListingManagement() {
       />
     </div>
   );
-}
+ }

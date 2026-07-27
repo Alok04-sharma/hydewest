@@ -7,6 +7,7 @@ import NotificationBell from "../components/common/NotificationBell";
 import RoleSidebar from "../components/layout/RoleSidebar";
 import Footer from "../components/layout/Footer";
 import guestMembershipService from "../services/guestMembership.service";
+import subscriptionService from "../services/subscription.service";
 
 const getRoleType = (user) => {
   const role = String(user?.role || "").toLowerCase();
@@ -30,16 +31,8 @@ export default function MainLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [guestMembership, setGuestMembership] = useState(null);
+  const [hostSubscription, setHostSubscription] = useState(null);
   const [homeSearchDocked, setHomeSearchDocked] = useState(false);
-  const [premiumTheme, setPremiumTheme] = useState(() => {
-    try {
-      return localStorage.getItem("hydewest_premium_theme") === "light"
-        ? "light"
-        : "dark";
-    } catch {
-      return "dark";
-    }
-  });
 
   const roleType = getRoleType(user);
   const meta = roleMeta[roleType];
@@ -93,14 +86,22 @@ export default function MainLayout() {
   }, [isAuthenticated, roleType, user?._id, location.pathname]);
 
   useEffect(() => {
-    if (roleType !== "guest") return;
-
-    try {
-      localStorage.setItem("hydewest_premium_theme", premiumTheme);
-    } catch {
-      // Private browsing or storage restrictions can safely be ignored.
+    let active = true;
+    async function loadHostSubscription() {
+      if (!isAuthenticated || roleType !== "host") {
+        if (active) setHostSubscription(null);
+        return;
+      }
+      try {
+        const response = await subscriptionService.getMySubscription();
+        if (active) setHostSubscription(response.data || null);
+      } catch {
+        if (active) setHostSubscription(null);
+      }
     }
-  }, [premiumTheme, roleType]);
+    loadHostSubscription();
+    return () => { active = false; };
+  }, [isAuthenticated, roleType, user?._id, location.pathname]);
 
   const handleLogout = async () => {
     try {
@@ -113,6 +114,7 @@ export default function MainLayout() {
   };
 
   const isPremiumGuest = Boolean(roleType === "guest" && guestMembership?.isActive);
+  const isPremiumHost = Boolean(roleType === "host" && hostSubscription?.isActive);
   const contentOffset = useWorkspaceSidebar
     ? sidebarCollapsed
       ? "lg:pl-[92px]"
@@ -123,8 +125,10 @@ export default function MainLayout() {
     <div
       className={`min-h-screen text-slate-900 ${
         isPremiumGuest && !isHomePage
-          ? `premium-guest-shell premium-theme-${premiumTheme}`
-          : "hydewest-shell"
+          ? "premium-guest-shell premium-theme-dark"
+          : isPremiumHost && !isHomePage
+            ? "premium-host-shell"
+            : "hydewest-shell"
       }`}
     >
       {useWorkspaceSidebar && (
@@ -137,11 +141,9 @@ export default function MainLayout() {
           onCloseMobile={() => setMobileSidebarOpen(false)}
           onLogout={handleLogout}
           isPremiumGuest={isPremiumGuest}
+          isPremiumHost={isPremiumHost}
           membership={guestMembership}
-          premiumTheme={premiumTheme}
-          onTogglePremiumTheme={() =>
-            setPremiumTheme((current) => (current === "dark" ? "light" : "dark"))
-          }
+          hostSubscription={hostSubscription}
         />
       )}
 
@@ -204,10 +206,8 @@ export default function MainLayout() {
               whileTap={{ scale: 0.94 }}
               onClick={() => setMobileSidebarOpen(true)}
               className={`fixed left-3 top-3 z-30 grid h-11 w-11 place-items-center rounded-2xl border text-lg font-black shadow-xl backdrop-blur lg:hidden ${
-                isPremiumGuest
-                  ? premiumTheme === "dark"
-                    ? "border-amber-400/30 bg-[#171208]/90 text-amber-200"
-                    : "border-amber-300/70 bg-[#fff9e8]/94 text-amber-800"
+                isPremiumGuest || isPremiumHost
+                  ? "border-amber-400/30 bg-[#171208]/90 text-amber-200"
                   : "border-rose-200/70 bg-[#fff8f8]/90 text-[#b20b3b]"
               }`}
               aria-label="Open sidebar"
@@ -223,10 +223,8 @@ export default function MainLayout() {
               className={`fixed top-4 z-50 hidden h-10 w-10 place-items-center rounded-2xl border text-sm font-black shadow-lg backdrop-blur lg:grid ${
                 sidebarCollapsed ? "left-[72px]" : "left-[260px]"
               } ${
-                isPremiumGuest
-                  ? premiumTheme === "dark"
-                    ? "border-amber-400/25 bg-[#171208]/92 text-amber-200"
-                    : "border-amber-300/70 bg-[#fff9e8]/96 text-amber-800"
+                isPremiumGuest || isPremiumHost
+                  ? "border-amber-400/25 bg-[#171208]/92 text-amber-200"
                   : "border-rose-200 bg-[#fff8f8]/92 text-[#b20b3b]"
               }`}
               aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -239,26 +237,21 @@ export default function MainLayout() {
         <main
           className={`app-content relative flex-1 ${
             isPremiumGuest && !isHomePage
-              ? `premium-guest-content premium-theme-${premiumTheme}`
-              : ""
+              ? "premium-guest-content premium-theme-dark"
+              : isPremiumHost && !isHomePage
+                ? "premium-host-content"
+                : ""
           }`}
           data-premium-guest={isPremiumGuest && !isHomePage ? "true" : "false"}
+          data-premium-host={isPremiumHost && !isHomePage ? "true" : "false"}
         >
           {isPremiumGuest && !isHomePage && (
             <div
               aria-hidden="true"
               className="premium-guest-ambient pointer-events-none absolute inset-x-0 top-0 h-[28rem] overflow-hidden"
             >
-              <span
-                className={`absolute -right-24 -top-24 h-80 w-80 rounded-full blur-3xl ${
-                  premiumTheme === "dark" ? "bg-amber-300/10" : "bg-amber-300/22"
-                }`}
-              />
-              <span
-                className={`absolute left-1/4 top-16 h-52 w-52 rounded-full blur-3xl ${
-                  premiumTheme === "dark" ? "bg-yellow-600/8" : "bg-rose-300/16"
-                }`}
-              />
+              <span className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
+              <span className="absolute left-1/4 top-16 h-52 w-52 rounded-full bg-yellow-600/8 blur-3xl" />
             </div>
           )}
           <AnimatePresence mode="wait" initial={false}>
@@ -270,15 +263,15 @@ export default function MainLayout() {
               transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
               className="relative z-[1] min-h-full"
             >
-              <Outlet />
+              <Outlet context={{ roleType, isPremiumGuest, guestMembership, isPremiumHost, hostSubscription }} />
             </motion.div>
           </AnimatePresence>
         </main>
 
         <Footer
           compact={!isHomePage}
-          premium={isPremiumGuest && !isHomePage}
-          theme={premiumTheme}
+          premium={(isPremiumGuest || isPremiumHost) && !isHomePage}
+          theme="dark"
         />
       </div>
     </div>

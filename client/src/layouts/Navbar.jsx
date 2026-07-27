@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { logoutThunk } from '../../redux/slices/authSlice';
-import { ROUTES } from '../../constants/routes';
+import { logoutThunk } from '../redux/slices/authSlice';
+import { ROUTES } from '../constants/routes';
 
 export default function Navbar() {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
@@ -18,7 +18,7 @@ export default function Navbar() {
     <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
       <div className="container-custom h-16 flex items-center justify-between">
         <Link to={ROUTES.HOME} className="text-2xl font-bold text-[#FF385C]">
-          StayNest
+          hydewest
         </Link>
         <nav className="flex items-center gap-4">
           <Link to={ROUTES.HOME} className="text-gray-600 hover:text-black text-sm font-medium">

@@ -1,12 +1,18 @@
-import axiosInstance from './axios';
-import { API_ENDPOINTS } from '../constants/api';
+import api from "./axios";
 
-export const reviewService = {
-  getApartmentReviews: (apartmentId) => {
-    return axiosInstance.get(API_ENDPOINTS.REVIEWS.BY_APARTMENT(apartmentId));
-  },
+const unwrap = (response) => response.data;
 
-  addReview: (reviewData) => {
-    return axiosInstance.post(API_ENDPOINTS.REVIEWS.BASE, reviewData);
-  },
+const reviewService = {
+  getApartmentReviews: async (apartmentId) =>
+    unwrap(await api.get(`/api/reviews/apartment/${apartmentId}`)),
+  getMyReviews: async () => unwrap(await api.get("/api/reviews/me")),
+  getEligibleBookings: async () =>
+    unwrap(await api.get("/api/reviews/eligible-bookings")),
+  addReview: async (apartmentId, payload) =>
+    unwrap(await api.post(`/api/reviews/${apartmentId}`, payload)),
+  deleteReview: async (reviewId) =>
+    unwrap(await api.delete(`/api/reviews/${reviewId}`)),
 };
+
+export { reviewService };
+export default reviewService;

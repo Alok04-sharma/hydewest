@@ -14,7 +14,6 @@ const propertyTypes = [
 const priceUnits = [
   ["hour", "Hourly", "⏱️"],
   ["night", "Nightly", "🌙"],
-  ["day", "Daily", "☀️"],
   ["week", "Weekly", "🗓️"],
   ["month", "Monthly", "🏡"],
 ];
@@ -32,7 +31,7 @@ const createInitialFilters = (searchParams) => ({
   propertyType: searchParams.get("propertyType") || "",
   minPrice: searchParams.get("minPrice") || "",
   maxPrice: searchParams.get("maxPrice") || "",
-  priceUnit: searchParams.get("priceUnit") || "day",
+  priceUnit: searchParams.get("priceUnit") === "day" ? "night" : searchParams.get("priceUnit") || "night",
   guests: searchParams.get("guests") || "1",
   checkIn: searchParams.get("checkIn") || "",
   checkOut: searchParams.get("checkOut") || "",
@@ -174,7 +173,7 @@ export default function SearchResults() {
       <div className="flex flex-col gap-3 xl:flex-row xl:items-end">
         <div className="min-w-0 flex-1">
           <p className={`text-[9px] font-black uppercase tracking-[0.16em] ${premiumActive ? "text-amber-200/55" : "text-slate-500"}`}>Price type</p>
-          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {priceUnits.map(([value, label, icon]) => (
               <button
                 key={value}
@@ -281,7 +280,15 @@ export default function SearchResults() {
             </div>
           ) : result.apartments?.length ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {result.apartments.map((apartment, index) => <ListingCard key={apartment._id} apartment={apartment} index={index} membership={membership} priceUnit={filters.priceUnit} compact />)}
+              {result.apartments.map((apartment, index) => <ListingCard
+                  key={apartment._id}
+                  apartment={apartment}
+                  index={index}
+                  membership={membership}
+                  priceUnit={filters.priceUnit}
+                  premiumSearch={premiumActive}
+                  compact
+                />)}
             </div>
           ) : (
             <div className={`rounded-[30px] border border-dashed p-12 text-center ${premiumActive ? "border-amber-300/20 bg-white/[0.05] text-white" : "border-rose-300/70 bg-[#fff8f8]/70"}`}>

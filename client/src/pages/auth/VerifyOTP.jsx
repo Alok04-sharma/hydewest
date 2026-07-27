@@ -78,7 +78,7 @@ export default function VerifyOTP() {
 
       navigate(getDashboardPath(result.user), { replace: true });
     } catch {
-      // Error Redux state me set ho chuka hai.
+      // The Redux state already contains the request error.
     }
   };
 
@@ -93,7 +93,7 @@ export default function VerifyOTP() {
     try {
       await dispatch(sendOTP(activeEmail)).unwrap();
     } catch {
-      // Error Redux state me set ho chuka hai.
+      // The Redux state already contains the request error.
     }
   };
 
@@ -115,9 +115,8 @@ export default function VerifyOTP() {
         </h2>
 
         <p className="mt-2 text-center text-sm text-gray-600">
-          OTP humne{" "}
-          <span className="font-semibold text-gray-900">{activeEmail}</span>
-          {" "}par bhej diya hai
+          We sent an OTP to {" "}
+          <span className="font-semibold text-gray-900">{activeEmail}</span>.
         </p>
       </div>
 

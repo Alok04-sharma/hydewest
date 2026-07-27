@@ -343,8 +343,8 @@ function ActionModal({
 
             <p>
               {isSuspend
-                ? "Host ka login aur protected API access block hoga. Sab listings inactive ho jayengi."
-                : "Host soft-remove hoga. Historical bookings aur payment records delete nahi honge."}
+                ? "The Host sign-in and protected API access will be blocked. All listings will be marked inactive."
+                : "The Host will be soft-removed. Historical bookings and payment records will not be deleted."}
             </p>
           </div>
         </div>
@@ -368,7 +368,7 @@ function ActionModal({
           }
           rows={4}
           maxLength={500}
-          placeholder="Minimum 10 characters me clear reason likhein..."
+          placeholder="Write a clear reason of at least 10 characters..."
           className="mt-2 w-full resize-none rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100"
         />
 
@@ -500,7 +500,7 @@ export default function HostProfile() {
           ) {
             throw new Error(
               response.message ||
-                "Host profile load nahi ho saka."
+                "The Host profile could not be loaded."
             );
           }
 
@@ -517,7 +517,7 @@ export default function HostProfile() {
               ?.message ||
               requestError
                 .message ||
-              "Host profile load nahi ho saka."
+              "The Host profile could not be loaded."
           );
         } finally {
           setLoading(false);
@@ -717,7 +717,7 @@ export default function HostProfile() {
         ) {
           throw new Error(
             response.message ||
-              "Action complete nahi hua."
+              "The action could not be completed."
           );
         }
 
@@ -741,7 +741,7 @@ export default function HostProfile() {
             ?.message ||
             requestError
               .message ||
-            "Host action complete nahi ho saka."
+            "The Host action could not be completed."
         );
       } finally {
         setActionLoading(
@@ -756,8 +756,7 @@ export default function HostProfile() {
         <div className="h-11 w-11 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
 
         <p className="text-sm font-semibold text-gray-500">
-          Host profile load ho
-          rahi hai...
+          Loading Host profile...
         </p>
       </div>
     );
@@ -1209,9 +1208,7 @@ export default function HostProfile() {
               </div>
             ) : (
               <div className="px-6 py-12 text-center text-sm text-gray-500">
-                Is host ki abhi
-                koi listing nahi
-                hai.
+                This Host does not have any listings yet.
               </div>
             )}
           </div>
@@ -1274,8 +1271,7 @@ export default function HostProfile() {
               ) : (
                 <p className="text-sm text-gray-500">
                   Activity data
-                  available nahi
-                  hai.
+                  is not available.
                 </p>
               )}
             </div>
@@ -1410,8 +1406,7 @@ export default function HostProfile() {
             </div>
           ) : (
             <div className="px-6 py-12 text-center text-sm text-gray-500">
-              Is host ko abhi koi
-              booking receive nahi
+              This Host has not received any booking yet
               hui.
             </div>
           )}

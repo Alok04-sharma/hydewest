@@ -14,6 +14,7 @@ import {
   FiCalendar,
   FiDollarSign,
   FiHome,
+  FiMapPin,
   FiMinus,
   FiRefreshCw,
   FiTrendingUp,
@@ -22,6 +23,11 @@ import {
 } from "react-icons/fi";
 
 import ownerService from "../../services/owner.service";
+
+const EMPTY_HOT_MAP = {
+  cities: [],
+  areas: [],
+};
 
 const EMPTY_DASHBOARD = {
   overview: {
@@ -56,7 +62,7 @@ const formatNumber = (value) => {
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat(
-    "en-IN",
+    "en-GB",
     {
       style: "currency",
       currency: "INR",
@@ -177,6 +183,124 @@ function StatCard({
           Open management →
         </div>
       )}
+    </motion.article>
+  );
+}
+
+// ======================================
+// Hot Map Card
+// ======================================
+
+function HotMapCard({ locations, onNavigate }) {
+  const areaRows = Array.isArray(locations?.areas)
+    ? locations.areas
+    : [];
+
+  const cityRows = Array.isArray(locations?.cities)
+    ? locations.cities
+    : [];
+
+  const rows = (areaRows.length ? areaRows : cityRows)
+    .slice(0, 5)
+    .map((row) => ({
+      label: row.area
+        ? `${row.area}${row.city ? `, ${row.city}` : ""}`
+        : row.city || "Unknown location",
+      bookingCount: Number(row.bookingCount || 0),
+      revenue: Number(row.revenue || 0),
+      growth: row.growth,
+    }));
+
+  const topLocation = rows[0];
+  const maximumBookings = Math.max(
+    ...rows.map((row) => row.bookingCount),
+    1
+  );
+
+  return (
+    <motion.article
+      whileHover={{ y: -5 }}
+      whileTap={{ scale: 0.992 }}
+      onClick={() => onNavigate("/owner/revenue-analytics#trending-locations")}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          onNavigate("/owner/revenue-analytics#trending-locations");
+        }
+      }}
+      role="link"
+      tabIndex={0}
+      className="group relative cursor-pointer overflow-hidden rounded-[28px] border border-rose-200 bg-gradient-to-br from-rose-950 via-fuchsia-950 to-slate-950 p-5 text-white shadow-[0_20px_65px_rgba(136,19,55,.24)] focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-200 sm:col-span-2 sm:p-6 xl:col-span-3"
+    >
+      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-rose-500/20 blur-3xl transition duration-500 group-hover:scale-125" />
+      <div className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-violet-500/15 blur-3xl" />
+
+      <div className="relative grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] lg:items-center">
+        <div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-rose-300/20 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-rose-100 backdrop-blur">
+            <FiMapPin />
+            HOT MAP
+          </div>
+
+          <p className="mt-4 text-sm font-semibold text-white/60">
+            Highest booking concentration
+          </p>
+
+          <h2 className="mt-1 line-clamp-2 text-2xl font-black tracking-tight sm:text-3xl">
+            {topLocation?.label || "Booking activity will appear here"}
+          </h2>
+
+          <div className="mt-4 flex flex-wrap gap-3">
+            <span className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-black backdrop-blur">
+              {formatNumber(topLocation?.bookingCount || 0)} bookings
+            </span>
+
+            <span className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-black text-amber-200 backdrop-blur">
+              {formatCurrency(topLocation?.revenue || 0)} volume
+            </span>
+          </div>
+
+          <p className="mt-4 text-xs font-semibold text-rose-100/65">
+            Click to open location analytics and full ranking.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          {rows.length ? (
+            rows.map((row, index) => {
+              const width = Math.max(
+                (row.bookingCount / maximumBookings) * 100,
+                row.bookingCount ? 8 : 0
+              );
+
+              return (
+                <div key={`${row.label}-${index}`}>
+                  <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
+                    <span className="truncate font-bold text-white/80">
+                      {index + 1}. {row.label}
+                    </span>
+                    <span className="shrink-0 font-black text-white">
+                      {formatNumber(row.bookingCount)}
+                    </span>
+                  </div>
+
+                  <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${width}%` }}
+                      transition={{ duration: 0.65, delay: index * 0.06 }}
+                      className="h-full rounded-full bg-gradient-to-r from-rose-400 via-fuchsia-400 to-amber-300"
+                    />
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-5 text-sm font-semibold text-white/55">
+              Paid booking location data is not available yet.
+            </div>
+          )}
+        </div>
+      </div>
     </motion.article>
   );
 }
@@ -342,6 +466,11 @@ export default function OwnerDashboard() {
     setError,
   ] = useState("");
 
+  const [
+    hotMap,
+    setHotMap,
+  ] = useState(EMPTY_HOT_MAP);
+
   // ======================================
   // Fetch Dashboard
   // ======================================
@@ -360,8 +489,13 @@ export default function OwnerDashboard() {
 
           setError("");
 
-          const response =
-            await ownerService.getDashboard();
+          const [response, revenueAnalyticsResponse] =
+            await Promise.all([
+              ownerService.getDashboard(),
+              ownerService
+                .getRevenueAnalytics()
+                .catch(() => null),
+            ]);
 
           if (!response.success) {
             throw new Error(
@@ -373,6 +507,16 @@ export default function OwnerDashboard() {
           setDashboard(
             response.data ||
               EMPTY_DASHBOARD
+          );
+
+          const analyticsPayload =
+            revenueAnalyticsResponse?.data ||
+            revenueAnalyticsResponse ||
+            {};
+
+          setHotMap(
+            analyticsPayload.trendingLocations ||
+              EMPTY_HOT_MAP
           );
         } catch (
           requestError
@@ -601,8 +745,7 @@ export default function OwnerDashboard() {
         <div className="h-11 w-11 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
 
         <p className="text-sm font-semibold text-gray-500">
-          Dashboard analytics
-          load ho rahi hain...
+          Loading dashboard analytics...
         </p>
       </div>
     );
@@ -626,10 +769,7 @@ export default function OwnerDashboard() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-              StayNest users,
-              hosts, listings,
-              bookings aur revenue
-              ka complete overview.
+              hydewest users, hosts, listings, bookings and platform earnings in one operational overview.
             </p>
           </div>
 
@@ -754,17 +894,22 @@ export default function OwnerDashboard() {
           />
 
           <StatCard
-            title="Platform Revenue"
+            title="Total Earnings"
             value={formatCurrency(
               overview.totalRevenue
             )}
-            helper="Successful payments only"
+            helper="Subscriptions + booking commission"
             icon={FiDollarSign}
             growth={
               growth.revenue
             }
             accent="bg-violet-100 text-violet-700"
-            to="/owner/subscriptions"
+            to="/owner/revenue-analytics"
+            onNavigate={navigate}
+          />
+
+          <HotMapCard
+            locations={hotMap}
             onNavigate={navigate}
           />
         </section>

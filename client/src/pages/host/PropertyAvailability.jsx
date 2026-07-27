@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 import hostService from "../../services/host.service";
@@ -53,21 +53,26 @@ const getStatusStyles = (status) => {
   };
 };
 
-function SummaryCard({ title, value, helper, tone, symbol }) {
+function SummaryCard({ title, value, helper, tone, symbol, active = false, onClick }) {
   const toneClasses = {
     emerald:
-      "border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-cyan-50 text-emerald-700",
+      "border-emerald-300 bg-gradient-to-br from-[#d9f7e7] via-[#effcf5] to-[#dcecff] text-emerald-900",
     rose:
-      "border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 text-rose-700",
+      "border-rose-300 bg-gradient-to-br from-[#ffe0e7] via-[#fff2e8] to-[#fff7df] text-rose-900",
     slate:
-      "border-slate-200 bg-gradient-to-br from-slate-50 via-white to-violet-50 text-slate-700",
+      "border-indigo-200 bg-gradient-to-br from-[#e8e7ff] via-[#f3f6ff] to-[#fff1d8] text-indigo-950",
   };
 
   return (
-    <motion.article
+    <motion.button
+      type="button"
       whileHover={{ y: -5, scale: 1.01 }}
+      whileTap={{ scale: 0.985 }}
       transition={{ type: "spring", stiffness: 300, damping: 22 }}
-      className={`relative overflow-hidden rounded-[28px] border p-5 shadow-sm ${toneClasses[tone]}`}
+      onClick={onClick}
+      className={`relative w-full overflow-hidden rounded-[28px] border p-5 text-left shadow-sm outline-none transition focus-visible:ring-4 focus-visible:ring-amber-200 ${toneClasses[tone]} ${
+        active ? "ring-2 ring-amber-400 ring-offset-2" : ""
+      }`}
     >
       <div className="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-current opacity-[0.06]" />
 
@@ -82,15 +87,15 @@ function SummaryCard({ title, value, helper, tone, symbol }) {
           <p className="mt-2 text-xs font-semibold text-slate-500">{helper}</p>
         </div>
 
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-2xl shadow-sm">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl border border-white/70 bg-white/85 text-2xl shadow-sm">
           {symbol}
         </span>
       </div>
-    </motion.article>
+    </motion.button>
   );
 }
 
-function PropertyCard({ property, index }) {
+function PropertyCard({ property, index, onOpen }) {
   const status = getStatusStyles(property.availabilityStatus);
   const bookings = Array.isArray(property.bookings) ? property.bookings : [];
 
@@ -100,7 +105,17 @@ function PropertyCard({ property, index }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.05, 0.35) }}
       whileHover={{ y: -5 }}
-      className="group overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-sm"
+      whileTap={{ scale: 0.992 }}
+      role="link"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
+      className="group cursor-pointer overflow-hidden rounded-[30px] border border-[#d9caa5] bg-gradient-to-br from-[#fffdf8] via-[#fffaf0] to-[#eef4ff] shadow-[0_16px_45px_rgba(62,48,24,0.10)] outline-none focus-visible:ring-4 focus-visible:ring-amber-200"
     >
       <div className="relative h-52 overflow-hidden bg-slate-100">
         <img
@@ -143,7 +158,8 @@ function PropertyCard({ property, index }) {
 
           <Link
             to={`/host/edit-listing/${property._id}`}
-            className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 transition hover:border-rose-200 hover:bg-rose-50 hover:text-[#FF385C]"
+            onClick={(event) => event.stopPropagation()}
+            className="rounded-xl border border-[#d9caa5] bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800"
           >
             Manage listing
           </Link>
@@ -187,6 +203,7 @@ function PropertyCard({ property, index }) {
 }
 
 export default function PropertyAvailability() {
+  const navigate = useNavigate();
   const [from, setFrom] = useState(toInputDate(new Date()));
   const [to, setTo] = useState(
     toInputDate(new Date(Date.now() + 90 * DAY_IN_MS))
@@ -198,6 +215,7 @@ export default function PropertyAvailability() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all");
 
   const loadAvailability = useCallback(
     async ({ initial = false, silent = false } = {}) => {
@@ -281,6 +299,14 @@ export default function PropertyAvailability() {
   const totalProperties = properties.length;
   const availableCount = Number(data.summary?.available || 0);
   const bookedCount = Number(data.summary?.booked || 0);
+  const visibleProperties = useMemo(() => {
+    if (activeFilter === "all") return properties;
+    return properties.filter((property) =>
+      activeFilter === "booked"
+        ? property.availabilityStatus === "booked"
+        : property.availabilityStatus !== "booked"
+    );
+  }, [activeFilter, properties]);
 
   return (
     <div className="min-h-screen bg-transparent px-3 py-5 sm:px-5 sm:py-7 lg:px-8">
@@ -378,33 +404,40 @@ export default function PropertyAvailability() {
               <SummaryCard
                 title="Available now"
                 value={availableCount}
-                helper="No active confirmed stay"
+                helper="Show properties free in this range"
                 tone="emerald"
                 symbol="✓"
+                active={activeFilter === "available"}
+                onClick={() => setActiveFilter("available")}
               />
               <SummaryCard
                 title="Booked now"
                 value={bookedCount}
-                helper="Guest currently staying"
+                helper="Show properties with reservations"
                 tone="rose"
                 symbol="●"
+                active={activeFilter === "booked"}
+                onClick={() => setActiveFilter("booked")}
               />
               <SummaryCard
                 title="Total properties"
                 value={totalProperties}
-                helper="All non-deleted listings"
+                helper="Show every active property"
                 tone="slate"
                 symbol="⌂"
+                active={activeFilter === "all"}
+                onClick={() => setActiveFilter("all")}
               />
             </section>
 
-            {properties.length > 0 ? (
+            {visibleProperties.length > 0 ? (
               <section className="grid gap-5 lg:grid-cols-2">
-                {properties.map((property, index) => (
+                {visibleProperties.map((property, index) => (
                   <PropertyCard
                     key={property._id}
                     property={property}
                     index={index}
+                    onOpen={() => navigate(`/host/edit-listing/${property._id}`)}
                   />
                 ))}
               </section>

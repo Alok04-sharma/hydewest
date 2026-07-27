@@ -171,13 +171,13 @@ export default function Profile() {
                     premiumActive ? "text-amber-300" : "text-rose-100"
                   }`}
                 >
-                  {premiumActive ? "👑 Premium identity" : "StayNest account"}
+                  {premiumActive ? "👑 Premium identity" : "hydewest account"}
                 </p>
                 <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
                   Your Profile
                 </h1>
                 <p className="mt-2 max-w-xl text-sm font-medium text-white/65">
-                  Personal information, avatar and membership identity manage karein.
+                  Manage your personal information, avatar, and membership identity.
                 </p>
               </div>
 

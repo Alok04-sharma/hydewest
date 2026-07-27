@@ -5,7 +5,7 @@ const ACTION_CONFIG = {
   approve: {
     title: "Approve Listing",
     description:
-      "Listing public Home, Search aur Guest Property Details pages par visible ho jayegi.",
+      "The listing will become visible on the public Home, Search, and Guest Property Details pages.",
     button: "Approve Listing",
     icon: FiCheckCircle,
     panel: "border-emerald-200 bg-emerald-50 text-emerald-800",
@@ -15,7 +15,7 @@ const ACTION_CONFIG = {
   suspend: {
     title: "Suspend Listing",
     description:
-      "Listing turant Guest Home, Search aur public details se hide ho jayegi.",
+      "The listing will be hidden immediately from Guest Home, Search, and public property details.",
     button: "Suspend Listing",
     icon: FiAlertTriangle,
     panel: "border-amber-200 bg-amber-50 text-amber-800",
@@ -25,7 +25,7 @@ const ACTION_CONFIG = {
   remove: {
     title: "Remove Listing",
     description:
-      "Listing soft-remove hogi. Historical booking data safe rahega, lekin property platform par visible nahi hogi.",
+      "The listing will be soft-removed. Historical booking data will remain safe, but the property will no longer be visible on the platform.",
     button: "Remove Listing",
     icon: FiTrash2,
     panel: "border-red-200 bg-red-50 text-red-800",
@@ -86,7 +86,7 @@ export default function AdminActionModal({
               onChange={(event) => setReason(event.target.value)}
               rows={4}
               maxLength={500}
-              placeholder="Minimum 10 characters me clear reason likhein..."
+              placeholder="Write a clear reason of at least 10 characters..."
               className="mt-2 w-full resize-none rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-purple-500 focus:ring-4 focus:ring-purple-100"
             />
 

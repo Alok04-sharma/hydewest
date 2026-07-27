@@ -22,6 +22,10 @@ const listingService = {
     ),
   remove: async (id) => unwrap(await api.delete(`/api/apartments/${id}`)),
   quote: async (id, payload) => unwrap(await api.post(`/api/apartments/${id}/quote`, payload)),
+  generateNameSuggestions: async (payload) =>
+    unwrap(await api.post("/api/apartments/ai/name-suggestions", payload)),
+  improveDescription: async (payload) =>
+    unwrap(await api.post("/api/apartments/ai/improve-description", payload)),
 
   // Backward-compatible aliases for existing Redux/pages.
   getById: async (id) => unwrap(await api.get(`/api/apartments/${id}`)),

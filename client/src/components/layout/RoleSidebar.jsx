@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 
 const ADMIN_LINKS = [
   { to: "/owner/dashboard", label: "Dashboard", icon: "📊" },
+  { to: "/owner/revenue-analytics", label: "Total Earnings", icon: "💰" },
   { to: "/owner/hosts", label: "Hosts", icon: "👥" },
   { to: "/owner/listings", label: "Listings", icon: "🏠" },
   { to: "/owner/bookings", label: "Bookings", icon: "📅" },
@@ -259,41 +260,37 @@ function SidebarContent({
   onNavigate,
   onLogout,
   isPremiumGuest,
+  isPremiumHost,
   membership,
-  premiumTheme = "dark",
-  onTogglePremiumTheme = () => {},
+  hostSubscription,
 }) {
   const location = useLocation();
-  const premiumShell = roleType === "guest" && isPremiumGuest;
-  const premiumLight = premiumShell && premiumTheme === "light";
+  const premiumGuestShell = roleType === "guest" && isPremiumGuest;
+  const premiumHostShell = roleType === "host" && isPremiumHost;
+  const premiumShell = premiumGuestShell || premiumHostShell;
   const links = useMemo(
     () => getLinks(roleType, isPremiumGuest),
     [roleType, isPremiumGuest]
   );
-  const tone = premiumShell
-    ? TONES.premium
-    : TONES[roleType] || TONES.guest;
+  const tone = premiumShell ? TONES.premium : TONES[roleType] || TONES.guest;
   const roleLabel =
     roleType === "admin"
       ? "Super Admin"
       : roleType === "host"
-        ? "Host Workspace"
+        ? premiumHostShell ? "Subscribed Host" : "Free Host Workspace"
         : premiumShell
           ? "Premium Traveller"
           : "Guest Account";
 
-  const planLabel =
-    membership?.planName ||
-    membership?.planCode?.replaceAll("_", " ") ||
-    "Premium Membership";
+  const planLabel = premiumHostShell
+    ? hostSubscription?.activeSubscription?.planName || "Unlimited listings · 90% Host share"
+    : membership?.planName || membership?.planCode?.replaceAll("_", " ") || "Premium Membership";
 
   return (
     <div
       className={`role-sidebar-shell role-sidebar-${roleType} flex h-full flex-col ${
         premiumShell
-          ? premiumLight
-            ? "premium-sidebar-light bg-[radial-gradient(circle_at_top,rgba(251,191,36,.2),transparent_19rem),linear-gradient(180deg,#fffaf0,#fff3d3)] text-slate-900"
-            : "premium-sidebar-dark bg-[radial-gradient(circle_at_top,rgba(251,191,36,.14),transparent_19rem),linear-gradient(180deg,#171208,#0b1020)] text-white"
+          ? "premium-sidebar-dark bg-[radial-gradient(circle_at_top,rgba(251,191,36,.14),transparent_19rem),linear-gradient(180deg,#171208,#0b1020)] text-white"
           : "bg-white"
       }`}
     >
@@ -331,7 +328,7 @@ function SidebarContent({
                   premiumShell ? "text-amber-300" : "text-slate-400"
                 }`}
               >
-                {premiumShell ? "Premium travel club" : "Find your perfect stay"}
+                {premiumHostShell ? "Premium hosting studio" : premiumGuestShell ? "Premium travel club" : "Find your perfect stay"}
               </span>
             </span>
           )}
@@ -415,53 +412,9 @@ function SidebarContent({
         })}
       </nav>
 
-      {premiumShell && (
-        <div className="px-3 pb-3">
-          <button
-            type="button"
-            onClick={onTogglePremiumTheme}
-            className={`flex w-full items-center rounded-2xl border px-3 py-3 text-sm font-black transition ${
-              collapsed ? "justify-center" : "gap-3"
-            } ${
-              premiumLight
-                ? "border-amber-300/70 bg-white/65 text-amber-900 hover:bg-white"
-                : "border-amber-400/20 bg-white/5 text-amber-100 hover:bg-amber-300/12"
-            }`}
-            title={collapsed ? `Switch to ${premiumLight ? "dark" : "light"} theme` : undefined}
-            aria-label={`Switch to ${premiumLight ? "dark" : "light"} premium theme`}
-          >
-            <motion.span
-              animate={{ rotate: premiumLight ? 0 : 180 }}
-              transition={{ type: "spring", stiffness: 260, damping: 20 }}
-              className="text-lg"
-              aria-hidden="true"
-            >
-              {premiumLight ? "☀️" : "🌙"}
-            </motion.span>
-            {!collapsed && (
-              <>
-                <span className="min-w-0 flex-1 text-left">
-                  <span className="block">{premiumLight ? "Light Premium" : "Dark Premium"}</span>
-                  <span className="mt-0.5 block text-[10px] font-semibold opacity-60">
-                    Tap to switch theme
-                  </span>
-                </span>
-                <span className="rounded-full border border-current/20 px-2 py-1 text-[9px] uppercase tracking-wide">
-                  {premiumLight ? "Light" : "Dark"}
-                </span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
       <div
         className={`border-t p-3 ${
-          premiumShell
-            ? premiumLight
-              ? "border-amber-300/45"
-              : "border-white/10"
-            : "border-slate-100"
+          premiumShell ? "border-white/10" : "border-slate-100"
         }`}
       >
         <Link
@@ -518,7 +471,7 @@ function SidebarContent({
                   premiumShell ? "text-amber-300" : "text-slate-400"
                 }`}
               >
-                {premiumShell ? "Premium Traveller" : roleLabel}
+                {premiumHostShell ? "Premium Host" : premiumGuestShell ? "Premium Traveller" : roleLabel}
               </p>
               <p
                 className={`mt-0.5 truncate text-[10px] font-semibold ${
@@ -558,12 +511,13 @@ export default function RoleSidebar({
   onCloseMobile,
   onLogout,
   isPremiumGuest = false,
+  isPremiumHost = false,
   membership = null,
-  premiumTheme = "dark",
-  onTogglePremiumTheme = () => {},
+  hostSubscription = null,
 }) {
-  const premiumShell = roleType === "guest" && isPremiumGuest;
-  const premiumLight = premiumShell && premiumTheme === "light";
+  const premiumGuestShell = roleType === "guest" && isPremiumGuest;
+  const premiumHostShell = roleType === "host" && isPremiumHost;
+  const premiumShell = premiumGuestShell || premiumHostShell;
   const regularShellClass =
     roleType === "admin"
       ? "border-violet-200/80 bg-[linear-gradient(180deg,#faf7ff_0%,#f2ebff_100%)]"
@@ -578,9 +532,7 @@ export default function RoleSidebar({
           collapsed ? "w-[92px]" : "w-[280px]"
         } ${
           premiumShell
-            ? premiumLight
-              ? "border-amber-300/60 bg-[#fff7df]"
-              : "border-amber-400/20 bg-[#171208]"
+            ? "border-amber-400/20 bg-[#171208]"
             : regularShellClass
         }`}
       >
@@ -592,9 +544,9 @@ export default function RoleSidebar({
           onNavigate={() => {}}
           onLogout={onLogout}
           isPremiumGuest={isPremiumGuest}
+          isPremiumHost={isPremiumHost}
           membership={membership}
-          premiumTheme={premiumTheme}
-          onTogglePremiumTheme={onTogglePremiumTheme}
+          hostSubscription={hostSubscription}
         />
       </aside>
 
@@ -618,9 +570,7 @@ export default function RoleSidebar({
               transition={{ type: "spring", stiffness: 320, damping: 32 }}
               className={`fixed inset-y-0 left-0 z-[80] w-[min(88vw,330px)] border-r shadow-2xl lg:hidden ${
                 premiumShell
-                  ? premiumLight
-                    ? "border-amber-300/60 bg-[#fff7df]"
-                    : "border-amber-400/20 bg-[#171208]"
+                  ? "border-amber-400/20 bg-[#171208]"
                   : regularShellClass
               }`}
             >
@@ -629,9 +579,7 @@ export default function RoleSidebar({
                 onClick={onCloseMobile}
                 className={`absolute right-3 top-3 z-10 grid h-9 w-9 place-items-center rounded-xl text-lg font-black ${
                   premiumShell
-                    ? premiumLight
-                      ? "bg-amber-100 text-amber-900"
-                      : "bg-white/10 text-white"
+                    ? "bg-white/10 text-white"
                     : "bg-slate-100 text-slate-700"
                 }`}
                 aria-label="Close sidebar"
@@ -647,9 +595,9 @@ export default function RoleSidebar({
                 onNavigate={onCloseMobile}
                 onLogout={onLogout}
                 isPremiumGuest={isPremiumGuest}
+                isPremiumHost={isPremiumHost}
                 membership={membership}
-                premiumTheme={premiumTheme}
-                onTogglePremiumTheme={onTogglePremiumTheme}
+                hostSubscription={hostSubscription}
               />
             </motion.aside>
           </>

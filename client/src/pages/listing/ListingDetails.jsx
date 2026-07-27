@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import listingService from "../../services/listing.service";
 import bookingService from "../../services/booking.service";
@@ -9,6 +9,7 @@ import wishlistService from "../../services/wishlist.service";
 import guestMembershipService from "../../services/guestMembership.service";
 import chatService from "../../services/chat.service";
 import guestService from "../../services/guest.service";
+import { fetchUserProfile } from "../../redux/slices/authSlice";
 
 const FALLBACK_IMAGE =
   "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=85";
@@ -31,14 +32,6 @@ const BOOKING_UNITS = [
     description: "Best overnight value",
   },
   {
-    value: "day",
-    label: "Day",
-    plural: "Days",
-    short: "day",
-    icon: "☀️",
-    description: "Full 24-hour stay",
-  },
-  {
     value: "week",
     label: "Week",
     plural: "Weeks",
@@ -54,6 +47,13 @@ const BOOKING_UNITS = [
     icon: "📆",
     description: "Maximum monthly value",
   },
+];
+
+const BOOKING_PURPOSES = [
+  { value: "leisure", label: "Leisure or vacation", icon: "🌴" },
+  { value: "business", label: "Business or work", icon: "💼" },
+  { value: "family_visit", label: "Family or personal visit", icon: "👨‍👩‍👧" },
+  { value: "other", label: "Other purpose", icon: "✍️" },
 ];
 
 const RATE_MULTIPLIERS = Object.freeze({
@@ -190,6 +190,29 @@ const formatDate = (value, includeTime = false) => {
   });
 };
 
+const getDateRangeConflict = (checkIn, checkOut, bookedPeriods = []) => {
+  if (!checkIn || !checkOut) return null;
+
+  const requestedStart = new Date(checkIn);
+  const requestedEnd = new Date(checkOut);
+
+  if (
+    Number.isNaN(requestedStart.getTime()) ||
+    Number.isNaN(requestedEnd.getTime())
+  ) {
+    return null;
+  }
+
+  return (
+    bookedPeriods.find((period) => {
+      const bookedStart = new Date(period.checkIn);
+      const bookedEnd = new Date(period.checkOut);
+
+      return bookedStart < requestedEnd && bookedEnd > requestedStart;
+    }) || null
+  );
+};
+
 const couponValueText = (coupon) =>
   coupon?.discountType === "fixed"
     ? `${money(coupon.discountValue)} OFF`
@@ -200,7 +223,7 @@ function InfoPill({ icon, title, value, premium }) {
     <div
       className={`rounded-2xl border p-4 ${
         premium
-          ? "border-amber-300/15 bg-white/[0.05]"
+          ? "border-amber-300/20 bg-[#111827]/88 shadow-[0_18px_55px_rgba(0,0,0,.22)]"
           : "border-rose-200/70 bg-rose-50/60"
       }`}
     >
@@ -249,7 +272,7 @@ function CouponCard({
             ? "border-amber-300 bg-amber-300/15"
             : "border-[#c01042] bg-rose-100/75"
           : premiumTheme
-            ? "border-amber-300/15 bg-white/[0.04]"
+            ? "border-amber-300/15 bg-[#0f172a]/88"
             : "border-rose-200/65 bg-[#fff7f8]/70"
       }`}
     >
@@ -324,6 +347,7 @@ function CouponCard({
 export default function ListingDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const { user, isAuthenticated } = useSelector((state) => state.auth);
 
   const [apartment, setApartment] = useState(null);
@@ -331,10 +355,11 @@ export default function ListingDetails() {
   const [wishlistIds, setWishlistIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeImage, setActiveImage] = useState("");
+  const [activeMedia, setActiveMedia] = useState(null);
   const [quote, setQuote] = useState(null);
   const [quoting, setQuoting] = useState(false);
   const [booking, setBooking] = useState(false);
+  const [bookingConflict, setBookingConflict] = useState(null);
   const [couponOpen, setCouponOpen] = useState(false);
   const [priceAlertSaving, setPriceAlertSaving] = useState(false);
   const [priceAlertNotice, setPriceAlertNotice] = useState("");
@@ -349,6 +374,8 @@ export default function ListingDetails() {
     paymentMethod: "any",
     loyaltyPointsToRedeem: 0,
     bookingInsurance: false,
+    bookingPurpose: "leisure",
+    bookingPurposeDetails: "",
     message: "",
   });
 
@@ -424,6 +451,27 @@ export default function ListingDetails() {
     return normalized.length ? normalized : [{ url: FALLBACK_IMAGE }];
   }, [apartment]);
 
+  const videos = useMemo(
+    () =>
+      (apartment?.videos || [])
+        .map((video, index) =>
+          typeof video === "string"
+            ? { url: video, order: index, type: "video" }
+            : { ...video, order: Number(video.order ?? index), type: "video" }
+        )
+        .filter((video) => video.url)
+        .sort((first, second) => first.order - second.order),
+    [apartment]
+  );
+
+  const mediaItems = useMemo(
+    () => [
+      ...images.map((image) => ({ ...image, type: "image" })),
+      ...videos,
+    ],
+    [images, videos]
+  );
+
   const premiumActive = Boolean(membership?.isActive);
   const exclusiveLocked = Boolean(
     apartment?.premium?.isExclusive && !premiumActive
@@ -437,6 +485,15 @@ export default function ListingDetails() {
     Number(apartment?.policies?.maxBookingDays || 365),
     minimumStayDays
   );
+
+  const bookingAvailability = apartment?.bookingAvailability || {};
+  const bookedPeriods = Array.isArray(bookingAvailability.bookedPeriods)
+    ? bookingAvailability.bookedPeriods
+    : [];
+  const currentReservedPeriod = bookingAvailability.currentBooking || null;
+  const upcomingReservedPeriods = bookedPeriods
+    .filter((period) => new Date(period.checkOut) > new Date())
+    .slice(0, 4);
   const selectedUnit =
     BOOKING_UNITS.find((item) => item.value === form.bookingUnit) ||
     BOOKING_UNITS[1];
@@ -492,6 +549,7 @@ export default function ListingDetails() {
   const updateForm = (name, value) => {
     setForm((current) => ({ ...current, [name]: value }));
     setQuote(null);
+    setBookingConflict(null);
     setError("");
   };
 
@@ -507,6 +565,7 @@ export default function ListingDetails() {
       paymentMethod: "any",
     }));
     setQuote(null);
+    setBookingConflict(null);
     setError("");
   };
 
@@ -524,6 +583,7 @@ export default function ListingDetails() {
       };
     });
     setQuote(null);
+    setBookingConflict(null);
   };
 
   const buildPayload = (overrides = {}) => ({
@@ -537,19 +597,73 @@ export default function ListingDetails() {
     ),
   });
 
-  const calculate = async (overrides = {}) => {
+  const ensureGuestAccount = async () => {
     if (!isAuthenticated) {
       navigate("/login");
       return null;
     }
 
-    if (!isGuest) {
-      setError("Booking sirf Guest account se ki ja sakti hai.");
+    let activeUser = user;
+
+    if (!activeUser) {
+      try {
+        activeUser = await dispatch(fetchUserProfile()).unwrap();
+      } catch {
+        setError("Your session could not be verified. Please login again.");
+        return null;
+      }
+    }
+
+    const activeRole = String(activeUser?.role || "").toLowerCase();
+
+    if (activeRole !== "guest") {
+      setError("Booking can only be created from a Guest account.");
       return null;
     }
 
+    return activeUser;
+  };
+
+  const useSuggestedCheckIn = (value) => {
+    if (!value) return;
+
+    const nextCheckIn = toLocalInputValue(new Date(value), isHourly);
+
+    setForm((current) => ({
+      ...current,
+      checkIn: nextCheckIn,
+      checkOut: calculateCheckout(
+        nextCheckIn,
+        current.bookingUnit,
+        current.unitCount
+      ),
+    }));
+    setQuote(null);
+    setBookingConflict(null);
+    setError("");
+  };
+
+  const calculate = async (overrides = {}) => {
+    const activeGuest = await ensureGuestAccount();
+    if (!activeGuest) return null;
+
     if (!form.checkIn || !form.checkOut) {
       setError("Please select check-in and stay duration first.");
+      return null;
+    }
+
+    const localConflict = getDateRangeConflict(
+      overrides.checkIn || form.checkIn,
+      overrides.checkOut || form.checkOut,
+      bookedPeriods
+    );
+
+    if (localConflict) {
+      setBookingConflict({
+        blockedPeriod: localConflict,
+        suggestedCheckIn: localConflict.checkOut,
+      });
+      setError("This property is already booked for the selected dates. Please choose another date.");
       return null;
     }
 
@@ -559,11 +673,16 @@ export default function ListingDetails() {
       const response = await bookingService.getQuote(buildPayload(overrides));
       const nextQuote = response.data;
       setQuote(nextQuote);
+      setBookingConflict(null);
       return nextQuote;
     } catch (requestError) {
+      const conflictData = requestError.response?.data?.data;
       setQuote(null);
+      setBookingConflict(
+        conflictData?.code === "BOOKING_DATE_CONFLICT" ? conflictData : null
+      );
       setError(
-        requestError.response?.data?.message || "Quote calculate nahi hua."
+        requestError.response?.data?.message || "The booking price could not be calculated."
       );
       return null;
     } finally {
@@ -595,6 +714,11 @@ export default function ListingDetails() {
   };
 
   const confirmBooking = async () => {
+    if (form.bookingPurpose === "other" && form.bookingPurposeDetails.trim().length < 3) {
+      setError("Please briefly describe your booking purpose.");
+      return;
+    }
+
     if (exclusiveLocked) {
       navigate("/guest/premium");
       return;
@@ -609,6 +733,10 @@ export default function ListingDetails() {
       const response = await bookingService.createBooking(buildPayload());
       navigate(`/guest/checkout/${response.data._id}`);
     } catch (requestError) {
+      const conflictData = requestError.response?.data?.data;
+      setBookingConflict(
+        conflictData?.code === "BOOKING_DATE_CONFLICT" ? conflictData : null
+      );
       setError(
         requestError.response?.data?.message || "Booking create nahi hui."
       );
@@ -715,19 +843,25 @@ export default function ListingDetails() {
     .join(", ");
 
   const cardTheme = premiumActive
-    ? "border-amber-300/20 bg-[radial-gradient(circle_at_90%_0%,rgba(251,191,36,.16),transparent_18rem),linear-gradient(160deg,#15100a_0%,#111827_55%,#241306_100%)] text-white shadow-[0_28px_90px_rgba(8,7,5,.38)]"
+    ? "border-amber-300/25 bg-[radial-gradient(circle_at_92%_0%,rgba(251,191,36,.18),transparent_18rem),linear-gradient(160deg,#161d30_0%,#0b1020_55%,#201506_100%)] text-white shadow-[0_30px_95px_rgba(0,0,0,.48)]"
     : "border-rose-200/70 bg-[radial-gradient(circle_at_100%_0%,rgba(255,56,92,.12),transparent_18rem),linear-gradient(160deg,#fff8f8_0%,#fcecef_100%)] text-slate-950 shadow-[0_28px_80px_rgba(86,20,42,.15)]";
 
   return (
     <div
       className={`min-h-screen pb-14 ${
         premiumActive
-          ? "bg-[radial-gradient(circle_at_90%_0%,rgba(251,191,36,.10),transparent_30rem),linear-gradient(180deg,#0b1020_0%,#151827_100%)]"
+          ? "bg-[radial-gradient(circle_at_90%_0%,rgba(251,191,36,.16),transparent_30rem),radial-gradient(circle_at_5%_42%,rgba(180,83,9,.08),transparent_28rem),linear-gradient(180deg,#070b14_0%,#0b1020_48%,#111827_100%)]"
           : "bg-[radial-gradient(circle_at_8%_0%,rgba(255,56,92,.10),transparent_30rem),linear-gradient(180deg,#fff1f3_0%,#eef2f7_100%)]"
       }`}
     >
       <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+        <div
+          className={`flex flex-col justify-between gap-4 rounded-[28px] border p-5 sm:flex-row sm:items-start sm:p-6 ${
+            premiumActive
+              ? "border-amber-300/15 bg-[linear-gradient(145deg,rgba(17,24,39,.94),rgba(20,16,10,.92))] shadow-[0_20px_60px_rgba(0,0,0,.24)]"
+              : "border-rose-200/60 bg-rose-50/45"
+          }`}
+        >
           <div>
             <Link
               to="/"
@@ -759,7 +893,7 @@ export default function ListingDetails() {
               onClick={toggleWishlist}
               className={`rounded-2xl border px-4 py-2.5 text-xs font-black ${
                 premiumActive
-                  ? "border-amber-300/20 bg-white/[0.06] text-amber-100"
+                  ? "border-amber-300/25 bg-[#182033]/95 text-amber-100"
                   : "border-rose-200 bg-rose-50 text-slate-700"
               }`}
             >
@@ -779,39 +913,60 @@ export default function ListingDetails() {
           </div>
         </div>
 
-        <section className="mt-6 grid gap-3 overflow-hidden rounded-[30px] lg:grid-cols-[1.5fr_.5fr]">
-          <button
-            type="button"
-            onClick={() => setActiveImage(images[0].url)}
-            className="group relative min-h-[330px] overflow-hidden bg-slate-200 lg:min-h-[520px]"
-          >
-            <img
-              src={images[0].url}
-              alt={apartment.title}
-              className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-            />
-          </button>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
-            {images.slice(1, 3).map((image, index) => (
-              <button
+        <section
+          className={`mt-6 overflow-hidden rounded-[30px] border p-3 ${
+            premiumActive
+              ? "border-amber-300/20 bg-[#0f172a] shadow-[0_24px_70px_rgba(0,0,0,.35)]"
+              : "border-rose-200/60 bg-rose-50/50"
+          }`}
+        >
+          <div className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth">
+            {mediaItems.map((media, index) => (
+              <motion.button
                 type="button"
-                key={image.publicId || image.url || index}
-                onClick={() => setActiveImage(image.url)}
-                className="group relative min-h-40 overflow-hidden bg-slate-200"
+                key={media.publicId || media.url || index}
+                whileHover={{ y: -3 }}
+                onClick={() => setActiveMedia(media)}
+                className={`group relative shrink-0 snap-start overflow-hidden rounded-[24px] bg-slate-200 ${
+                  index === 0
+                    ? "h-[320px] w-[88%] sm:h-[440px] sm:w-[72%] lg:h-[520px] lg:w-[58%]"
+                    : "h-[320px] w-[78%] sm:h-[440px] sm:w-[46%] lg:h-[520px] lg:w-[34%]"
+                }`}
               >
-                <img
-                  src={image.url}
-                  alt={`${apartment.title} ${index + 2}`}
-                  className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                />
-              </button>
+                {media.type === "video" ? (
+                  <>
+                    <video
+                      src={media.url}
+                      poster={media.thumbnailUrl || undefined}
+                      muted
+                      playsInline
+                      preload="metadata"
+                      className="h-full w-full object-cover"
+                    />
+                    <span className="absolute inset-0 grid place-items-center bg-slate-950/20">
+                      <span className="grid h-16 w-16 place-items-center rounded-full bg-white/90 text-2xl text-slate-950 shadow-2xl">▶</span>
+                    </span>
+                    <span className="absolute left-4 top-4 rounded-full bg-slate-950/75 px-3 py-1.5 text-[10px] font-black uppercase text-white backdrop-blur">Video tour</span>
+                  </>
+                ) : (
+                  <img
+                    src={media.url}
+                    alt={`${apartment.title} ${index + 1}`}
+                    className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                  />
+                )}
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/65 to-transparent" />
+                <span className="absolute bottom-4 left-4 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-black text-slate-900">
+                  {index === 0 ? "Cover" : `${index + 1} / ${mediaItems.length}`}
+                </span>
+              </motion.button>
             ))}
-            {images.length < 2 && (
-              <div className="grid min-h-40 place-items-center bg-rose-100/55 text-sm font-black text-slate-500">
-                More photos coming soon
-              </div>
-            )}
           </div>
+          {mediaItems.length > 3 && (
+            <p className={`mt-3 text-center text-[10px] font-black uppercase tracking-[.16em] ${premiumActive ? "text-amber-200/55" : "text-slate-500"}`}>
+              Swipe or scroll to explore all {mediaItems.length} photos and videos
+            </p>
+          )}
         </section>
 
         <div className="mt-8 grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_430px]">
@@ -819,7 +974,7 @@ export default function ListingDetails() {
             <section
               className={`rounded-[30px] border p-6 ${
                 premiumActive
-                  ? "border-amber-300/15 bg-white/[0.05] text-white"
+                  ? "border-amber-300/20 bg-[#111827]/88 shadow-[0_18px_55px_rgba(0,0,0,.22)] text-white"
                   : "border-rose-200/65 bg-rose-50/55"
               }`}
             >
@@ -852,7 +1007,7 @@ export default function ListingDetails() {
             <section
               className={`rounded-[30px] border p-6 ${
                 premiumActive
-                  ? "border-amber-300/15 bg-white/[0.05] text-white"
+                  ? "border-amber-300/20 bg-[#111827]/88 shadow-[0_18px_55px_rgba(0,0,0,.22)] text-white"
                   : "border-rose-200/65 bg-rose-50/55"
               }`}
             >
@@ -869,7 +1024,7 @@ export default function ListingDetails() {
             <section
               className={`rounded-[30px] border p-6 ${
                 premiumActive
-                  ? "border-amber-300/15 bg-white/[0.05] text-white"
+                  ? "border-amber-300/20 bg-[#111827]/88 shadow-[0_18px_55px_rgba(0,0,0,.22)] text-white"
                   : "border-rose-200/65 bg-rose-50/55"
               }`}
             >
@@ -880,7 +1035,7 @@ export default function ListingDetails() {
                     key={amenity}
                     className={`rounded-2xl border px-4 py-3 text-sm font-bold ${
                       premiumActive
-                        ? "border-amber-300/10 bg-white/[0.04] text-white/70"
+                        ? "border-amber-300/15 bg-[#0f172a]/92 text-amber-50/80"
                         : "border-rose-200/60 bg-[#fff8f8]/70 text-slate-700"
                     }`}
                   >
@@ -891,9 +1046,56 @@ export default function ListingDetails() {
             </section>
 
             <section
+              className={`rounded-[30px] border p-6 ${
+                premiumActive
+                  ? "border-amber-300/20 bg-[#111827]/88 text-white shadow-[0_18px_55px_rgba(0,0,0,.22)]"
+                  : "border-rose-200/65 bg-rose-50/55"
+              }`}
+            >
+              <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+                <div>
+                  <p className={`text-[10px] font-black uppercase tracking-[.18em] ${premiumActive ? "text-amber-300" : "text-[#bd123f]"}`}>Around the apartment</p>
+                  <h2 className="mt-1 text-xl font-black">Apartment information</h2>
+                </div>
+                <span className={`rounded-full px-3 py-1.5 text-[10px] font-black ${premiumActive ? "bg-amber-300/10 text-amber-200" : "bg-rose-100 text-rose-700"}`}>Host provided</span>
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  ["✈️", "Nearest airport", apartment.nearbyInformation?.nearestAirport],
+                  ["🚆", "Railway station", apartment.nearbyInformation?.railwayStation],
+                  ["🚌", "Bus stand", apartment.nearbyInformation?.busStand],
+                  ["🚇", "Metro", apartment.nearbyInformation?.metro],
+                  ["🛍️", "Nearby market", apartment.nearbyInformation?.nearbyMarket],
+                  ["🛒", "Grocery store", apartment.nearbyInformation?.groceryStore],
+                  ["🏥", "Hospital", apartment.nearbyInformation?.hospital],
+                  ["💊", "Medical store", apartment.nearbyInformation?.medicalStore],
+                  ["🅿️", "Parking", apartment.nearbyInformation?.parking],
+                  ["📶", "Internet", apartment.nearbyInformation?.internet],
+                  ["🔋", "Power backup", apartment.nearbyInformation?.powerBackup],
+                ].filter((item) => item[2]).map(([icon, label, value]) => (
+                  <div key={label} className={`rounded-2xl border p-4 ${premiumActive ? "border-white/10 bg-white/[.04]" : "border-rose-200/60 bg-white/55"}`}>
+                    <span className="text-xl">{icon}</span><p className="mt-2 text-[9px] font-black uppercase tracking-wider opacity-45">{label}</p><p className="mt-1 text-sm font-black">{value}</p>
+                  </div>
+                ))}
+              </div>
+              {(apartment.nearbyInformation?.otherFacilities || []).length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">{apartment.nearbyInformation.otherFacilities.map((item) => <span key={item} className={`rounded-full px-3 py-1.5 text-xs font-bold ${premiumActive ? "bg-amber-300/10 text-amber-100" : "bg-rose-100 text-slate-700"}`}>{item}</span>)}</div>
+              )}
+            </section>
+
+            <section className="grid gap-3 sm:grid-cols-2">
+              <Link to={`/apartment/${id}/rules`} className={`group rounded-[26px] border p-5 transition hover:-translate-y-1 ${premiumActive ? "border-amber-300/20 bg-[#111827]/88 text-white" : "border-rose-200/65 bg-rose-50/55"}`}>
+                <span className="text-2xl">📜</span><h2 className="mt-3 text-lg font-black">Host Rules</h2><p className="mt-1 text-xs opacity-55">Read all stay, check-in and property rules.</p><span className={`mt-4 inline-flex text-xs font-black ${premiumActive ? "text-amber-300" : "text-rose-700"}`}>Open rules →</span>
+              </Link>
+              <Link to={`/apartment/${id}/appliance-guide`} className={`group rounded-[26px] border p-5 transition hover:-translate-y-1 ${premiumActive ? "border-amber-300/20 bg-[#111827]/88 text-white" : "border-rose-200/65 bg-rose-50/55"}`}>
+                <span className="text-2xl">🔌</span><h2 className="mt-3 text-lg font-black">Appliance Guide</h2><p className="mt-1 text-xs opacity-55">Instructions for AC, TV, kitchen and laundry appliances.</p><span className={`mt-4 inline-flex text-xs font-black ${premiumActive ? "text-amber-300" : "text-rose-700"}`}>Open guide →</span>
+              </Link>
+            </section>
+
+            <section
               className={`grid gap-4 rounded-[30px] border p-6 sm:grid-cols-2 ${
                 premiumActive
-                  ? "border-amber-300/15 bg-white/[0.05] text-white"
+                  ? "border-amber-300/20 bg-[#111827]/88 shadow-[0_18px_55px_rgba(0,0,0,.22)] text-white"
                   : "border-rose-200/65 bg-rose-50/55"
               }`}
             >
@@ -957,12 +1159,91 @@ export default function ListingDetails() {
                 >
                   Host rule: minimum {minimumStayDays} day(s), maximum {maximumStayDays} day(s).
                 </div>
+
+                {upcomingReservedPeriods.length > 0 && (
+                  <div
+                    className={`mt-3 rounded-2xl border p-4 ${
+                      premiumActive
+                        ? "border-orange-300/20 bg-orange-400/10"
+                        : "border-rose-200 bg-rose-50/85"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${premiumActive ? "text-rose-200" : "text-rose-700"}`}>
+                          Reserved periods
+                        </p>
+                        <p className="mt-1 text-[10px] font-semibold opacity-60">
+                          These periods are already booked. You can choose dates before or after them.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-rose-500 px-2.5 py-1 text-[9px] font-black text-white">
+                        {upcomingReservedPeriods.length} blocked
+                      </span>
+                    </div>
+
+                    <div className="mt-3 space-y-2">
+                      {upcomingReservedPeriods.map((period, index) => (
+                        <div
+                          key={`${period.checkIn}-${period.checkOut}-${index}`}
+                          className={`flex flex-col justify-between gap-1 rounded-xl border px-3 py-2 text-[10px] font-bold sm:flex-row sm:items-center ${
+                            premiumActive
+                              ? "border-white/10 bg-black/15 text-amber-50"
+                              : "border-rose-200 bg-white/70 text-slate-700"
+                          }`}
+                        >
+                          <span>
+                            {formatDate(period.checkIn, true)} → {formatDate(period.checkOut, true)}
+                          </span>
+                          <span className="font-black text-rose-500">Unavailable</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {currentReservedPeriod && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          useSuggestedCheckIn(
+                            bookingAvailability.nextAvailableAt ||
+                              currentReservedPeriod.checkOut
+                          )
+                        }
+                        className={`mt-3 w-full rounded-xl px-3 py-2 text-[10px] font-black ${
+                          premiumActive
+                            ? "bg-amber-300 text-slate-950"
+                            : "bg-rose-600 text-white"
+                        }`}
+                      >
+                        Use next available time · {formatDate(
+                          bookingAvailability.nextAvailableAt ||
+                            currentReservedPeriod.checkOut,
+                          true
+                        )}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-5 p-5 sm:p-6">
                 {error && (
                   <div className="rounded-2xl border border-red-300/40 bg-red-500/10 p-3 text-xs font-bold text-red-300">
-                    {error}
+                    <p>{error}</p>
+                    {bookingConflict?.suggestedCheckIn && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          useSuggestedCheckIn(bookingConflict.suggestedCheckIn)
+                        }
+                        className="mt-2 rounded-xl bg-red-500 px-3 py-2 text-[10px] font-black text-white"
+                      >
+                        Book after {formatDate(
+                          bookingConflict.suggestedCheckIn,
+                          true
+                        )}
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -983,7 +1264,7 @@ export default function ListingDetails() {
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5 lg:grid-cols-2 xl:grid-cols-5">
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
                     {BOOKING_UNITS.map((unit) => {
                       const selected = form.bookingUnit === unit.value;
                       const rate = getRate(apartment, unit.value);
@@ -1037,7 +1318,7 @@ export default function ListingDetails() {
                         disabled={Number(form.unitCount) <= minimumUnitCount}
                         className={`grid h-9 w-9 place-items-center rounded-xl text-lg font-black disabled:opacity-25 ${
                           premiumActive
-                            ? "bg-white/10 text-white hover:bg-amber-300 hover:text-slate-950"
+                            ? "bg-[#202b43] text-white hover:bg-amber-300 hover:text-slate-950"
                             : "bg-rose-100 text-slate-700 hover:bg-[#bd123f] hover:text-white"
                         }`}
                       >
@@ -1064,7 +1345,7 @@ export default function ListingDetails() {
                         onClick={() => changeUnitCount(1)}
                         className={`grid h-9 w-9 place-items-center rounded-xl text-lg font-black ${
                           premiumActive
-                            ? "bg-white/10 text-white hover:bg-amber-300 hover:text-slate-950"
+                            ? "bg-[#202b43] text-white hover:bg-amber-300 hover:text-slate-950"
                             : "bg-rose-100 text-slate-700 hover:bg-[#bd123f] hover:text-white"
                         }`}
                       >
@@ -1101,7 +1382,7 @@ export default function ListingDetails() {
                         onChange={(event) => updateForm("checkIn", event.target.value)}
                         className={`w-full rounded-2xl border px-3 py-3 text-xs font-bold outline-none ${
                           premiumActive
-                            ? "border-amber-300/15 bg-white/[0.06] text-white [color-scheme:dark]"
+                            ? "border-amber-300/20 bg-[#0c1220] text-white [color-scheme:dark]"
                             : "border-rose-200 bg-[#fff8f8]/80 text-slate-900"
                         }`}
                       />
@@ -1111,7 +1392,7 @@ export default function ListingDetails() {
                       <div
                         className={`min-h-[42px] rounded-2xl border px-3 py-3 text-xs font-bold ${
                           premiumActive
-                            ? "border-amber-300/15 bg-white/[0.04] text-white/70"
+                            ? "border-amber-300/15 bg-[#0f172a]/88 text-white/70"
                             : "border-rose-200 bg-rose-100/45 text-slate-700"
                         }`}
                       >
@@ -1136,6 +1417,54 @@ export default function ListingDetails() {
                       ))}
                     </select>
                   </label>
+
+                  <div className="mt-4">
+                    <span className="mb-2 block text-[9px] font-black uppercase tracking-wider opacity-50">Purpose of booking</span>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {BOOKING_PURPOSES.map((purpose) => {
+                        const selected = form.bookingPurpose === purpose.value;
+
+                        return (
+                          <button
+                            key={purpose.value}
+                            type="button"
+                            onClick={() => updateForm("bookingPurpose", purpose.value)}
+                            className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                              selected
+                                ? premiumActive
+                                  ? "border-amber-300 bg-amber-300/15 text-white"
+                                  : "border-[#bd123f] bg-rose-100/75 text-slate-950"
+                                : premiumActive
+                                  ? "border-white/10 bg-white/[0.04] text-white/70 hover:border-amber-300/35"
+                                  : "border-rose-200/65 bg-[#fff8f8]/70 text-slate-700 hover:border-rose-300"
+                            }`}
+                          >
+                            <span className="text-xl" aria-hidden="true">{purpose.icon}</span>
+                            <span className="text-xs font-black">{purpose.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <label className="mt-3 block">
+                      <span className="mb-1.5 block text-[9px] font-black uppercase tracking-wider opacity-50">
+                        {form.bookingPurpose === "other" ? "Describe your purpose" : "Additional note for the Host (optional)"}
+                      </span>
+                      <textarea
+                        rows={3}
+                        maxLength={300}
+                        value={form.bookingPurposeDetails}
+                        onChange={(event) => updateForm("bookingPurposeDetails", event.target.value)}
+                        placeholder={form.bookingPurpose === "other" ? "Tell the Host why you are booking this stay..." : "Share any useful context with the Host..."}
+                        className={`w-full resize-none rounded-2xl border px-3 py-3 text-xs font-semibold outline-none ${
+                          premiumActive
+                            ? "border-amber-300/15 bg-[#0f172a]/88 text-white placeholder:text-white/30"
+                            : "border-rose-200 bg-[#fff8f8]/80 text-slate-900 placeholder:text-slate-400"
+                        }`}
+                      />
+                      <span className="mt-1 block text-right text-[9px] font-bold opacity-35">{form.bookingPurposeDetails.length}/300</span>
+                    </label>
+                  </div>
                 </div>
 
                 <div>
@@ -1144,7 +1473,7 @@ export default function ListingDetails() {
                     onClick={() => setCouponOpen((current) => !current)}
                     className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left ${
                       premiumActive
-                        ? "border-amber-300/15 bg-white/[0.04]"
+                        ? "border-amber-300/15 bg-[#0f172a]/88"
                         : "border-rose-200/65 bg-[#fff8f8]/70"
                     }`}
                   >
@@ -1205,7 +1534,7 @@ export default function ListingDetails() {
                     animate={{ opacity: 1, y: 0 }}
                     className={`rounded-[24px] border p-4 ${
                       premiumActive
-                        ? "border-amber-300/20 bg-black/20"
+                        ? "border-amber-300/20 bg-[#080d17]/80"
                         : "border-rose-200 bg-[#fff8f8]/75"
                     }`}
                   >
@@ -1245,7 +1574,7 @@ export default function ListingDetails() {
                     disabled={quoting || !form.checkIn}
                     className={`rounded-2xl border px-4 py-3 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40 ${
                       premiumActive
-                        ? "border-amber-300/25 bg-white/[0.06] text-amber-100 hover:bg-white/10"
+                        ? "border-amber-300/25 bg-[#182033] text-amber-100 hover:bg-[#202b43]"
                         : "border-rose-200 bg-rose-100/65 text-slate-700 hover:bg-rose-200/70"
                     }`}
                   >
@@ -1280,7 +1609,7 @@ export default function ListingDetails() {
                     type="button"
                     onClick={enablePriceAlert}
                     disabled={priceAlertSaving}
-                    className="w-full rounded-2xl border border-amber-300/15 bg-white/[0.04] px-4 py-3 text-xs font-black text-amber-200"
+                    className="w-full rounded-2xl border border-amber-300/15 bg-[#0f172a]/88 px-4 py-3 text-xs font-black text-amber-200"
                   >
                     {priceAlertSaving ? "Saving alert..." : priceAlertNotice || "📉 Alert me when the price drops"}
                   </button>
@@ -1292,29 +1621,21 @@ export default function ListingDetails() {
       </div>
 
       <AnimatePresence>
-        {activeImage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/95 p-4 backdrop-blur"
-            onClick={() => setActiveImage("")}
-          >
-            <button
-              type="button"
-              onClick={() => setActiveImage("")}
-              className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-xl text-white"
-            >
-              ×
-            </button>
-            <motion.img
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              src={activeImage}
-              alt={apartment.title}
-              className="max-h-[90vh] max-w-[95vw] rounded-[26px] object-contain"
-              onClick={(event) => event.stopPropagation()}
-            />
+        {bookingConflict && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[115] grid place-items-center bg-slate-950/65 p-4 backdrop-blur" onClick={() => setBookingConflict(null)}>
+            <motion.div initial={{ scale: .94, y: 14 }} animate={{ scale: 1, y: 0 }} onClick={(event) => event.stopPropagation()} className={`w-full max-w-md rounded-[30px] border p-6 shadow-2xl ${premiumActive ? "border-amber-300/25 bg-[#111827] text-white" : "border-rose-200 bg-white text-slate-900"}`}>
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-rose-500/15 text-2xl">📅</div>
+              <h2 className="mt-4 text-xl font-black">Selected dates are unavailable</h2>
+              <p className="mt-2 text-sm leading-6 opacity-65">This property is already booked for the selected dates. Please choose another date.</p>
+              {bookingConflict.blockedPeriod && <p className={`mt-4 rounded-2xl p-3 text-xs font-bold ${premiumActive ? "bg-white/[.05] text-amber-100" : "bg-rose-50 text-rose-800"}`}>{formatDate(bookingConflict.blockedPeriod.checkIn, true)} → {formatDate(bookingConflict.blockedPeriod.checkOut, true)}</p>}
+              <div className="mt-5 flex gap-2"><button type="button" onClick={() => setBookingConflict(null)} className="flex-1 rounded-2xl border border-current/15 px-4 py-3 text-xs font-black">Choose dates</button>{bookingConflict.suggestedCheckIn && <button type="button" onClick={() => { useSuggestedCheckIn(bookingConflict.suggestedCheckIn); setBookingConflict(null); }} className={`flex-1 rounded-2xl px-4 py-3 text-xs font-black ${premiumActive ? "bg-amber-300 text-slate-950" : "bg-rose-600 text-white"}`}>Book after this stay</button>}</div>
+            </motion.div>
+          </motion.div>
+        )}
+        {activeMedia && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/95 p-4 backdrop-blur" onClick={() => setActiveMedia(null)}>
+            <button type="button" onClick={() => setActiveMedia(null)} className="absolute right-4 top-4 grid h-11 w-11 place-items-center rounded-2xl bg-white/10 text-xl text-white">×</button>
+            {activeMedia.type === "video" ? <motion.video initial={{ scale: .95 }} animate={{ scale: 1 }} src={activeMedia.url} controls autoPlay className="max-h-[90vh] max-w-[95vw] rounded-[26px]" onClick={(event) => event.stopPropagation()} /> : <motion.img initial={{ scale: .95 }} animate={{ scale: 1 }} src={activeMedia.url} alt={apartment.title} className="max-h-[90vh] max-w-[95vw] rounded-[26px] object-contain" onClick={(event) => event.stopPropagation()} />}
           </motion.div>
         )}
       </AnimatePresence>

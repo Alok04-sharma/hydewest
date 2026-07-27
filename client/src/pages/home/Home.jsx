@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -25,6 +25,7 @@ export default function Home() {
   const { listings, loading, error } = useSelector((state) => state.listing);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [searchDocked, setSearchDocked] = useState(false);
+  const categoryRailRef = useRef(null);
 
   useEffect(() => {
     dispatch(fetchAllListings());
@@ -58,6 +59,14 @@ export default function Home() {
       })
     );
   }, [searchDocked]);
+
+
+  const scrollCategories = (direction) => {
+    categoryRailRef.current?.scrollBy({
+      left: direction * Math.min(categoryRailRef.current.clientWidth * 0.7, 520),
+      behavior: "smooth",
+    });
+  };
 
   const handleCategorySelect = (typeValue) => {
     setSelectedCategory(typeValue);
@@ -133,28 +142,53 @@ export default function Home() {
       </div>
 
       <div className="mt-1 border-y border-rose-200/45 bg-rose-100/30 backdrop-blur">
-        <div className="no-scrollbar mx-auto flex max-w-7xl items-center gap-2 overflow-x-auto px-4 py-3 sm:px-6 lg:px-8">
-          {CATEGORIES.map((category) => {
-            const active = selectedCategory === category.value;
+        <div className="mx-auto flex max-w-5xl items-center justify-center gap-2 px-4 py-3 sm:px-6">
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.92 }}
+            onClick={() => scrollCategories(-1)}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-rose-200 bg-white/75 text-lg font-black text-[#a90836] shadow-sm transition hover:bg-rose-100"
+            aria-label="Previous categories"
+          >
+            ‹
+          </motion.button>
 
-            return (
-              <motion.button
-                key={category.name}
-                type="button"
-                onClick={() => handleCategorySelect(category.value)}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.96 }}
-                className={`flex shrink-0 items-center gap-2 rounded-2xl border px-3 py-2 text-xs font-black transition ${
-                  active
-                    ? "border-[#a90836] bg-[#a90836] text-white shadow-lg shadow-rose-200"
-                    : "border-rose-200/70 bg-[#fff8f8]/68 text-slate-600 hover:border-rose-300 hover:bg-rose-100/75 hover:text-[#9f0a35]"
-                }`}
-              >
-                <span className="text-base">{category.icon}</span>
-                <span className="whitespace-nowrap">{category.name}</span>
-              </motion.button>
-            );
-          })}
+          <div
+            ref={categoryRailRef}
+            className="no-scrollbar flex max-w-[820px] flex-1 items-center gap-2 overflow-x-auto scroll-smooth py-1"
+          >
+            {CATEGORIES.map((category) => {
+              const active = selectedCategory === category.value;
+
+              return (
+                <motion.button
+                  key={category.name}
+                  type="button"
+                  onClick={() => handleCategorySelect(category.value)}
+                  whileHover={{ y: -2 }}
+                  whileTap={{ scale: 0.96 }}
+                  className={`flex shrink-0 items-center gap-2 rounded-2xl border px-4 py-2.5 text-xs font-black transition ${
+                    active
+                      ? "border-[#a90836] bg-[#a90836] text-white shadow-lg shadow-rose-200"
+                      : "border-rose-200/70 bg-[#fff8f8]/78 text-slate-600 hover:border-rose-300 hover:bg-rose-100/75 hover:text-[#9f0a35]"
+                  }`}
+                >
+                  <span className="text-base">{category.icon}</span>
+                  <span className="whitespace-nowrap">{category.name}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.92 }}
+            onClick={() => scrollCategories(1)}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-rose-200 bg-white/75 text-lg font-black text-[#a90836] shadow-sm transition hover:bg-rose-100"
+            aria-label="Next categories"
+          >
+            ›
+          </motion.button>
         </div>
       </div>
 
