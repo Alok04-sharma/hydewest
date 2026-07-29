@@ -1,4 +1,3 @@
-
 @import "tailwindcss";
 
 :root {
@@ -912,4 +911,54 @@ body,
   background:
     radial-gradient(circle at 20% 0%, rgba(251, 191, 36, 0.18), transparent 18rem),
     linear-gradient(180deg, #171208 0%, #101827 55%, #080d18 100%) !important;
+}
+/* Phase-1 responsive safety layer. Component breakpoints continue to control layout. */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+img,
+video,
+iframe,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+video,
+iframe {
+  display: block;
+}
+
+.app-content,
+.premium-host-content,
+.premium-guest-content {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.app-content > *,
+.premium-host-content > *,
+.premium-guest-content > * {
+  min-width: 0;
+}
+
+@media (max-width: 767px) {
+  .app-content table,
+  .premium-host-content table,
+  .premium-guest-content table {
+    font-size: 0.75rem;
+  }
+
+  .app-content [role="dialog"],
+  .premium-host-content [role="dialog"],
+  .premium-guest-content [role="dialog"] {
+    max-height: calc(100svh - 1.5rem);
+    max-width: calc(100vw - 1.5rem);
+    overflow-y: auto;
+  }
 }

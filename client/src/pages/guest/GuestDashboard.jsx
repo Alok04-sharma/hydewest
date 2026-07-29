@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import guestService from "../../services/guest.service";
 import bookingService from "../../services/booking.service";
 import ListingCard from "../../components/listing/ListingCard";
+import UberRideButton from "../../components/common/UberRideButton";
 
 const freeActions = [
   ["Search Stays", "/guest/search", "🔍", "Find properties by city, dates and budget"],
@@ -154,6 +155,7 @@ export default function GuestDashboard() {
                   <Link to="/guest/search" className="rounded-2xl bg-gradient-to-r from-amber-300 to-orange-300 px-5 py-3 text-sm font-black text-slate-950 shadow-lg shadow-amber-500/20">
                     Explore Premium Stays →
                   </Link>
+                  <UberRideButton />
                   <button
                     type="button"
                     onClick={() => setPremiumToolsOpen((current) => !current)}
@@ -203,6 +205,7 @@ export default function GuestDashboard() {
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link to="/guest/search" className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-[#bd123f]">Search Stays →</Link>
                   <Link to="/guest/premium" className="rounded-2xl border border-amber-300/70 bg-amber-100/75 px-5 py-3 text-sm font-black text-amber-900">👑 Upgrade to Premium</Link>
+                  <UberRideButton />
                 </div>
               </div>
 

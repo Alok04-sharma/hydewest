@@ -12,6 +12,11 @@ const ownerService = {
     return response.data;
   },
 
+  getSearchAnalytics: async () => {
+    const response = await api.get("/api/owner/analytics/search");
+    return response.data;
+  },
+
   // Host Management
   getHosts: async (params = {}) => {
     const response = await api.get("/api/owner/hosts", { params });

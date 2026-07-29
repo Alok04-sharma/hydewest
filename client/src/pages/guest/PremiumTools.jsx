@@ -1,3 +1,4 @@
+
 import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Link, useSearchParams } from "react-router-dom";
@@ -138,6 +139,17 @@ function DayTimeline({ itinerary = [] }) {
               </div>
             ))}
           </div>
+
+          {Number(day.estimatedSpend || 0) > 0 && (
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <span className="text-[10px] font-black uppercase tracking-[0.15em] text-amber-700">
+                AI estimated day spend
+              </span>
+              <strong className="text-sm font-black text-slate-950">
+                {formatCurrency(day.estimatedSpend)}
+              </strong>
+            </div>
+          )}
         </motion.article>
       ))}
     </div>
@@ -200,7 +212,7 @@ export default function PremiumTools() {
         if (active) {
           setError(
             requestError.response?.data?.message ||
-              "Premium travel tools load nahi hue."
+              "Premium travel tools could not be loaded."
           );
         }
       } finally {
@@ -246,7 +258,7 @@ export default function PremiumTools() {
     } catch (requestError) {
       setError(
         requestError.response?.data?.message ||
-          "Trip plan generate nahi hua."
+          "The AI trip plan could not be generated."
       );
     } finally {
       setPlanning(false);
@@ -510,20 +522,62 @@ export default function PremiumTools() {
                           <span className="absolute -right-4 -top-10 text-[9rem] opacity-[0.06]">
                             🗺️
                           </span>
-                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
-                            Your generated journey
-                          </p>
+                          <div className="relative flex flex-wrap items-center gap-2">
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-300">
+                              Your generated journey
+                            </p>
+                            <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
+                              tripPlan.aiGenerated
+                                ? "bg-emerald-300/15 text-emerald-200"
+                                : "bg-white/10 text-white/60"
+                            }`}>
+                              {tripPlan.aiGenerated ? "OpenRouter AI" : "Fallback plan"}
+                            </span>
+                          </div>
                           <h2 className="relative mt-2 text-3xl font-black">
                             {tripPlan.city} · {tripPlan.days} Days
                           </h2>
                           <p className="relative mt-2 text-sm text-white/65">
                             {formatCurrency(tripPlan.budget)} total budget · {tripPlan.guests} guest(s)
                           </p>
+                          <p className="relative mt-4 max-w-3xl text-sm font-semibold leading-7 text-white/78">
+                            {tripPlan.summary}
+                          </p>
+                          <div className="relative mt-5 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                              <p className="text-[9px] font-black uppercase tracking-[0.17em] text-amber-300">Travel style</p>
+                              <p className="mt-1 font-black text-white">{tripPlan.travelStyle || "Balanced explorer"}</p>
+                            </div>
+                            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4">
+                              <p className="text-[9px] font-black uppercase tracking-[0.17em] text-amber-300">AI budget advice</p>
+                              <p className="mt-1 text-sm font-semibold leading-6 text-white/72">{tripPlan.budgetAdvice}</p>
+                            </div>
+                          </div>
                         </div>
+
+                        {tripPlan.aiWarning && (
+                          <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-xs font-bold text-amber-800">
+                            {tripPlan.aiWarning}
+                          </div>
+                        )}
 
                         <div className="mt-5">
                           <DayTimeline itinerary={tripPlan.itinerary || []} />
                         </div>
+
+                        {tripPlan.tips?.length > 0 && (
+                          <div className="mt-5 rounded-[26px] border border-amber-200 bg-amber-50 p-5">
+                            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-amber-700">AI travel notes</p>
+                            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                              {tripPlan.tips.map((tip, index) => (
+                                <div key={`${tip}-${index}`} className="flex items-start gap-2 rounded-2xl bg-white px-3 py-3 text-sm font-semibold leading-6 text-slate-700 shadow-sm">
+                                  <span className="mt-0.5 text-amber-500">✦</span>
+                                  <span>{tip}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="grid min-h-[520px] place-items-center overflow-hidden rounded-[30px] border border-dashed border-amber-300/35 bg-amber-300/5 p-8 text-center">
@@ -565,21 +619,46 @@ export default function PremiumTools() {
                     <h2 className="relative mt-2 text-3xl font-black">
                       Smart property recommendations
                     </h2>
-                    <p className="relative mt-2 max-w-2xl text-sm leading-6 text-white/65">
+                    <p className="relative mt-2 max-w-3xl text-sm leading-6 text-white/65">
                       {recommendations?.reason ||
                         "As you explore and book more stays, hydewest will improve these suggestions."}
                     </p>
+                    <div className="relative mt-4 flex flex-wrap gap-2">
+                      <span className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wide ${
+                        recommendations?.aiGenerated
+                          ? "bg-emerald-300/15 text-emerald-200"
+                          : "bg-white/10 text-white/55"
+                      }`}>
+                        {recommendations?.aiGenerated ? "OpenRouter AI ranked" : "Activity-based ranking"}
+                      </span>
+                      {(recommendations?.insights || []).map((insight, index) => (
+                        <span key={`${insight}-${index}`} className="rounded-full border border-amber-300/15 bg-amber-300/10 px-3 py-1.5 text-[10px] font-bold text-amber-100">
+                          {insight}
+                        </span>
+                      ))}
+                    </div>
                   </div>
+
+                  {recommendations?.aiWarning && (
+                    <div className="mt-4 rounded-2xl border border-amber-300/25 bg-amber-300/10 p-4 text-xs font-bold text-amber-800">
+                      {recommendations.aiWarning}
+                    </div>
+                  )}
 
                   {recommendations?.recommendations?.length > 0 ? (
                     <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {recommendations.recommendations.map((apartment, index) => (
-                        <ListingCard
-                          key={apartment._id}
-                          apartment={apartment}
-                          index={index}
-                          membership={membership}
-                        />
+                        <div key={apartment._id} className="flex min-w-0 flex-col gap-3">
+                          <ListingCard
+                            apartment={apartment}
+                            index={index}
+                            membership={membership}
+                          />
+                          <div className="rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] px-4 py-3 text-xs font-semibold leading-5 text-slate-700">
+                            <span className="font-black text-amber-700">Why AI picked it: </span>
+                            {apartment.recommendationReason || "Matched to your recent travel preferences."}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   ) : (

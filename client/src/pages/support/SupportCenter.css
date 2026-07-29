@@ -1,0 +1,376 @@
+/*
+ * Scoped Support Centre palette.
+ * These selectors intentionally override the generic Premium Guest theme,
+ * whose global input/card rules use !important.
+ */
+ .support-center-page {
+  color: #172033;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(14, 116, 144, 0.11), transparent 28rem),
+    radial-gradient(circle at 94% 8%, rgba(217, 119, 6, 0.1), transparent 26rem),
+    linear-gradient(155deg, #edf2f8 0%, #f8f3e8 48%, #e9eef6 100%);
+}
+
+.premium-guest-content .support-center-page {
+  color: #f8fafc !important;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(245, 158, 11, 0.17), transparent 30rem),
+    radial-gradient(circle at 5% 40%, rgba(14, 116, 144, 0.16), transparent 34rem),
+    linear-gradient(155deg, #07111f 0%, #0e1c31 48%, #151323 100%) !important;
+}
+
+.support-hero {
+  color: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  background: linear-gradient(135deg, #07111f 0%, #102844 55%, #4d1626 100%);
+  box-shadow: 0 28px 90px rgba(15, 23, 42, 0.28);
+}
+
+.support-hero-eyebrow,
+.support-ticket-eyebrow {
+  color: #fbbf24 !important;
+}
+
+.support-hero-title,
+.support-ticket-title,
+.support-crm-title {
+  color: #ffffff !important;
+}
+
+.support-hero-copy,
+.support-ticket-copy,
+.support-crm-copy {
+  color: #dbe5f3 !important;
+}
+
+/* FAQ: light surface with genuinely dark typography. */
+.support-faq-panel {
+  color: #172033 !important;
+  border: 1px solid #d4a951;
+  background: linear-gradient(145deg, #fffdf7 0%, #fff5da 100%) !important;
+  box-shadow: 0 22px 64px rgba(73, 51, 20, 0.2);
+}
+
+.premium-guest-content .support-faq-panel {
+  color: #172033 !important;
+  border-color: #e5b85f !important;
+  background: linear-gradient(145deg, #fffdf7 0%, #ffefc2 100%) !important;
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.34) !important;
+}
+
+.support-panel-eyebrow {
+  color: #9a5209 !important;
+}
+
+.support-panel-title {
+  color: #111827 !important;
+}
+
+.support-panel-copy {
+  color: #4b5563 !important;
+}
+
+.support-faq-icon {
+  color: #ffffff !important;
+  background: #111827 !important;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.2);
+}
+
+.support-faq-item {
+  color: #172033 !important;
+  border: 2px solid #d9dee8;
+  background: #ffffff !important;
+  box-shadow: 0 8px 24px rgba(30, 41, 59, 0.08);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.support-faq-item:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 14px 32px rgba(30, 41, 59, 0.14);
+  transform: translateY(-1px);
+}
+
+.support-faq-item.is-open {
+  border-color: #d97706;
+  background: #fff1c7 !important;
+  box-shadow: 0 14px 36px rgba(146, 95, 19, 0.2);
+}
+
+.support-faq-trigger {
+  color: #111827 !important;
+  background: transparent !important;
+}
+
+.support-faq-question {
+  color: #111827 !important;
+}
+
+.support-faq-toggle {
+  color: #334155 !important;
+  background: #e8edf4 !important;
+  transition:
+    transform 180ms ease,
+    color 180ms ease,
+    background 180ms ease;
+}
+
+.support-faq-toggle.is-open {
+  color: #ffffff !important;
+  background: #111827 !important;
+  transform: rotate(45deg);
+}
+
+.support-faq-answer {
+  color: #374151 !important;
+  border-top: 1px solid #e2b95e;
+  background: #ffffff !important;
+}
+
+/* Ticket form: deep shell + pure white fields for maximum contrast. */
+.support-ticket-panel {
+  color: #ffffff !important;
+  border: 1px solid #3a4b63;
+  background: linear-gradient(145deg, #091525 0%, #132c49 58%, #3c1526 100%) !important;
+  box-shadow: 0 24px 76px rgba(15, 23, 42, 0.35);
+}
+
+.premium-guest-content .support-ticket-panel {
+  color: #ffffff !important;
+  border-color: rgba(251, 191, 36, 0.38) !important;
+  background: linear-gradient(145deg, #050c16 0%, #10253f 58%, #35121f 100%) !important;
+  box-shadow: 0 26px 82px rgba(0, 0, 0, 0.42) !important;
+}
+
+.support-ticket-icon {
+  color: #111827 !important;
+  background: #fbbf24 !important;
+  box-shadow: 0 12px 30px rgba(245, 158, 11, 0.24);
+}
+
+.support-field-label {
+  color: #fde68a !important;
+}
+
+.support-center-page .support-field,
+.premium-guest-content .support-center-page .support-field,
+.premium-guest-content.premium-theme-light .support-center-page .support-field {
+  width: 100%;
+  color: #111827 !important;
+  caret-color: #111827 !important;
+  border: 2px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.support-center-page .support-field::placeholder,
+.premium-guest-content .support-center-page .support-field::placeholder,
+.premium-guest-content.premium-theme-light .support-center-page .support-field::placeholder {
+  color: #64748b !important;
+  opacity: 1;
+}
+
+.support-center-page .support-field:focus,
+.premium-guest-content .support-center-page .support-field:focus,
+.premium-guest-content.premium-theme-light .support-center-page .support-field:focus {
+  color: #111827 !important;
+  border-color: #f59e0b !important;
+  background: #ffffff !important;
+  box-shadow:
+    0 0 0 4px rgba(245, 158, 11, 0.22),
+    0 12px 28px rgba(0, 0, 0, 0.18) !important;
+}
+
+.support-center-page select.support-field option,
+.premium-guest-content .support-center-page select.support-field option {
+  color: #111827 !important;
+  background: #ffffff !important;
+}
+
+.support-textarea {
+  min-height: 138px;
+}
+
+.support-submit-button {
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(90deg, #d97706 0%, #ea580c 48%, #be123c 100%) !important;
+  box-shadow: 0 14px 34px rgba(190, 24, 93, 0.28);
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.support-submit-button:hover:not(:disabled) {
+  box-shadow: 0 18px 42px rgba(190, 24, 93, 0.38);
+}
+
+.support-submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* CRM: dark wrapper and high-contrast light request cards. */
+.support-crm-panel {
+  color: #ffffff !important;
+  border: 1px solid #33465e;
+  background: linear-gradient(145deg, #081321 0%, #142b47 100%) !important;
+  box-shadow: 0 26px 82px rgba(15, 23, 42, 0.34);
+}
+
+.premium-guest-content .support-crm-panel {
+  color: #ffffff !important;
+  border-color: rgba(251, 191, 36, 0.32) !important;
+  background: linear-gradient(145deg, #050c16 0%, #10243d 100%) !important;
+  box-shadow: 0 28px 86px rgba(0, 0, 0, 0.4) !important;
+}
+
+.support-crm-eyebrow {
+  color: #7dd3fc !important;
+}
+
+.support-ticket-count {
+  color: #e0f2fe !important;
+  border: 1px solid rgba(125, 211, 252, 0.44);
+  background: rgba(14, 165, 233, 0.16) !important;
+}
+
+.support-crm-ticket {
+  color: #172033 !important;
+  border: 1px solid #cbd5e1;
+  background: #ffffff !important;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.2);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.premium-guest-content .support-crm-ticket {
+  color: #172033 !important;
+  border-color: #d7b86a !important;
+  background: #fffdf8 !important;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.3) !important;
+}
+
+.support-crm-ticket:hover {
+  border-color: #d97706;
+  box-shadow: 0 20px 46px rgba(0, 0, 0, 0.25);
+}
+
+.support-ticket-number,
+.support-crm-subject {
+  color: #111827 !important;
+}
+
+.support-crm-message {
+  color: #4b5563 !important;
+}
+
+.support-status-badge {
+  color: #1e3a8a !important;
+  border-color: #93c5fd !important;
+  background: #dbeafe !important;
+}
+
+.support-status-badge[data-status="in_progress"] {
+  color: #78350f !important;
+  border-color: #fbbf24 !important;
+  background: #fef3c7 !important;
+}
+
+.support-status-badge[data-status="waiting_for_user"] {
+  color: #581c87 !important;
+  border-color: #c084fc !important;
+  background: #f3e8ff !important;
+}
+
+.support-status-badge[data-status="resolved"] {
+  color: #065f46 !important;
+  border-color: #6ee7b7 !important;
+  background: #d1fae5 !important;
+}
+
+.support-status-badge[data-status="closed"] {
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+  background: #e2e8f0 !important;
+}
+
+.support-admin-reply {
+  color: #052e16 !important;
+  border: 1px solid #6ee7b7;
+  background: #d1fae5 !important;
+}
+
+.support-admin-reply-label,
+.support-admin-reply-text {
+  color: #064e3b !important;
+}
+
+.support-empty-state {
+  color: #ffffff !important;
+  border: 2px dashed #718096;
+  background: #111f33 !important;
+}
+
+.support-empty-title {
+  color: #ffffff !important;
+}
+
+.support-empty-copy {
+  color: #cbd5e1 !important;
+}
+
+.support-crm-skeleton {
+  background: linear-gradient(90deg, #21334b 25%, #344965 50%, #21334b 75%);
+  background-size: 200% 100%;
+  animation: support-shimmer 1.35s linear infinite;
+}
+
+@keyframes support-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .support-center-page {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+
+  .support-faq-panel,
+  .support-ticket-panel,
+  .support-crm-panel {
+    border-radius: 1.35rem;
+  }
+
+  .support-field {
+    font-size: 16px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .support-faq-item,
+  .support-faq-toggle,
+  .support-field,
+  .support-submit-button {
+    transition: none !important;
+  }
+
+  .support-crm-skeleton {
+    animation: none;
+  }
+}

@@ -131,7 +131,7 @@ function LoadingPanel() {
   );
 }
 
-function ReviewHub({ data, onRefresh }) {
+function ReviewHub({ data, onRefresh, premiumActive = false }) {
   const [panel, setPanel] = useState("eligible");
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [form, setForm] = useState({ rating: 5, comment: "" });
@@ -304,61 +304,147 @@ function ReviewHub({ data, onRefresh }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[130] grid place-items-center bg-slate-950/70 p-4 backdrop-blur"
+            className={`fixed inset-0 z-[130] grid place-items-center p-4 backdrop-blur-xl ${
+              premiumActive ? "bg-[#05070f]/88" : "bg-slate-950/72"
+            }`}
             onClick={() => setSelectedBooking(null)}
           >
             <motion.form
-              initial={{ opacity: 0, y: 18, scale: 0.97 }}
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 12, scale: 0.97 }}
+              exit={{ opacity: 0, y: 14, scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 280, damping: 26 }}
               onSubmit={submit}
               onClick={(event) => event.stopPropagation()}
-              className="w-full max-w-lg rounded-[30px] bg-white p-6 shadow-2xl"
+              className={`w-full max-w-xl overflow-hidden rounded-[32px] border shadow-[0_32px_100px_rgba(0,0,0,.42)] ${
+                premiumActive
+                  ? "border-amber-300/25 bg-[linear-gradient(155deg,#171d2d_0%,#0b1020_60%,#241707_100%)] text-white"
+                  : "border-rose-200 bg-[#fffaf9] text-slate-950"
+              }`}
             >
-              <h2 className="text-2xl font-black text-slate-950">Review your stay</h2>
-              <p className="mt-1 text-sm text-slate-500">{selectedBooking.apartment?.title}</p>
-
-              <label className="mt-5 block">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Rating</span>
-                <select
-                  value={form.rating}
-                  onChange={(event) => setForm((current) => ({ ...current, rating: event.target.value }))}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 font-bold"
-                >
-                  {[5, 4, 3, 2, 1].map((rating) => (
-                    <option key={rating} value={rating}>{rating} star{rating === 1 ? "" : "s"}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="mt-4 block">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-500">Your review</span>
-                <textarea
-                  rows={5}
-                  required
-                  minLength={5}
-                  value={form.comment}
-                  onChange={(event) => setForm((current) => ({ ...current, comment: event.target.value }))}
-                  className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-[#FF385C]"
-                  placeholder="Share what was good and what could be improved..."
+              <div className="relative h-40 overflow-hidden sm:h-48">
+                <img
+                  src={imageUrl(selectedBooking.apartment?.images?.[0])}
+                  alt={selectedBooking.apartment?.title || "Completed stay"}
+                  className="h-full w-full object-cover"
                 />
-              </label>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div
+                  className={`absolute inset-0 ${
+                    premiumActive
+                      ? "bg-gradient-to-t from-[#0b1020] via-[#0b1020]/55 to-transparent"
+                      : "bg-gradient-to-t from-[#fffaf9] via-transparent to-transparent"
+                  }`}
+                />
                 <button
                   type="button"
                   onClick={() => setSelectedBooking(null)}
-                  className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black text-slate-600"
+                  className={`absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-2xl border text-lg font-black backdrop-blur ${
+                    premiumActive
+                      ? "border-white/15 bg-black/35 text-white hover:bg-black/55"
+                      : "border-white/70 bg-white/85 text-slate-700 hover:bg-white"
+                  }`}
+                  aria-label="Close review form"
                 >
-                  Cancel
+                  ×
                 </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white hover:bg-[#FF385C] disabled:opacity-50"
+                <div className="absolute inset-x-0 bottom-0 px-5 pb-4 sm:px-6">
+                  <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${premiumActive ? "text-amber-300" : "text-rose-600"}`}>
+                    {premiumActive ? "👑 Premium verified stay" : "Verified completed stay"}
+                  </p>
+                  <h2 className={`mt-1 line-clamp-1 text-2xl font-black ${premiumActive ? "text-white" : "text-slate-950"}`}>
+                    {selectedBooking.apartment?.title || "Review your stay"}
+                  </h2>
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-6">
+                <div
+                  className={`rounded-[24px] border p-4 ${
+                    premiumActive
+                      ? "border-amber-300/15 bg-amber-300/[0.06]"
+                      : "border-rose-200 bg-white"
+                  }`}
                 >
-                  {saving ? "Publishing..." : "Publish review"}
-                </button>
+                  <span className={`text-[10px] font-black uppercase tracking-[0.17em] ${premiumActive ? "text-amber-300" : "text-slate-500"}`}>
+                    Your rating
+                  </span>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((rating) => {
+                      const selected = Number(form.rating) >= rating;
+                      return (
+                        <motion.button
+                          key={rating}
+                          type="button"
+                          whileHover={{ y: -2, scale: 1.08 }}
+                          whileTap={{ scale: 0.92 }}
+                          onClick={() => setForm((current) => ({ ...current, rating }))}
+                          className={`grid h-11 w-11 place-items-center rounded-2xl border text-xl transition ${
+                            selected
+                              ? "border-amber-400 bg-amber-300 text-slate-950 shadow-lg shadow-amber-950/20"
+                              : premiumActive
+                                ? "border-white/10 bg-white/[0.05] text-white/30 hover:text-amber-200"
+                                : "border-slate-200 bg-slate-50 text-slate-300 hover:text-amber-500"
+                          }`}
+                          aria-label={`${rating} star rating`}
+                        >
+                          ★
+                        </motion.button>
+                      );
+                    })}
+                    <span className={`ml-1 text-sm font-black ${premiumActive ? "text-amber-100" : "text-slate-700"}`}>
+                      {form.rating}/5
+                    </span>
+                  </div>
+                </div>
+
+                <label className="mt-4 block">
+                  <span className={`text-[10px] font-black uppercase tracking-[0.17em] ${premiumActive ? "text-amber-300" : "text-slate-500"}`}>
+                    Your review
+                  </span>
+                  <textarea
+                    rows={5}
+                    required
+                    minLength={5}
+                    value={form.comment}
+                    onChange={(event) => setForm((current) => ({ ...current, comment: event.target.value }))}
+                    className={`mt-2 w-full resize-none rounded-[22px] border px-4 py-3.5 text-sm font-semibold leading-6 outline-none transition ${
+                      premiumActive
+                        ? "border-white/10 bg-white/[0.06] text-white placeholder:text-white/28 focus:border-amber-300 focus:ring-4 focus:ring-amber-300/10"
+                        : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+                    }`}
+                    placeholder="Tell future guests about cleanliness, amenities, communication and value..."
+                  />
+                  <span className={`mt-2 block text-[10px] font-semibold ${premiumActive ? "text-white/40" : "text-slate-400"}`}>
+                    Your review is linked to a verified completed booking.
+                  </span>
+                </label>
+
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBooking(null)}
+                    className={`rounded-2xl border px-4 py-3 text-sm font-black transition ${
+                      premiumActive
+                        ? "border-white/12 bg-white/[0.05] text-white/70 hover:bg-white/[0.1] hover:text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <motion.button
+                    type="submit"
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    disabled={saving}
+                    className={`rounded-2xl px-4 py-3 text-sm font-black shadow-lg disabled:cursor-not-allowed disabled:opacity-50 ${
+                      premiumActive
+                        ? "bg-gradient-to-r from-amber-300 via-yellow-400 to-orange-400 text-slate-950 shadow-amber-950/25"
+                        : "bg-gradient-to-r from-rose-600 to-orange-500 text-white shadow-rose-200"
+                    }`}
+                  >
+                    {saving ? "Publishing..." : "Publish review"}
+                  </motion.button>
+                </div>
               </div>
             </motion.form>
           </motion.div>
@@ -805,7 +891,7 @@ export default function GuestFeatureHub() {
           {loading ? (
             <LoadingPanel />
           ) : section === "reviews" ? (
-            <ReviewHub data={data || { eligible: [], reviews: [] }} onRefresh={load} />
+            <ReviewHub data={data || { eligible: [], reviews: [] }} onRefresh={load} premiumActive={premiumActive} />
           ) : ["offers", "coupons"].includes(section) ? (
             <OffersHub data={data || {}} premiumActive={premiumActive} initialPremium={section === "coupons"} />
           ) : section === "referrals" && data ? (
@@ -835,3 +921,4 @@ export default function GuestFeatureHub() {
     </div>
   );
 }
+

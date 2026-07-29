@@ -5,11 +5,13 @@ import { Link, useLocation } from "react-router-dom";
 const ADMIN_LINKS = [
   { to: "/owner/dashboard", label: "Dashboard", icon: "📊" },
   { to: "/owner/revenue-analytics", label: "Total Earnings", icon: "💰" },
+  { to: "/owner/search-analytics", label: "Search Demand", icon: "🔥" },
   { to: "/owner/hosts", label: "Hosts", icon: "👥" },
   { to: "/owner/listings", label: "Listings", icon: "🏠" },
   { to: "/owner/bookings", label: "Bookings", icon: "📅" },
   { to: "/owner/subscriptions", label: "Subscriptions", icon: "💳" },
   { to: "/owner/notifications", label: "Notifications", icon: "🔔" },
+  { to: "/owner/support", label: "CRM Support", icon: "🎧" },
 ];
 
 const HOST_LINKS = [

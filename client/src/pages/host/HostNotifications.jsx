@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   FiBell,
   FiCheck,
@@ -10,9 +11,11 @@ import {
   FiRefreshCw,
   FiShield,
   FiTrash2,
+  FiTrendingUp,
   FiXCircle,
 } from "react-icons/fi";
 
+import listingService from "../../services/listing.service";
 import notificationService from "../../services/notification.service";
 
 const TYPE_LABELS = {
@@ -20,30 +23,33 @@ const TYPE_LABELS = {
   host_subscription_payment_pending: "Payment Pending",
   host_subscription_payment_failed: "Payment Failed",
   host_subscription_renewal_scheduled: "Renewal Scheduled",
+  subscription_payment_reminder: "Payment Reminder",
+  subscription_renewal_confirmed: "Renewal Confirmed",
   subscription_expired: "Subscription Expired",
   listing_approved: "Listing Approved",
   listing_suspended: "Listing Suspended",
   listing_removed: "Listing Removed",
+  ai_price_suggestion: "AI Price Suggestion",
+  support_ticket: "Support",
   booking: "Booking",
   payment: "Payment",
   system: "System",
 };
 
-const typeIcon = (type) => {
+const typeIcon = (type = "") => {
+  if (type === "ai_price_suggestion") return FiTrendingUp;
   if (type === "subscription_expired") return FiClock;
   if (type === "host_subscription_payment_failed") return FiXCircle;
-  if (type.includes("subscription") || type === "payment") {
-    return FiCreditCard;
-  }
+  if (type.includes("subscription") || type === "payment") return FiCreditCard;
   if (type.includes("listing")) return FiHome;
-  if (type === "system") return FiShield;
+  if (type === "system" || type === "support_ticket") return FiShield;
   return FiBell;
 };
 
 const formatDate = (value) => {
   if (!value) return "—";
 
-  return new Date(value).toLocaleString("en-IN", {
+  return new Date(value).toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -51,6 +57,13 @@ const formatDate = (value) => {
     minute: "2-digit",
   });
 };
+
+const formatCurrency = (value) =>
+  new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(Number(value || 0));
 
 const EMPTY_RESULT = {
   notifications: [],
@@ -72,16 +85,14 @@ export default function HostNotifications() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [resolvingSuggestionId, setResolvingSuggestionId] = useState("");
   const [error, setError] = useState("");
 
   const loadNotifications = useCallback(
     async (manualRefresh = false) => {
       try {
-        if (manualRefresh) {
-          setRefreshing(true);
-        } else {
-          setLoading(true);
-        }
+        if (manualRefresh) setRefreshing(true);
+        else setLoading(true);
 
         setError("");
 
@@ -93,7 +104,7 @@ export default function HostNotifications() {
         });
 
         if (!response.success) {
-          throw new Error(response.message || "Notifications load nahi ho sake.");
+          throw new Error(response.message || "Notifications could not be loaded.");
         }
 
         setResult(response.data || EMPTY_RESULT);
@@ -102,7 +113,7 @@ export default function HostNotifications() {
         setError(
           requestError.response?.data?.message ||
             requestError.message ||
-            "Notifications load nahi ho sake."
+            "Notifications could not be loaded."
         );
       } finally {
         setLoading(false);
@@ -124,31 +135,25 @@ export default function HostNotifications() {
 
       window.dispatchEvent(new Event("notifications:refresh"));
 
-      if (notification.actionUrl) {
-        navigate(notification.actionUrl);
-      } else {
-        loadNotifications(true);
-      }
+      if (notification.actionUrl) navigate(notification.actionUrl);
+      else loadNotifications(true);
     } catch (requestError) {
       setError(
         requestError.response?.data?.message ||
           requestError.message ||
-          "Notification open nahi ho saka."
+          "The notification could not be opened."
       );
     }
   };
 
-  const markSingleRead = async (notificationId) => {
+  const markSingleRead = async (event, notificationId) => {
+    event.stopPropagation();
     try {
       await notificationService.markRead(notificationId);
       window.dispatchEvent(new Event("notifications:refresh"));
       await loadNotifications(true);
     } catch (requestError) {
-      setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          "Notification update nahi ho saka."
-      );
+      setError(requestError.response?.data?.message || "The notification could not be updated.");
     }
   };
 
@@ -158,25 +163,55 @@ export default function HostNotifications() {
       window.dispatchEvent(new Event("notifications:refresh"));
       await loadNotifications(true);
     } catch (requestError) {
-      setError(
-        requestError.response?.data?.message ||
-          requestError.message ||
-          "Notifications update nahi ho sake."
-      );
+      setError(requestError.response?.data?.message || "Notifications could not be updated.");
     }
   };
 
-  const removeNotification = async (notificationId) => {
+  const removeNotification = async (event, notificationId) => {
+    event.stopPropagation();
     try {
       await notificationService.remove(notificationId);
       window.dispatchEvent(new Event("notifications:refresh"));
       await loadNotifications(true);
     } catch (requestError) {
-      setError(
+      setError(requestError.response?.data?.message || "The notification could not be removed.");
+    }
+  };
+
+  const resolvePriceSuggestion = async (event, notification, decision) => {
+    event.stopPropagation();
+    const listingId = notification.metadata?.listingId || notification.entityId;
+    const suggestionId = notification.metadata?.suggestionId;
+
+    if (!listingId || !suggestionId) {
+      toast.error("This price suggestion is missing its listing reference.");
+      return;
+    }
+
+    try {
+      setResolvingSuggestionId(String(suggestionId));
+      const response = await listingService.resolvePriceSuggestion(
+        listingId,
+        suggestionId,
+        decision
+      );
+      if (!notification.isRead) await notificationService.markRead(notification._id);
+      toast.success(
+        response.message ||
+          (decision === "accept"
+            ? "Suggested pricing was applied."
+            : "Current pricing was retained.")
+      );
+      window.dispatchEvent(new Event("notifications:refresh"));
+      await loadNotifications(true);
+    } catch (requestError) {
+      toast.error(
         requestError.response?.data?.message ||
           requestError.message ||
-          "Notification remove nahi ho saka."
+          "The price suggestion could not be updated."
       );
+    } finally {
+      setResolvingSuggestionId("");
     }
   };
 
@@ -188,14 +223,11 @@ export default function HostNotifications() {
             <div className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-[#FF385C]">
               <FiBell /> Host Alerts
             </div>
-
-            <h1 className="mt-3 text-3xl font-black text-gray-900 sm:text-4xl">
+            <h1 className="mt-3 text-3xl font-black text-slate-950 sm:text-4xl">
               My Notifications
             </h1>
-
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-              Subscription payments, expiry, renewals aur listing review se
-              related important updates yahan milengi.
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Review bookings, subscriptions, listing moderation, support and optional AI price suggestions.
             </p>
           </div>
 
@@ -207,12 +239,11 @@ export default function HostNotifications() {
             >
               <FiCheckCircle /> Mark all read
             </button>
-
             <button
               type="button"
               onClick={() => loadNotifications(true)}
               disabled={refreshing}
-              className="inline-flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#FF385C] disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#FF385C] disabled:opacity-60"
             >
               <FiRefreshCw className={refreshing ? "animate-spin" : ""} />
               {refreshing ? "Refreshing..." : "Refresh"}
@@ -226,7 +257,7 @@ export default function HostNotifications() {
           </div>
         )}
 
-        <section className="mt-6 flex flex-col justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
+        <section className="mt-6 flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center">
           <p className="font-black text-slate-950">
             {result.unreadCount || 0} unread notification(s)
           </p>
@@ -238,7 +269,7 @@ export default function HostNotifications() {
                 setType(event.target.value);
                 setPage(1);
               }}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-[#FF385C] focus:ring-4 focus:ring-rose-100"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-[#FF385C] focus:ring-4 focus:ring-rose-100"
             >
               <option value="all">All Types</option>
               {Object.entries(TYPE_LABELS).map(([value, label]) => (
@@ -254,7 +285,7 @@ export default function HostNotifications() {
                 setReadStatus(event.target.value);
                 setPage(1);
               }}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-[#FF385C] focus:ring-4 focus:ring-rose-100"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none focus:border-[#FF385C] focus:ring-4 focus:ring-rose-100"
             >
               <option value="all">All Notifications</option>
               <option value="unread">Unread</option>
@@ -263,20 +294,23 @@ export default function HostNotifications() {
           </div>
         </section>
 
-        <section className="mt-6 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <section className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {loading ? (
             <div className="flex min-h-72 items-center justify-center">
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-[#FF385C] border-t-transparent" />
             </div>
           ) : result.notifications.length ? (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-slate-100">
               {result.notifications.map((notification) => {
                 const Icon = typeIcon(notification.type);
+                const isAiSuggestion = notification.type === "ai_price_suggestion";
+                const suggestionId = String(notification.metadata?.suggestionId || "");
+                const resolving = suggestionId && resolvingSuggestionId === suggestionId;
 
                 return (
                   <article
                     key={notification._id}
-                    className={`flex gap-4 border-l-4 p-5 transition ${
+                    className={`host-notification-card flex flex-col gap-4 border-l-4 p-5 transition sm:flex-row ${
                       notification.isRead
                         ? "host-notification-read border-l-transparent bg-white"
                         : "host-notification-unread border-l-amber-500 bg-amber-50"
@@ -284,55 +318,99 @@ export default function HostNotifications() {
                   >
                     <div
                       className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${
-                        notification.isRead
-                          ? "bg-gray-100 text-gray-600"
-                          : "bg-rose-100 text-[#FF385C]"
+                        isAiSuggestion
+                          ? "bg-violet-100 text-violet-700"
+                          : notification.isRead
+                            ? "bg-slate-100 text-slate-600"
+                            : "bg-rose-100 text-[#FF385C]"
                       }`}
                     >
                       <Icon />
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => openNotification(notification)}
-                      className="min-w-0 flex-1 text-left"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="font-black text-slate-950">
-                          {notification.title}
-                        </h2>
+                    <div className="min-w-0 flex-1">
+                      <button
+                        type="button"
+                        onClick={() => openNotification(notification)}
+                        className="w-full text-left"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h2 className="font-black text-slate-950">{notification.title}</h2>
+                          {!notification.isRead && (
+                            <span className="rounded-full bg-[#FF385C] px-2 py-0.5 text-[10px] font-black text-white">
+                              NEW
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm font-medium leading-6 text-slate-700">
+                          {notification.message}
+                        </p>
+                        <p className="mt-2 text-xs font-semibold text-slate-500">
+                          {formatDate(notification.createdAt)}
+                        </p>
+                      </button>
 
-                        {!notification.isRead && (
-                          <span className="rounded-full bg-[#FF385C] px-2 py-0.5 text-[10px] font-black text-white">
-                            NEW
-                          </span>
-                        )}
-                      </div>
+                      {isAiSuggestion && (
+                        <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-amber-50 p-4">
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                Current reference price
+                              </p>
+                              <strong className="mt-1 block text-lg font-black text-slate-950">
+                                {formatCurrency(notification.metadata?.currentPrice)}
+                              </strong>
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black uppercase tracking-wider text-violet-600">
+                                AI suggested price
+                              </p>
+                              <strong className="mt-1 block text-lg font-black text-violet-800">
+                                {formatCurrency(notification.metadata?.suggestedPrice)}
+                              </strong>
+                            </div>
+                          </div>
+                          {notification.metadata?.reason && (
+                            <p className="mt-3 text-xs font-semibold leading-5 text-slate-600">
+                              {notification.metadata.reason}
+                            </p>
+                          )}
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              disabled={resolving}
+                              onClick={(event) => resolvePriceSuggestion(event, notification, "accept")}
+                              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-black text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              <FiCheckCircle /> {resolving ? "Updating..." : "Accept"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={resolving}
+                              onClick={(event) => resolvePriceSuggestion(event, notification, "reject")}
+                              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-black text-slate-700 transition hover:border-red-300 hover:text-red-700 disabled:opacity-50"
+                            >
+                              <FiXCircle /> Reject
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-                      <p className="mt-1 text-sm font-medium leading-6 text-slate-700">
-                        {notification.message}
-                      </p>
-
-                      <p className="mt-2 text-xs font-semibold text-slate-500">
-                        {formatDate(notification.createdAt)}
-                      </p>
-                    </button>
-
-                    <div className="flex shrink-0 items-start gap-1">
+                    <div className="flex shrink-0 items-start gap-1 self-end sm:self-start">
                       {!notification.isRead && (
                         <button
                           type="button"
-                          onClick={() => markSingleRead(notification._id)}
+                          onClick={(event) => markSingleRead(event, notification._id)}
                           className="rounded-lg p-2 text-emerald-600 transition hover:bg-emerald-50"
                           title="Mark read"
                         >
                           <FiCheck />
                         </button>
                       )}
-
                       <button
                         type="button"
-                        onClick={() => removeNotification(notification._id)}
+                        onClick={(event) => removeNotification(event, notification._id)}
                         className="rounded-lg p-2 text-red-500 transition hover:bg-red-50"
                         title="Remove"
                       >
@@ -344,32 +422,30 @@ export default function HostNotifications() {
               })}
             </div>
           ) : (
-            <div className="px-6 py-16 text-center text-gray-500">
+            <div className="px-6 py-16 text-center text-slate-500">
               <FiBell className="mx-auto text-4xl" />
               <p className="mt-3 font-bold">No notifications found.</p>
             </div>
           )}
 
           {!loading && result.pagination?.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-5 py-4">
+            <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-4">
               <button
                 type="button"
                 disabled={!result.pagination.hasPreviousPage}
                 onClick={() => setPage((current) => Math.max(current - 1, 1))}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-bold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Previous
               </button>
-
-              <p className="text-xs font-semibold text-gray-500">
+              <p className="text-xs font-semibold text-slate-500">
                 Page {result.pagination.page} of {result.pagination.totalPages}
               </p>
-
               <button
                 type="button"
                 disabled={!result.pagination.hasNextPage}
                 onClick={() => setPage((current) => current + 1)}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-bold text-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 Next
               </button>

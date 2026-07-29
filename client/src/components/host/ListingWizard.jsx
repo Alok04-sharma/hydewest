@@ -286,6 +286,8 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
   const [submitting, setSubmitting] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
+  const [priceSuggestionLoading, setPriceSuggestionLoading] = useState(false);
+  const [priceSuggestion, setPriceSuggestion] = useState(null);
   const [nameSuggestions, setNameSuggestions] = useState([]);
   const [amenitySearch, setAmenitySearch] = useState("");
   const [customRule, setCustomRule] = useState("");
@@ -416,8 +418,54 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
     finally { setAiLoading(false); }
   };
 
+  const requestPriceSuggestion = async () => {
+    try {
+      setPriceSuggestionLoading(true);
+      setError("");
+      const response = await listingService.generatePriceSuggestion({
+        ...(mode === "edit" && listingId ? { listingId } : {}),
+        basePrice: Number(data.pricing.rates.day || 0),
+        location: data.location,
+      });
+      setPriceSuggestion(response.data || response);
+      toast.success(mode === "edit" ? "AI suggestion created and added to your notifications." : "AI suggestion generated. You remain in control.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "AI price suggestion could not be generated.");
+    } finally {
+      setPriceSuggestionLoading(false);
+    }
+  };
+
+  const resolvePriceSuggestion = async (decision) => {
+    if (!priceSuggestion) return;
+    try {
+      setPriceSuggestionLoading(true);
+      if (priceSuggestion.persisted && listingId && priceSuggestion._id) {
+        await listingService.resolvePriceSuggestion(listingId, priceSuggestion._id, decision);
+      }
+      if (decision === "accept") {
+        updateDailyPrice(priceSuggestion.suggestedPrice);
+        toast.success("Suggested reference price applied. You can still edit every rate.");
+      } else {
+        toast.success("Suggestion rejected. Current pricing was kept.");
+      }
+      setPriceSuggestion(null);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "AI price suggestion could not be updated.");
+    } finally {
+      setPriceSuggestionLoading(false);
+    }
+  };
+
   const addBed = () => updateRoot("bedDetails", [...data.bedDetails, { type: "Single", count: 1, capacityPerBed: 1 }]);
-  const updateBed = (index, field, value) => updateRoot("bedDetails", data.bedDetails.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
+  const updateBed = (index, patch) => {
+    setData((current) => ({
+      ...current,
+      bedDetails: current.bedDetails.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, ...patch } : item
+      ),
+    }));
+  };
   const removeBed = (index) => updateRoot("bedDetails", data.bedDetails.filter((_, itemIndex) => itemIndex !== index));
 
   useEffect(() => {
@@ -518,19 +566,71 @@ export default function ListingWizard({ mode = "create", initialData = null, lis
       case 2:
         return <Panel premium={premiumHost} title="Premium property name" description="Write your own title or ask OpenRouter for truthful suggestions."><div className="grid gap-4 lg:grid-cols-[1fr_auto]"><div><Label>Listing name</Label><Input value={data.title} maxLength={100} onChange={(e)=>updateRoot("title",e.target.value)} placeholder="e.g. The Amber Courtyard, Jaipur"/></div><div><Label>Property style</Label><Select value={data.propertyStyle} onChange={(e)=>updateRoot("propertyStyle",e.target.value)}>{PROPERTY_STYLES.map((style)=><option key={style}>{style}</option>)}</Select></div></div><button type="button" onClick={generateNames} disabled={aiLoading} className={`mt-4 inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black ${premiumHost?"bg-amber-300 text-slate-950":"bg-violet-700 text-white"}`}><span>✨</span>{aiLoading?"Generating...":"Generate name suggestions"}</button>{nameSuggestions.length>0&&<div className="mt-4 grid gap-2 sm:grid-cols-2">{nameSuggestions.map((name)=><button type="button" key={name} onClick={()=>updateRoot("title",name)} className={`rounded-2xl border p-3 text-left text-sm font-black ${premiumHost?"border-white/10 bg-white/[.04] hover:border-amber-300/40":"border-violet-200 bg-violet-50 hover:border-violet-400"}`}>{name}</button>)}</div>}</Panel>;
       case 3:
-        return <Panel premium={premiumHost} title="Property type" description="Use the compact grid or dropdown—both update the same field."><div className="max-w-md"><Label>Property type</Label><Select value={data.propertyType} onChange={(e)=>updateRoot("propertyType",e.target.value)}>{PROPERTY_TYPES.map(([type])=><option key={type}>{type}</option>)}</Select></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">{PROPERTY_TYPES.map(([type,icon])=><button type="button" key={type} onClick={()=>updateRoot("propertyType",type)} className={`flex items-center gap-2 rounded-2xl border px-3 py-3 text-left text-xs font-black ${data.propertyType===type?premiumHost?"border-amber-300 bg-amber-300/15 text-amber-200":"border-rose-500 bg-rose-50 text-rose-700":premiumHost?"border-white/10 bg-white/[.03] text-white/65":"border-slate-200 bg-slate-50 text-slate-600"}`}><span className="text-lg">{icon}</span>{type}</button>)}</div></Panel>;
+        return <Panel premium={premiumHost} title="Property type" description="Use the compact grid or dropdown—both update the same field."><div className="max-w-md"><Label>Property type</Label><Select value={data.propertyType} onChange={(e)=>updateRoot("propertyType",e.target.value)}>{PROPERTY_TYPES.map(([type])=><option key={type} value={type}>{type}</option>)}</Select></div><div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">{PROPERTY_TYPES.map(([type,icon])=><button type="button" key={type} onClick={()=>updateRoot("propertyType",type)} className={`flex items-center gap-2 rounded-2xl border px-3 py-3 text-left text-xs font-black ${data.propertyType===type?premiumHost?"border-amber-300 bg-amber-300/15 text-amber-200":"border-rose-500 bg-rose-50 text-rose-700":premiumHost?"border-white/10 bg-white/[.03] text-white/65":"border-slate-200 bg-slate-50 text-slate-600"}`}><span className="text-lg">{icon}</span>{type}</button>)}</div></Panel>;
       case 4:
         return <Panel premium={premiumHost} title="Guest capacity" description="Use selectors for each guest category."><div className="space-y-3"><Counter premium={premiumHost} label="Adults" helper="Age 18 and above" min={1} value={data.guestCapacity.adults} onChange={(value)=>updateNested("guestCapacity","adults",value)}/><Counter premium={premiumHost} label="Children" helper="Age 2–17" value={data.guestCapacity.children} onChange={(value)=>updateNested("guestCapacity","children",value)}/><Counter premium={premiumHost} label="Senior Citizens" helper="Senior travellers" value={data.guestCapacity.seniorCitizens} onChange={(value)=>updateNested("guestCapacity","seniorCitizens",value)}/></div><p className={`mt-4 rounded-2xl p-4 text-sm font-black ${premiumHost?"bg-amber-300/10 text-amber-200":"bg-rose-50 text-rose-700"}`}>Maximum guests: {Math.max(totalGuests,1)}</p></Panel>;
       case 5:
         return <Panel premium={premiumHost} title="Bedrooms" description="Select the total private and shared sleeping rooms."><div className="max-w-sm"><Label>Bedroom count</Label><Select value={data.bedrooms} onChange={(e)=>updateRoot("bedrooms",Number(e.target.value))}>{Array.from({length:21},(_,index)=><option key={index} value={index}>{index===0?"Studio / no separate bedroom":`${index} bedroom${index===1?"":"s"}`}</option>)}</Select></div></Panel>;
       case 6:
-        return <Panel premium={premiumHost} title="Bed details" description="Add bed types and let maximum capacity calculate automatically."><div className="space-y-3">{data.bedDetails.map((bed,index)=><div key={`${bed.type}-${index}`} className={`grid gap-3 rounded-2xl border p-4 sm:grid-cols-[1.2fr_.7fr_.8fr_auto] ${premiumHost?"border-white/10 bg-white/[.04]":"border-slate-200 bg-slate-50"}`}><div><Label>Bed type</Label><Select value={bed.type} onChange={(e)=>{const type=e.target.value;const capacity=BED_TYPES.find(([item])=>item===type)?.[1]||1;updateBed(index,"type",type);updateBed(index,"capacityPerBed",capacity)}}>{BED_TYPES.map(([type])=><option key={type}>{type}</option>)}</Select></div><div><Label>Count</Label><Select value={bed.count} onChange={(e)=>updateBed(index,"count",Number(e.target.value))}>{Array.from({length:20},(_,i)=><option key={i+1}>{i+1}</option>)}</Select></div><div><Label>Capacity / bed</Label><Select value={bed.capacityPerBed} onChange={(e)=>updateBed(index,"capacityPerBed",Number(e.target.value))}>{[1,2,3,4].map((value)=><option key={value}>{value}</option>)}</Select></div><button type="button" onClick={()=>removeBed(index)} className="mt-6 grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-600"><FiTrash2/></button></div>)}</div><button type="button" onClick={addBed} className={`mt-4 inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black ${premiumHost?"bg-white/10 text-white":"bg-slate-950 text-white"}`}><FiPlus/>Add bed type</button><div className={`mt-4 grid gap-3 rounded-2xl p-4 sm:grid-cols-2 ${premiumHost?"bg-amber-300/10":"bg-rose-50"}`}><p><span className="block text-[10px] font-black uppercase opacity-50">Total beds</span><strong className="text-2xl">{data.beds}</strong></p><p><span className="block text-[10px] font-black uppercase opacity-50">Maximum sleeping capacity</span><strong className="text-2xl">{data.maximumSleepingCapacity}</strong></p></div></Panel>;
+        return <Panel premium={premiumHost} title="Bed details" description="Add bed types and let maximum capacity calculate automatically."><div className="space-y-3">{data.bedDetails.map((bed,index)=><div key={`${bed.type}-${index}`} className={`grid gap-3 rounded-2xl border p-4 sm:grid-cols-[1.2fr_.7fr_.8fr_auto] ${premiumHost?"border-white/10 bg-white/[.04]":"border-slate-200 bg-slate-50"}`}><div><Label>Bed type</Label><Select value={bed.type} onChange={(e)=>{const type=e.target.value;const capacity=BED_TYPES.find(([item])=>item===type)?.[1]||1;updateBed(index,{ type, capacityPerBed: capacity })}}>{BED_TYPES.map(([type])=><option key={type} value={type}>{type}</option>)}</Select></div><div><Label>Count</Label><Select value={bed.count} onChange={(e)=>updateBed(index,{ count: Number(e.target.value) })}>{Array.from({length:20},(_,i)=><option key={i+1}>{i+1}</option>)}</Select></div><div><Label>Capacity / bed</Label><Select value={bed.capacityPerBed} onChange={(e)=>updateBed(index,{ capacityPerBed: Number(e.target.value) })}>{[1,2,3,4].map((value)=><option key={value}>{value}</option>)}</Select></div><button type="button" onClick={()=>removeBed(index)} className="mt-6 grid h-11 w-11 place-items-center rounded-xl bg-red-50 text-red-600"><FiTrash2/></button></div>)}</div><button type="button" onClick={addBed} className={`mt-4 inline-flex items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black ${premiumHost?"bg-white/10 text-white":"bg-slate-950 text-white"}`}><FiPlus/>Add bed type</button><div className={`mt-4 grid gap-3 rounded-2xl p-4 sm:grid-cols-2 ${premiumHost?"bg-amber-300/10":"bg-rose-50"}`}><p><span className="block text-[10px] font-black uppercase opacity-50">Total beds</span><strong className="text-2xl">{data.beds}</strong></p><p><span className="block text-[10px] font-black uppercase opacity-50">Maximum sleeping capacity</span><strong className="text-2xl">{data.maximumSleepingCapacity}</strong></p></div></Panel>;
       case 7:
         return <Panel premium={premiumHost} title="Bathroom details" description="Describe types, facilities and accessibility."><div className="grid gap-4 sm:grid-cols-2">{[["western","Western toilets"],["indian","Indian toilets"],["shower","Showers"],["bathtub","Bathtubs"]].map(([key,label])=><div key={key}><Label>{label}</Label><Select value={data.bathroomDetails[key]} onChange={(e)=>updateNested("bathroomDetails",key,Number(e.target.value))}>{Array.from({length:11},(_,i)=><option key={i}>{i}</option>)}</Select></div>)}</div><div className="mt-4 grid gap-3 sm:grid-cols-3">{[["hotWater","Hot water"],["accessible","Accessible bathroom"],["sunflowerFriendly","Sunflower-friendly support"]].map(([key,label])=><label key={key} className={`flex items-center gap-3 rounded-2xl border p-4 text-sm font-black ${premiumHost?"border-white/10 bg-white/[.04]":"border-slate-200 bg-slate-50"}`}><input type="checkbox" checked={Boolean(data.bathroomDetails[key])} onChange={(e)=>updateNested("bathroomDetails",key,e.target.checked)} className="h-5 w-5 accent-rose-600"/>{label}</label>)}</div><div className="mt-4"><Label optional>Notes</Label><Textarea rows={3} value={data.bathroomDetails.notes} onChange={(e)=>updateNested("bathroomDetails","notes",e.target.value)} placeholder="Hand rails, shower chair, step-free access..."/></div></Panel>;
       case 8:
         return <Panel premium={premiumHost} title="Property description" description="Manual editing always remains available after AI improvement."><Textarea rows={10} maxLength={3000} value={data.description} onChange={(e)=>updateRoot("description",e.target.value)} placeholder="Describe the rooms, atmosphere, view, access and what guests can expect..."/><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><span className="text-xs font-bold opacity-50">{data.description.length} / 3000 characters</span><button type="button" onClick={improveDescription} disabled={aiLoading||data.description.trim().length<30} className={`rounded-2xl px-4 py-3 text-sm font-black disabled:opacity-40 ${premiumHost?"bg-amber-300 text-slate-950":"bg-violet-700 text-white"}`}>✨ {aiLoading?"Improving...":"Improve with OpenRouter"}</button></div></Panel>;
       case 9:
-        return <div className="space-y-5"><Panel premium={premiumHost} title="Base pricing reference" description="This internal reference generates the guest-facing Hour, Night, Week and Month rates. Guests will not see a Day option."><div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]"><div className={`rounded-[24px] p-5 ${premiumHost?"bg-amber-300 text-slate-950":"bg-gradient-to-br from-rose-600 to-rose-800 text-white"}`}><Label>Reference amount</Label><Input type="number" min="1" value={data.pricing.rates.day} onChange={(e)=>updateDailyPrice(e.target.value)} className="mt-2 border-white/30 bg-white/90 text-2xl font-black text-slate-950"/><p className="mt-3 text-xs font-bold opacity-70">Use this base reference to generate discounted Hour, Night, Week and Month rates. You can still edit every guest-facing rate.</p></div><div className="grid gap-3 sm:grid-cols-2">{PRICING_UNITS.map(([unit,label,helper,icon])=><div key={unit} className={`rounded-2xl border p-4 ${unit==="hour"&&Number(data.policies.minBookingDays)>1?"opacity-50":premiumHost?"border-white/10 bg-white/[.04]":"border-slate-200 bg-slate-50"}`}><div className="flex items-center justify-between"><span className="text-xl">{icon}</span><span className="text-[9px] font-black uppercase opacity-45">{helper}</span></div><Label>{label}</Label><Input type="number" min={unit==="hour"?0:1} disabled={unit==="hour"&&Number(data.policies.minBookingDays)>1} value={data.pricing.rates[unit]} onChange={(e)=>setData((current)=>({...current,pricing:{...current.pricing,autoRateMultipliers:false,rates:{...current.pricing.rates,[unit]:Number(e.target.value||0)},...(unit==="night"?{pricePerNight:Number(e.target.value||0)}:{}),}}))}/>{unit==="hour"&&Number(data.policies.minBookingDays)>1&&<p className="mt-2 text-[10px] font-black text-amber-500">Disabled because minimum booking is more than one day.</p>}</div>)}</div></div></Panel><Panel premium={premiumHost} title="Booking and fee rules"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"><div><Label>Minimum booking days</Label><Input type="number" min="1" value={data.policies.minBookingDays} onChange={(e)=>updateMinimumStay(e.target.value)}/></div><div><Label>Maximum booking days</Label><Input type="number" min={data.policies.minBookingDays} value={data.policies.maxBookingDays} onChange={(e)=>updateNested("policies","maxBookingDays",Number(e.target.value||1))}/></div><div><Label>Guests included</Label><Input type="number" min="1" max={data.guests} value={data.pricing.baseGuestCount} onChange={(e)=>updateNested("pricing","baseGuestCount",Number(e.target.value||1))}/></div><div><Label>Cleaning fee</Label><Input type="number" min="0" value={data.pricing.cleaningFee} onChange={(e)=>updateNested("pricing","cleaningFee",Number(e.target.value||0))}/></div><div><Label>Service fee</Label><Input type="number" min="0" value={data.pricing.serviceFee} onChange={(e)=>updateNested("pricing","serviceFee",Number(e.target.value||0))}/></div><div><Label>Extra guest fee</Label><Input type="number" min="0" value={data.pricing.extraGuestFee} onChange={(e)=>updateNested("pricing","extraGuestFee",Number(e.target.value||0))}/></div></div></Panel></div>;
+        return (
+          <div className="space-y-5">
+            <Panel
+              premium={premiumHost}
+              title="Base pricing reference"
+              description="This internal reference generates the guest-facing Hour, Night, Week and Month rates. AI only suggests; the Host always decides."
+            >
+              <div className="grid gap-5 lg:grid-cols-[.85fr_1.15fr]">
+                <div className={`rounded-[24px] p-5 ${premiumHost ? "bg-amber-300 text-slate-950" : "bg-gradient-to-br from-rose-600 to-rose-800 text-white"}`}>
+                  <Label>Reference amount</Label>
+                  <Input type="number" min="1" value={data.pricing.rates.day} onChange={(event) => updateDailyPrice(event.target.value)} className="mt-2 border-white/30 bg-white/90 text-2xl font-black text-slate-950" />
+                  <p className="mt-3 text-xs font-bold opacity-70">Use this base reference to generate discounted Hour, Night, Week and Month rates. You can still edit every guest-facing rate.</p>
+                  <button type="button" onClick={requestPriceSuggestion} disabled={priceSuggestionLoading || Number(data.pricing.rates.day || 0) <= 0 || !data.location.city} className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-black disabled:opacity-45 ${premiumHost ? "bg-slate-950 text-amber-200" : "bg-white text-rose-700"}`}>
+                    🤖 {priceSuggestionLoading ? "Checking holiday and weather..." : "Get AI Price Suggestion"}
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {PRICING_UNITS.map(([unit, label, helper, icon]) => (
+                    <div key={unit} className={`rounded-2xl border p-4 ${unit === "hour" && Number(data.policies.minBookingDays) > 1 ? "opacity-50" : premiumHost ? "border-white/10 bg-white/[.04]" : "border-slate-200 bg-slate-50"}`}>
+                      <div className="flex items-center justify-between"><span className="text-xl">{icon}</span><span className="text-[9px] font-black uppercase opacity-45">{helper}</span></div>
+                      <Label>{label}</Label>
+                      <Input type="number" min={unit === "hour" ? 0 : 1} disabled={unit === "hour" && Number(data.policies.minBookingDays) > 1} value={data.pricing.rates[unit]} onChange={(event) => setData((current) => ({ ...current, pricing: { ...current.pricing, autoRateMultipliers: false, rates: { ...current.pricing.rates, [unit]: Number(event.target.value || 0) }, ...(unit === "night" ? { pricePerNight: Number(event.target.value || 0) } : {}) } }))} />
+                      {unit === "hour" && Number(data.policies.minBookingDays) > 1 && <p className="mt-2 text-[10px] font-black text-amber-500">Disabled because minimum booking is more than one day.</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {priceSuggestion && (
+                  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className={`mt-5 rounded-[24px] border p-5 ${premiumHost ? "border-cyan-300/25 bg-cyan-300/10" : "border-violet-200 bg-violet-50"}`}>
+                    <p className={`text-[10px] font-black uppercase tracking-[.2em] ${premiumHost ? "text-cyan-200" : "text-violet-700"}`}>🤖 AI Price Suggestion</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2"><div><p className="text-xs font-bold opacity-55">Current reference</p><strong className="mt-1 block text-2xl">{money(priceSuggestion.currentPrice || data.pricing.rates.day)}</strong></div><div><p className="text-xs font-bold opacity-55">Suggested reference</p><strong className={`mt-1 block text-2xl ${premiumHost ? "text-cyan-200" : "text-violet-800"}`}>{money(priceSuggestion.suggestedPrice)}</strong></div></div>
+                    <p className="mt-4 text-sm font-semibold leading-6 opacity-75">{priceSuggestion.reason}</p>
+                    <p className="mt-2 text-[10px] font-bold opacity-45">Inputs used: current price, upcoming public holidays and available OpenWeather forecast. No price changes happen automatically.</p>
+                    <div className="mt-4 flex gap-3"><button type="button" onClick={() => resolvePriceSuggestion("accept")} disabled={priceSuggestionLoading} className="flex-1 rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white">Accept</button><button type="button" onClick={() => resolvePriceSuggestion("reject")} disabled={priceSuggestionLoading} className={`flex-1 rounded-2xl px-4 py-3 text-sm font-black ${premiumHost ? "bg-white/10 text-white" : "bg-slate-200 text-slate-700"}`}>Reject</button></div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Panel>
+
+            <Panel premium={premiumHost} title="Booking and fee rules">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div><Label>Minimum booking days</Label><Input type="number" min="1" value={data.policies.minBookingDays} onChange={(event) => updateMinimumStay(event.target.value)} /></div>
+                <div><Label>Maximum booking days</Label><Input type="number" min={data.policies.minBookingDays} value={data.policies.maxBookingDays} onChange={(event) => updateNested("policies", "maxBookingDays", Number(event.target.value || 1))} /></div>
+                <div><Label>Guests included</Label><Input type="number" min="1" max={data.guests} value={data.pricing.baseGuestCount} onChange={(event) => updateNested("pricing", "baseGuestCount", Number(event.target.value || 1))} /></div>
+                <div><Label>Cleaning fee</Label><Input type="number" min="0" value={data.pricing.cleaningFee} onChange={(event) => updateNested("pricing", "cleaningFee", Number(event.target.value || 0))} /></div>
+                <div><Label>Service fee</Label><Input type="number" min="0" value={data.pricing.serviceFee} onChange={(event) => updateNested("pricing", "serviceFee", Number(event.target.value || 0))} /></div>
+                <div><Label>Extra guest fee</Label><Input type="number" min="0" value={data.pricing.extraGuestFee} onChange={(event) => updateNested("pricing", "extraGuestFee", Number(event.target.value || 0))} /></div>
+              </div>
+            </Panel>
+          </div>
+        );
       case 10:
         return <Panel premium={premiumHost} title="Guest coupons" description="Compact cards include recommended and custom offers."><div className="flex flex-wrap gap-2"><button type="button" onClick={()=>updateRoot("coupons",createPresetCoupons())} className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-black ${premiumHost?"bg-white/10":"bg-slate-100"}`}><FiRefreshCw/>Restore recommended</button><button type="button" onClick={addCoupon} className={`inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-black ${premiumHost?"bg-amber-300 text-slate-950":"bg-slate-950 text-white"}`}><FiPlus/>Custom coupon</button></div><div className="mt-4 grid gap-3 md:grid-cols-2">{data.coupons.map((coupon,index)=><article key={`${coupon.code}-${index}`} className={`rounded-[22px] border p-4 ${premiumHost?"border-white/10 bg-white/[.04]":"border-slate-200 bg-slate-50"}`}><div className="flex items-start justify-between gap-3"><div><Input value={coupon.code} onChange={(e)=>updateCoupon(index,"code",e.target.value.toUpperCase())} placeholder="CODE" className="py-2 font-black"/><Input value={coupon.label} onChange={(e)=>updateCoupon(index,"label",e.target.value)} placeholder="Offer title" className="mt-2 py-2"/></div><button type="button" onClick={()=>updateRoot("coupons",data.coupons.filter((_,itemIndex)=>itemIndex!==index))} className="grid h-9 w-9 place-items-center rounded-xl bg-red-50 text-red-600"><FiTrash2/></button></div><div className="mt-3 grid grid-cols-2 gap-2"><Select value={coupon.discountType} onChange={(e)=>updateCoupon(index,"discountType",e.target.value)}><option value="percentage">Percentage</option><option value="fixed">Fixed</option></Select><Input type="number" min="1" value={coupon.discountValue} onChange={(e)=>updateCoupon(index,"discountValue",Number(e.target.value||0))}/><Input type="number" min="0" value={coupon.minBookingAmount} onChange={(e)=>updateCoupon(index,"minBookingAmount",Number(e.target.value||0))} placeholder="Min amount"/><Select value={coupon.paymentMethod||"any"} onChange={(e)=>updateCoupon(index,"paymentMethod",e.target.value)}><option value="any">Any payment</option><option value="upi">UPI only</option><option value="card">Card only</option></Select></div><label className="mt-3 flex items-center gap-2 text-xs font-black"><input type="checkbox" checked={Boolean(coupon.premiumOnly)} onChange={(e)=>updateCoupon(index,"premiumOnly",e.target.checked)} className="h-4 w-4 accent-amber-500"/>Premium Guests only</label></article>)}</div></Panel>;
       case 11:

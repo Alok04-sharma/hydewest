@@ -26,6 +26,10 @@ const listingService = {
     unwrap(await api.post("/api/apartments/ai/name-suggestions", payload)),
   improveDescription: async (payload) =>
     unwrap(await api.post("/api/apartments/ai/improve-description", payload)),
+  generatePriceSuggestion: async (payload) =>
+    unwrap(await api.post("/api/apartments/ai/price-suggestion", payload)),
+  resolvePriceSuggestion: async (listingId, suggestionId, decision) =>
+    unwrap(await api.patch(`/api/apartments/${listingId}/ai-price-suggestions/${suggestionId}`, { decision })),
 
   // Backward-compatible aliases for existing Redux/pages.
   getById: async (id) => unwrap(await api.get(`/api/apartments/${id}`)),

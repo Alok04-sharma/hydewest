@@ -29,6 +29,12 @@ const EMPTY_HOT_MAP = {
   areas: [],
 };
 
+const EMPTY_SEARCH_ANALYTICS = {
+  summary: { totalSearches: 0 },
+  mostSearchedCities: [],
+  recommendations: [],
+};
+
 const EMPTY_DASHBOARD = {
   overview: {
     totalUsers: 0,
@@ -305,6 +311,116 @@ function HotMapCard({ locations, onNavigate }) {
   );
 }
 
+
+// ======================================
+// Search Demand Card
+// ======================================
+
+function SearchDemandCard({ analytics, onNavigate }) {
+  const cities = Array.isArray(analytics?.mostSearchedCities)
+    ? analytics.mostSearchedCities.slice(0, 4)
+    : [];
+  const recommendations = Array.isArray(analytics?.recommendations)
+    ? analytics.recommendations.slice(0, 2)
+    : [];
+  const maxSearches = Math.max(...cities.map((row) => Number(row.searchCount || 0)), 1);
+
+  return (
+    <motion.article
+      whileHover={{ y: -4 }}
+      whileTap={{ scale: 0.994 }}
+      onClick={() => onNavigate("/owner/search-analytics")}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          onNavigate("/owner/search-analytics");
+        }
+      }}
+      role="link"
+      tabIndex={0}
+      className="group cursor-pointer overflow-hidden rounded-[28px] border border-violet-200 bg-gradient-to-br from-white via-violet-50 to-rose-50 p-5 shadow-sm focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-200 sm:col-span-2 sm:p-6 xl:col-span-3"
+    >
+      <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
+        <div className="max-w-xl">
+          <div className="inline-flex items-center gap-2 rounded-full bg-violet-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-violet-700">
+            <span aria-hidden="true">🔍</span>
+            Search Demand Intelligence
+          </div>
+          <h2 className="mt-3 text-2xl font-black text-slate-950">
+            {formatNumber(analytics?.summary?.totalSearches || 0)} tracked searches
+          </h2>
+          <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
+            Compare what Guests search for with listing supply and completed paid bookings. MongoDB aggregation only.
+          </p>
+
+          {recommendations.length > 0 ? (
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {recommendations.map((row) => (
+                <div
+                  key={`${row.locationType}-${row.location}`}
+                  className="rounded-2xl border border-amber-200 bg-amber-50 p-3"
+                >
+                  <p className="truncate text-xs font-black text-slate-950">{row.location}</p>
+                  <p className="mt-1 text-[10px] font-black uppercase tracking-wide text-amber-800">
+                    High Search Demand - Need More Hosts
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-2xl border border-dashed border-violet-200 bg-white/70 p-3 text-xs font-semibold text-slate-500">
+              Recommendations will appear when a location has high search demand and low listing supply.
+            </p>
+          )}
+        </div>
+
+        <div className="w-full min-w-0 lg:max-w-xl">
+          <p className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+            Most searched cities
+          </p>
+          <div className="space-y-3">
+            {cities.length ? (
+              cities.map((row, index) => {
+                const width = Math.max((Number(row.searchCount || 0) / maxSearches) * 100, 6);
+                return (
+                  <div key={row.key || row.city || index}>
+                    <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
+                      <span className="truncate font-black text-slate-700">
+                        {index + 1}. {row.city || "Unknown city"}
+                      </span>
+                      <span className="shrink-0 font-black text-violet-700">
+                        {formatNumber(row.searchCount)} searches
+                      </span>
+                    </div>
+                    <div className="h-2.5 overflow-hidden rounded-full bg-violet-100">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${width}%` }}
+                        transition={{ duration: 0.6, delay: index * 0.05 }}
+                        className="h-full rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-500"
+                      />
+                    </div>
+                    <p className="mt-1 text-[10px] font-semibold text-slate-400">
+                      {formatNumber(row.availableListings)} listings · {formatNumber(row.totalBookings)} bookings
+                    </p>
+                  </div>
+                );
+              })
+            ) : (
+              <p className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-4 text-xs font-semibold text-slate-500">
+                Search activity will appear after Guests use the property search.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <p className="mt-5 text-[10px] font-black uppercase tracking-[0.16em] text-violet-600 opacity-70 transition group-hover:opacity-100">
+        Open complete search analytics →
+      </p>
+    </motion.article>
+  );
+}
+
 // ======================================
 // Progress Analytics
 // ======================================
@@ -471,6 +587,11 @@ export default function OwnerDashboard() {
     setHotMap,
   ] = useState(EMPTY_HOT_MAP);
 
+  const [
+    searchAnalytics,
+    setSearchAnalytics,
+  ] = useState(EMPTY_SEARCH_ANALYTICS);
+
   // ======================================
   // Fetch Dashboard
   // ======================================
@@ -489,11 +610,14 @@ export default function OwnerDashboard() {
 
           setError("");
 
-          const [response, revenueAnalyticsResponse] =
+          const [response, revenueAnalyticsResponse, searchAnalyticsResponse] =
             await Promise.all([
               ownerService.getDashboard(),
               ownerService
                 .getRevenueAnalytics()
+                .catch(() => null),
+              ownerService
+                .getSearchAnalytics()
                 .catch(() => null),
             ]);
 
@@ -518,6 +642,20 @@ export default function OwnerDashboard() {
             analyticsPayload.trendingLocations ||
               EMPTY_HOT_MAP
           );
+
+          const searchPayload =
+            searchAnalyticsResponse?.data ||
+            searchAnalyticsResponse ||
+            EMPTY_SEARCH_ANALYTICS;
+
+          setSearchAnalytics({
+            ...EMPTY_SEARCH_ANALYTICS,
+            ...searchPayload,
+            summary: {
+              ...EMPTY_SEARCH_ANALYTICS.summary,
+              ...(searchPayload.summary || {}),
+            },
+          });
         } catch (
           requestError
         ) {
@@ -910,6 +1048,11 @@ export default function OwnerDashboard() {
 
           <HotMapCard
             locations={hotMap}
+            onNavigate={navigate}
+          />
+
+          <SearchDemandCard
+            analytics={searchAnalytics}
             onNavigate={navigate}
           />
         </section>

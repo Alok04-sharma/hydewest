@@ -39,6 +39,10 @@ import MySubscription from "../pages/host/MySubscription";
 import HostNotifications from "../pages/host/HostNotifications";
 import OwnerDashboard from "../pages/owner/OwnerDashboard";
 import AdminRevenueAnalytics from "../pages/owner/AdminRevenueAnalytics";
+import SearchAnalytics from "../pages/owner/SearchAnalytics";
+import SupportManagement from "../pages/owner/SupportManagement";
+import SupportCenter from "../pages/support/SupportCenter";
+import LegalPage from "../pages/legal/LegalPage";
 import HostManagement from "../pages/owner/HostManagement";
 import HostProfile from "../pages/owner/HostProfile";
 import ListingManagement from "../pages/owner/ListingManagement";
@@ -65,6 +69,9 @@ export default function AppRoutes() {
         <Route path="login" element={<Login />} />
         <Route path="register" element={<SignUpPage />} />
         <Route path="verify-otp" element={<VerifyOTP />} />
+        <Route path="support" element={<SupportCenter />} />
+        <Route path="privacy" element={<LegalPage />} />
+        <Route path="terms" element={<LegalPage />} />
         <Route element={<ProtectedRoute />}><Route path="profile" element={<Profile />} /></Route>
 
         <Route element={<GuestRoute />}>
@@ -110,6 +117,8 @@ export default function AppRoutes() {
         <Route element={<OwnerRoute />}>
           <Route path="owner/dashboard" element={<OwnerDashboard />} />
           <Route path="owner/revenue-analytics" element={<AdminRevenueAnalytics />} />
+          <Route path="owner/search-analytics" element={<SearchAnalytics />} />
+          <Route path="owner/support" element={<SupportManagement />} />
           <Route path="owner/hosts" element={<HostManagement />} />
           <Route path="owner/hosts/:hostId" element={<HostProfile />} />
           <Route path="owner/listings" element={<ListingManagement />} />

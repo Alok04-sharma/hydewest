@@ -17,6 +17,7 @@ import {
 } from "react-icons/fi";
 
 import hostService from "../../services/host.service";
+import UberRideButton from "../../components/common/UberRideButton";
 import subscriptionService from "../../services/subscription.service";
 
 const currency = (value) =>
@@ -136,7 +137,9 @@ function RevenueAreaChart({ items }) {
     return (
       <div className="grid h-64 place-items-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 text-center">
         <div>
-          <p className="text-sm font-black text-slate-700">No revenue data yet</p>
+          <p className="text-sm font-black text-slate-700">
+            No revenue data yet
+          </p>
           <p className="mt-1 text-xs text-slate-400">
             Successful booking payments will appear here.
           </p>
@@ -163,8 +166,20 @@ function RevenueAreaChart({ items }) {
             <stop offset="55%" stopColor="#ff385c" />
             <stop offset="100%" stopColor="#fb7185" />
           </linearGradient>
-          <filter id="dashboardRevenueGlow" x="-40%" y="-40%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="7" stdDeviation="7" floodColor="#ff385c" floodOpacity="0.20" />
+          <filter
+            id="dashboardRevenueGlow"
+            x="-40%"
+            y="-40%"
+            width="180%"
+            height="180%"
+          >
+            <feDropShadow
+              dx="0"
+              dy="7"
+              stdDeviation="7"
+              floodColor="#ff385c"
+              floodOpacity="0.20"
+            />
           </filter>
         </defs>
 
@@ -271,11 +286,15 @@ function StatCard({ title, value, helper, icon: Icon, style, to, onNavigate }) {
 
       <div className="relative flex flex-1 items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="min-h-10 text-xs font-black uppercase leading-5 tracking-[0.08em] text-slate-600">{title}</p>
+          <p className="min-h-10 text-xs font-black uppercase leading-5 tracking-[0.08em] text-slate-600">
+            {title}
+          </p>
           <p className="mt-1 break-words text-2xl font-black leading-tight tracking-tight text-slate-950 sm:text-[1.7rem]">
             {value}
           </p>
-          <p className="mt-2 min-h-8 text-[11px] font-semibold leading-4 text-slate-500">{helper}</p>
+          <p className="mt-2 min-h-8 text-[11px] font-semibold leading-4 text-slate-500">
+            {helper}
+          </p>
         </div>
 
         <motion.div
@@ -400,6 +419,7 @@ export default function HostDashboard() {
           </div>
 
           <div className="flex flex-wrap gap-2">
+            <UberRideButton compact />
             <button
               type="button"
               onClick={() => loadDashboard(true)}
@@ -474,7 +494,13 @@ export default function HostDashboard() {
                       </span>
                     </div>
 
-                    <p className={`mt-2 text-sm font-semibold leading-6 ${hasActiveSubscription ? "text-emerald-950/80" : "text-amber-950/80"}`}>
+                    <p
+                      className={`mt-2 text-sm font-semibold leading-6 ${
+                        hasActiveSubscription
+                          ? "text-emerald-950/80"
+                          : "text-amber-950/80"
+                      }`}
+                    >
                       {hasActiveSubscription
                         ? `${
                             activeSubscription?.planName || "Host plan"
@@ -490,7 +516,9 @@ export default function HostDashboard() {
                     <p className="mt-2 text-xl font-black text-white">
                       {subscriptionSummary.remainingDays || 0}
                     </p>
-                    <p className="text-[11px] font-semibold text-emerald-100/70">Days left</p>
+                    <p className="text-[11px] font-semibold text-emerald-100/70">
+                      Days left
+                    </p>
                   </div>
 
                   <div className="rounded-2xl border border-cyan-300/25 bg-gradient-to-br from-cyan-950 to-slate-900 p-4 text-white shadow-lg">
@@ -498,7 +526,9 @@ export default function HostDashboard() {
                     <p className="mt-2 text-xs font-black text-white">
                       {formatDate(activeSubscription?.expiryDate)}
                     </p>
-                    <p className="text-[11px] font-semibold text-cyan-100/70">Expiry</p>
+                    <p className="text-[11px] font-semibold text-cyan-100/70">
+                      Expiry
+                    </p>
                   </div>
 
                   <div className="rounded-2xl border border-violet-300/25 bg-gradient-to-br from-violet-950 to-slate-900 p-4 text-white shadow-lg">
@@ -512,7 +542,9 @@ export default function HostDashboard() {
                           activeSubscription?.nextRenewalDate
                       )}
                     </p>
-                    <p className="text-[11px] font-semibold text-violet-100/70">Renewal</p>
+                    <p className="text-[11px] font-semibold text-violet-100/70">
+                      Renewal
+                    </p>
                   </div>
 
                   <Link
@@ -637,7 +669,9 @@ export default function HostDashboard() {
                     </div>
                     <div
                       className={`rounded-2xl border px-3 py-2.5 ${
-                        revenueGrowth >= 0 ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"
+                        revenueGrowth >= 0
+                          ? "border-emerald-200 bg-emerald-50"
+                          : "border-rose-200 bg-rose-50"
                       }`}
                     >
                       <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -665,7 +699,8 @@ export default function HostDashboard() {
                       Best month
                     </p>
                     <p className="mt-1 text-sm font-black">
-                      {highestMonth?.month || "—"} · {currency(highestMonth?.revenue)}
+                      {highestMonth?.month || "—"} ·{" "}
+                      {currency(highestMonth?.revenue)}
                     </p>
                   </div>
                   <span className="text-xs font-black text-rose-300 transition group-hover:translate-x-1">
@@ -695,12 +730,15 @@ export default function HostDashboard() {
                     {revenueGrowth.toFixed(1)}%
                   </p>
                   <p className="mt-3 text-xs leading-5 text-white/45">
-                    Current month compared with previous month successful booking
-                    payments.
+                    Current month compared with previous month successful
+                    booking payments.
                   </p>
 
                   <div className="mt-8 rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-                    <FiDollarSign aria-hidden="true" className="text-xl text-rose-300" />
+                    <FiDollarSign
+                      aria-hidden="true"
+                      className="text-xl text-rose-300"
+                    />
                     <p className="mt-3 text-2xl font-black">
                       {currency(overview.totalEarnings)}
                     </p>
@@ -726,7 +764,9 @@ export default function HostDashboard() {
                     <h2 className="text-lg font-black text-gray-950">
                       Recent properties
                     </h2>
-                    <p className="text-xs text-gray-500">Latest listing activity</p>
+                    <p className="text-xs text-gray-500">
+                      Latest listing activity
+                    </p>
                   </div>
                   <Link
                     to="/host/listings"
@@ -763,7 +803,7 @@ export default function HostDashboard() {
                               listing.pricing?.basePrice ||
                                 listing.pricing?.pricePerNight ||
                                 0
-                            ).toLocaleString("en-IN")} {" "}
+                            ).toLocaleString("en-IN")}{" "}
                             / {listing.pricing?.priceUnit || "night"}
                           </p>
                         </div>
@@ -772,8 +812,8 @@ export default function HostDashboard() {
                             listing.status === "approved"
                               ? "bg-emerald-50 text-emerald-700"
                               : listing.status === "pending"
-                                ? "bg-amber-50 text-amber-700"
-                                : "bg-red-50 text-red-700"
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-red-50 text-red-700"
                           }`}
                         >
                           {listing.status}
@@ -826,7 +866,7 @@ export default function HostDashboard() {
                           <p className="mt-1 truncate text-xs text-gray-500">
                             {booking.guest?.name ||
                               booking.guest?.email ||
-                              "Guest"} {" "}
+                              "Guest"}{" "}
                             • {formatDate(booking.checkIn)}
                           </p>
                         </div>
