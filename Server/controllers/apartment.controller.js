@@ -10,6 +10,7 @@ const uploadToCloudinary = require("../utils/uploadToCloudinary");
 const deleteFromCloudinary = require("../utils/deleteFromCloudinary");
 const { createAdminNotifications } = require("../services/notification.service");
 const { calculateListingQuote } = require("../services/listingPricing.service");
+const { recordSearch } = require("../services/searchAnalytics.service");
 const { generateRatesFromDailyPrice, cloneDefaultCouponPresets } = require("../constants/pricingPresets");
 
 const JSON_FIELDS = [
@@ -905,6 +906,8 @@ const getListingQuote = asyncHandler(async (req, res) => {
 });
 
 const searchApartments = asyncHandler(async (req, res) => {
+  // Search tracking is intentionally non-blocking; analytics must never delay results.
+  recordSearch({ query: req.query, guestId: req.user?._id || null }).catch(() => null);
   const {
     city,
     location,

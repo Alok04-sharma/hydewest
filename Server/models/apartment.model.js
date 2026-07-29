@@ -660,6 +660,21 @@ const apartmentSchema = new mongoose.Schema(
       default: [],
     },
 
+    aiPriceSuggestions: {
+      type: [
+        {
+          currentPrice: { type: Number, required: true, min: 1 },
+          suggestedPrice: { type: Number, required: true, min: 1 },
+          reason: { type: String, required: true, trim: true, maxlength: 500 },
+          context: { type: mongoose.Schema.Types.Mixed, default: {} },
+          status: { type: String, enum: ["pending", "accepted", "rejected"], default: "pending", index: true },
+          createdAt: { type: Date, default: Date.now },
+          resolvedAt: { type: Date, default: null },
+        },
+      ],
+      default: [],
+    },
+
     isDeleted: {
       type: Boolean,
       default: false,

@@ -14,6 +14,8 @@ const NOTIFICATION_TYPE = Object.freeze({
   CHECKOUT_REMINDER: "checkout_reminder",
   ROOM_AVAILABLE: "room_available",
   NEW_CHAT_MESSAGE: "new_chat_message",
+  SUPPORT_TICKET: "support_ticket",
+  AI_PRICE_SUGGESTION: "ai_price_suggestion",
 
   HOST_SUBSCRIPTION_PAYMENT_RECEIVED: "host_subscription_payment_received",
   HOST_SUBSCRIPTION_PAYMENT_PENDING: "host_subscription_payment_pending",

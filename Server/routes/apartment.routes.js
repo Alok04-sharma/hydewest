@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/auth.middleware");
+const optionalAuthMiddleware = require("../middleware/optionalAuth.middleware");
 const roleMiddleware = require("../middleware/role.middleware");
 const upload = require("../middleware/upload.middleware");
 const activeSubscriptionMiddleware = require("../middleware/activeSubscription.middleware");
@@ -11,6 +12,8 @@ const ROLES = require("../constants/roles");
 const {
   getNameSuggestions,
   improveDescription,
+  createPriceSuggestion,
+  resolvePriceSuggestion,
 } = require("../controllers/listingAi.controller");
 
 const {
@@ -26,7 +29,7 @@ const {
 } = require("../controllers/apartment.controller");
 
 // Public static routes first.
-router.get("/search", searchApartments);
+router.get("/search", optionalAuthMiddleware, searchApartments);
 router.get("/", getAllApartments);
 
 // Phase-1 OpenRouter helpers. No key is exposed to the browser.
@@ -41,6 +44,18 @@ router.post(
   authMiddleware,
   roleMiddleware(ROLES.HOST),
   improveDescription
+);
+router.post(
+  "/ai/price-suggestion",
+  authMiddleware,
+  roleMiddleware(ROLES.HOST),
+  createPriceSuggestion
+);
+router.patch(
+  "/:id/ai-price-suggestions/:suggestionId",
+  authMiddleware,
+  roleMiddleware(ROLES.HOST),
+  resolvePriceSuggestion
 );
 
 // Host-owned listing routes must stay before public /:id.

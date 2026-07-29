@@ -15,6 +15,10 @@ const {
   getReferralSummary,
   trackReferralVisit,
 } = require("../services/referral.service");
+const {
+  rankGuestRecommendations,
+  generateGuestTripPlan,
+} = require("../services/openRouter.service");
 
 const APPROVED_LISTING = {
   status: APARTMENT_STATUS.APPROVED,
@@ -156,33 +160,94 @@ const getSmartRecommendations = asyncHandler(async (req, res) => {
     guest: req.user._id,
     isDeleted: false,
   })
-    .populate("apartment", "location propertyType amenities")
+    .populate("apartment", "title location propertyType amenities pricing rating")
     .sort({ createdAt: -1 })
-    .limit(10)
+    .limit(12)
     .lean();
 
-  const lastApartment = bookings.find((item) => item.apartment)?.apartment;
+  const visitedApartments = bookings
+    .map((item) => item.apartment)
+    .filter(Boolean);
+
+  const recentCities = [...new Set(
+    visitedApartments.map((item) => item.location?.city).filter(Boolean)
+  )].slice(0, 5);
+  const preferredTypes = [...new Set(
+    visitedApartments.map((item) => item.propertyType).filter(Boolean)
+  )].slice(0, 5);
+  const preferredAmenities = [...new Set(
+    visitedApartments.flatMap((item) => item.amenities || [])
+  )].slice(0, 12);
+
   const query = { ...APPROVED_LISTING };
+  if (preferredTypes.length) query.propertyType = { $in: preferredTypes };
+  if (recentCities.length) query["location.city"] = { $nin: recentCities };
 
-  if (lastApartment?.propertyType) {
-    query.propertyType = lastApartment.propertyType;
-  }
-  if (lastApartment?.location?.city) {
-    query["location.city"] = { $ne: lastApartment.location.city };
-  }
-
-  const recommendations = await Apartment.find(query)
+  let candidates = await Apartment.find(query)
     .populate("host", "name avatar")
     .sort({ rating: -1, bookingCount: -1, createdAt: -1 })
-    .limit(10)
+    .limit(20)
     .lean();
 
+  if (candidates.length < 8) {
+    candidates = await Apartment.find(APPROVED_LISTING)
+      .populate("host", "name avatar")
+      .sort({ rating: -1, bookingCount: -1, createdAt: -1 })
+      .limit(20)
+      .lean();
+  }
+
+  let aiResult = null;
+  let aiWarning = "";
+
+  try {
+    aiResult = await rankGuestRecommendations({
+      guestContext: {
+        recentCities,
+        preferredTypes,
+        preferredAmenities,
+        completedOrRecentBookings: bookings.length,
+      },
+      candidates,
+    });
+  } catch (error) {
+    aiWarning = error.message || "AI ranking was temporarily unavailable.";
+  }
+
+  const reasonById = new Map(
+    (aiResult?.ranked || []).map((item) => [String(item.id), item.reason])
+  );
+  const orderById = new Map(
+    (aiResult?.ranked || []).map((item, index) => [String(item.id), index])
+  );
+
+  const recommendations = [...candidates]
+    .sort((first, second) => {
+      const firstRank = orderById.has(String(first._id))
+        ? orderById.get(String(first._id))
+        : Number.MAX_SAFE_INTEGER;
+      const secondRank = orderById.has(String(second._id))
+        ? orderById.get(String(second._id))
+        : Number.MAX_SAFE_INTEGER;
+      return firstRank - secondRank;
+    })
+    .slice(0, 10)
+    .map((apartment) => ({
+      ...apartment,
+      recommendationReason:
+        reasonById.get(String(apartment._id)) ||
+        "Popular, well-rated stay matched to your recent hydewest activity.",
+    }));
+
   return sendResponse(res, 200, true, "Smart recommendations fetched.", {
-    reason: lastApartment
-      ? `Because you explored ${
-          lastApartment.location?.city || lastApartment.propertyType
-        }.`
-      : "Popular stays selected for you.",
+    reason:
+      aiResult?.reason ||
+      (recentCities.length
+        ? `Selected from your recent interest in ${recentCities.join(", ")}.`
+        : "Popular stays selected from your hydewest activity."),
+    insights: aiResult?.insights || [],
+    aiGenerated: Boolean(aiResult),
+    aiWarning,
     recommendations,
   });
 });
@@ -201,31 +266,74 @@ const createTripPlan = asyncHandler(async (req, res) => {
 
   const city = String(req.body.city || "").trim();
   const budget = Math.max(Number(req.body.budget || 0), 0);
-  const days = Math.max(Number(req.body.days || 1), 1);
-  const guests = Math.max(Number(req.body.guests || 1), 1);
-  const perStayBudget = budget > 0 ? budget / days : 0;
+  const days = Math.min(Math.max(Number(req.body.days || 1), 1), 30);
+  const guests = Math.min(Math.max(Number(req.body.guests || 1), 1), 20);
+
+  if (city.length < 2) {
+    return sendResponse(res, 400, false, "Enter a destination to create a trip plan.");
+  }
+  if (budget <= 0) {
+    return sendResponse(res, 400, false, "Enter a valid total trip budget.");
+  }
+
+  const estimatedStayBudget = budget * 0.6;
+  const perNightBudget = estimatedStayBudget / Math.max(days - 1, 1);
   const query = {
     ...APPROVED_LISTING,
     guests: { $gte: guests },
+    "location.city": { $regex: city, $options: "i" },
   };
 
-  if (city) query["location.city"] = { $regex: city, $options: "i" };
-  if (perStayBudget > 0) query["pricing.basePrice"] = { $lte: perStayBudget };
+  if (perNightBudget > 0) {
+    query.$or = [
+      { "pricing.rates.night": { $lte: perNightBudget * 1.25 } },
+      { "pricing.basePrice": { $lte: perNightBudget * 1.25 } },
+      { "pricing.pricePerNight": { $lte: perNightBudget * 1.25 } },
+    ];
+  }
 
-  const stays = await Apartment.find(query)
+  let stays = await Apartment.find(query)
     .populate("host", "name avatar")
-    .sort({ rating: -1 })
-    .limit(6)
+    .sort({ rating: -1, bookingCount: -1 })
+    .limit(8)
     .lean();
 
-  const itinerary = Array.from({ length: days }, (_, index) => ({
+  if (!stays.length) {
+    stays = await Apartment.find({
+      ...APPROVED_LISTING,
+      guests: { $gte: guests },
+      "location.city": { $regex: city, $options: "i" },
+    })
+      .populate("host", "name avatar")
+      .sort({ rating: -1, bookingCount: -1 })
+      .limit(8)
+      .lean();
+  }
+
+  let aiPlan = null;
+  let aiWarning = "";
+
+  try {
+    aiPlan = await generateGuestTripPlan({
+      city,
+      budget,
+      days,
+      guests,
+      candidateStays: stays,
+    });
+  } catch (error) {
+    aiWarning = error.message || "AI planning was temporarily unavailable.";
+  }
+
+  const fallbackItinerary = Array.from({ length: days }, (_, index) => ({
     day: index + 1,
     morning:
       index === 0
-        ? "Check in and explore the nearby area"
-        : "Local sightseeing and breakfast",
-    afternoon: "Visit a popular local attraction",
-    evening: "Explore local food, markets, or a nearby viewpoint",
+        ? "Arrive, check in and take a relaxed walk around the neighbourhood."
+        : "Start with breakfast and a comfortable local experience.",
+    afternoon: "Explore a popular local area while keeping travel time practical.",
+    evening: "Try local food and keep some flexible time for rest or shopping.",
+    estimatedSpend: Math.round((budget * 0.4) / days),
   }));
 
   return sendResponse(res, 200, true, "Trip plan generated.", {
@@ -234,7 +342,17 @@ const createTripPlan = asyncHandler(async (req, res) => {
     days,
     guests,
     stays,
-    itinerary,
+    summary:
+      aiPlan?.summary ||
+      `A balanced ${days}-day plan for ${city}, prepared around your total budget.`,
+    travelStyle: aiPlan?.travelStyle || "Balanced explorer",
+    budgetAdvice:
+      aiPlan?.budgetAdvice ||
+      "Reserve part of the budget for local transport and unexpected changes.",
+    tips: aiPlan?.tips || [],
+    itinerary: aiPlan?.itinerary || fallbackItinerary,
+    aiGenerated: Boolean(aiPlan),
+    aiWarning,
   });
 });
 

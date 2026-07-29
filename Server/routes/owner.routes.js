@@ -7,6 +7,7 @@ const roleMiddleware = require("../middleware/role.middleware");
 const ROLES = require("../constants/roles");
 
 const { getRevenueAnalytics } = require("../controllers/ownerAnalytics.controller");
+const { getSearchAnalytics } = require("../controllers/ownerSearchAnalytics.controller");
 
 const {
   getDashboard,
@@ -56,6 +57,7 @@ router.use(roleMiddleware(ROLES.OWNER, ROLES.SUPER_ADMIN));
 // Super Admin Dashboard
 router.get("/dashboard", getDashboard);
 router.get("/analytics/revenue", getRevenueAnalytics);
+router.get("/analytics/search", getSearchAnalytics);
 
 // Notifications — static routes before /:notificationId
 router.get("/notifications", getNotifications);
