@@ -115,7 +115,7 @@ export default function VerifyOTP() {
         </h2>
 
         <p className="mt-2 text-center text-sm text-gray-600">
-          We sent an OTP to {" "}
+          We sent an OTP to{" "}
           <span className="font-semibold text-gray-900">{activeEmail}</span>.
         </p>
       </div>

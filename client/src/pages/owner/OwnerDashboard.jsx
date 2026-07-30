@@ -235,19 +235,19 @@ function HotMapCard({ locations, onNavigate }) {
       }}
       role="link"
       tabIndex={0}
-      className="group relative cursor-pointer overflow-hidden rounded-[28px] border border-rose-200 bg-gradient-to-br from-rose-950 via-fuchsia-950 to-slate-950 p-5 text-white shadow-[0_20px_65px_rgba(136,19,55,.24)] focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-200 sm:col-span-2 sm:p-6 xl:col-span-3"
+      className="group relative cursor-pointer overflow-hidden rounded-[28px] border border-rose-200 bg-gradient-to-br from-rose-50 via-fuchsia-50 to-violet-100 p-5 text-slate-950 shadow-[0_20px_65px_rgba(136,19,55,.14)] focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-200 sm:col-span-2 sm:p-6 xl:col-span-3"
     >
-      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-rose-500/20 blur-3xl transition duration-500 group-hover:scale-125" />
-      <div className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-violet-500/15 blur-3xl" />
+      <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-rose-300/35 blur-3xl transition duration-500 group-hover:scale-125" />
+      <div className="pointer-events-none absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-violet-300/30 blur-3xl" />
 
       <div className="relative grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)] lg:items-center">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-rose-300/20 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-rose-100 backdrop-blur">
+          <div className="inline-flex items-center gap-2 rounded-full border border-rose-300 bg-white/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-rose-950 backdrop-blur">
             <FiMapPin />
             HOT MAP
           </div>
 
-          <p className="mt-4 text-sm font-semibold text-white/60">
+          <p className="mt-4 text-sm font-semibold text-slate-600">
             Highest booking concentration
           </p>
 
@@ -256,16 +256,16 @@ function HotMapCard({ locations, onNavigate }) {
           </h2>
 
           <div className="mt-4 flex flex-wrap gap-3">
-            <span className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-black backdrop-blur">
+            <span className="rounded-2xl border border-slate-200 bg-white/75 px-3 py-2 text-sm font-black text-slate-950 backdrop-blur">
               {formatNumber(topLocation?.bookingCount || 0)} bookings
             </span>
 
-            <span className="rounded-2xl border border-white/10 bg-white/10 px-3 py-2 text-sm font-black text-amber-200 backdrop-blur">
+            <span className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-black text-amber-900 backdrop-blur">
               {formatCurrency(topLocation?.revenue || 0)} volume
             </span>
           </div>
 
-          <p className="mt-4 text-xs font-semibold text-rose-100/65">
+          <p className="mt-4 text-xs font-semibold text-rose-900/70">
             Click to open location analytics and full ranking.
           </p>
         </div>
@@ -281,15 +281,15 @@ function HotMapCard({ locations, onNavigate }) {
               return (
                 <div key={`${row.label}-${index}`}>
                   <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
-                    <span className="truncate font-bold text-white/80">
+                    <span className="truncate font-bold text-slate-700">
                       {index + 1}. {row.label}
                     </span>
-                    <span className="shrink-0 font-black text-white">
+                    <span className="shrink-0 font-black text-slate-950">
                       {formatNumber(row.bookingCount)}
                     </span>
                   </div>
 
-                  <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${width}%` }}
@@ -301,7 +301,7 @@ function HotMapCard({ locations, onNavigate }) {
               );
             })
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-5 text-sm font-semibold text-white/55">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 p-5 text-sm font-semibold text-slate-600">
               Paid booking location data is not available yet.
             </div>
           )}
@@ -997,7 +997,7 @@ export default function OwnerDashboard() {
               growth.guests
             }
             accent="bg-blue-100 text-blue-700"
-            to="/owner/bookings"
+            to="/owner/guests"
             onNavigate={navigate}
           />
 

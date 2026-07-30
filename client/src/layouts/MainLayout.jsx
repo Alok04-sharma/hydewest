@@ -1,8 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import {
+  Link,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import {
+  AnimatePresence,
+  motion,
+} from "framer-motion";
 import { FiSearch } from "react-icons/fi";
-import { useDispatch, useSelector } from "react-redux";
+import {
+  useDispatch,
+  useSelector,
+} from "react-redux";
+
 import { logoutUser } from "../redux/slices/authSlice";
 import NotificationBell from "../components/common/NotificationBell";
 import RoleSidebar from "../components/layout/RoleSidebar";
@@ -11,67 +23,151 @@ import SearchBar from "../components/home/SearchBar";
 import guestMembershipService from "../services/guestMembership.service";
 import subscriptionService from "../services/subscription.service";
 
-const getRoleType = (user) => {
-  const role = String(user?.role || "").toLowerCase();
+// ======================================
+// User role resolver
+// ======================================
 
-  if (["super_admin", "owner", "admin"].includes(role)) {
+const getRoleType = (user) => {
+  const role = String(
+    user?.role || ""
+  ).toLowerCase();
+
+  if (
+    [
+      "super_admin",
+      "owner",
+      "admin",
+    ].includes(role)
+  ) {
     return "admin";
   }
 
-  if (role === "host" || user?.isHost === true) {
+  if (
+    role === "host" ||
+    user?.isHost === true
+  ) {
     return "host";
   }
 
   return "guest";
 };
 
+// ======================================
+// Role based notification configuration
+// ======================================
+
 const roleMeta = {
   admin: {
-    notificationPath: "/owner/notifications",
+    notificationPath:
+      "/owner/notifications",
     tone: "admin",
   },
+
   host: {
-    notificationPath: "/host/notifications",
+    notificationPath:
+      "/host/notifications",
     tone: "host",
   },
+
   guest: {
-    notificationPath: "/notifications",
+    notificationPath:
+      "/notifications",
     tone: "host",
   },
 };
 
 export default function MainLayout() {
-  const { user, isAuthenticated } = useSelector((state) => state.auth);
+  const {
+    user,
+    isAuthenticated,
+  } = useSelector(
+    (state) => state.auth
+  );
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [guestMembership, setGuestMembership] = useState(null);
-  const [hostSubscription, setHostSubscription] = useState(null);
-  const [homeSearchDocked, setHomeSearchDocked] = useState(false);
-  const [homeNavbarSearchOpen, setHomeNavbarSearchOpen] = useState(false);
-  const [homeMobileSearchRequest, setHomeMobileSearchRequest] = useState(0);
+  const [
+    mobileSidebarOpen,
+    setMobileSidebarOpen,
+  ] = useState(false);
 
-  const roleType = getRoleType(user);
-  const meta = roleMeta[roleType];
-  const isHomePage = location.pathname === "/";
-  const useWorkspaceSidebar = Boolean(isAuthenticated && !isHomePage);
+  const [
+    sidebarCollapsed,
+    setSidebarCollapsed,
+  ] = useState(false);
+
+  const [
+    guestMembership,
+    setGuestMembership,
+  ] = useState(null);
+
+  const [
+    hostSubscription,
+    setHostSubscription,
+  ] = useState(null);
+
+  const [
+    homeSearchDocked,
+    setHomeSearchDocked,
+  ] = useState(false);
+
+  const [
+    homeNavbarSearchOpen,
+    setHomeNavbarSearchOpen,
+  ] = useState(false);
+
+  const [
+    homeMobileSearchRequest,
+    setHomeMobileSearchRequest,
+  ] = useState(0);
+
+  const roleType =
+    getRoleType(user);
+
+  const meta =
+    roleMeta[roleType];
+
+  const isHomePage =
+    location.pathname === "/";
+
+  const useWorkspaceSidebar =
+    Boolean(
+      isAuthenticated &&
+        !isHomePage
+    );
 
   const avatarUrl =
-    typeof user?.avatar === "string"
+    typeof user?.avatar ===
+    "string"
       ? user.avatar
       : user?.avatar?.url || "";
 
-  useEffect(() => {
-    setMobileSidebarOpen(false);
-  }, [location.pathname, location.search]);
+  // ======================================
+  // Close mobile sidebar after navigation
+  // ======================================
 
   useEffect(() => {
-    const handleDockState = (event) => {
-      setHomeSearchDocked(Boolean(event.detail?.docked));
+    setMobileSidebarOpen(false);
+  }, [
+    location.pathname,
+    location.search,
+  ]);
+
+  // ======================================
+  // Homepage search dock event listener
+  // ======================================
+
+  useEffect(() => {
+    const handleDockState = (
+      event
+    ) => {
+      setHomeSearchDocked(
+        Boolean(
+          event.detail?.docked
+        )
+      );
     };
 
     window.addEventListener(
@@ -87,26 +183,43 @@ export default function MainLayout() {
     };
   }, []);
 
+  // ======================================
+  // Reset homepage search outside homepage
+  // ======================================
+
   useEffect(() => {
     if (!isHomePage) {
       setHomeSearchDocked(false);
-      setHomeNavbarSearchOpen(false);
+      setHomeNavbarSearchOpen(
+        false
+      );
     }
   }, [isHomePage]);
 
   useEffect(() => {
     if (!homeSearchDocked) {
-      setHomeNavbarSearchOpen(false);
+      setHomeNavbarSearchOpen(
+        false
+      );
     }
   }, [homeSearchDocked]);
+
+  // ======================================
+  // Load Guest membership
+  // ======================================
 
   useEffect(() => {
     let active = true;
 
     async function loadGuestMembership() {
-      if (!isAuthenticated || roleType !== "guest") {
+      if (
+        !isAuthenticated ||
+        roleType !== "guest"
+      ) {
         if (active) {
-          setGuestMembership(null);
+          setGuestMembership(
+            null
+          );
         }
 
         return;
@@ -117,11 +230,15 @@ export default function MainLayout() {
           await guestMembershipService.getMyMembership();
 
         if (active) {
-          setGuestMembership(response.data || null);
+          setGuestMembership(
+            response.data || null
+          );
         }
       } catch {
         if (active) {
-          setGuestMembership(null);
+          setGuestMembership(
+            null
+          );
         }
       }
     }
@@ -138,13 +255,22 @@ export default function MainLayout() {
     location.pathname,
   ]);
 
+  // ======================================
+  // Load Host subscription
+  // ======================================
+
   useEffect(() => {
     let active = true;
 
     async function loadHostSubscription() {
-      if (!isAuthenticated || roleType !== "host") {
+      if (
+        !isAuthenticated ||
+        roleType !== "host"
+      ) {
         if (active) {
-          setHostSubscription(null);
+          setHostSubscription(
+            null
+          );
         }
 
         return;
@@ -155,11 +281,15 @@ export default function MainLayout() {
           await subscriptionService.getMySubscription();
 
         if (active) {
-          setHostSubscription(response.data || null);
+          setHostSubscription(
+            response.data || null
+          );
         }
       } catch {
         if (active) {
-          setHostSubscription(null);
+          setHostSubscription(
+            null
+          );
         }
       }
     }
@@ -176,100 +306,163 @@ export default function MainLayout() {
     location.pathname,
   ]);
 
+  // ======================================
+  // Logout handler
+  // ======================================
+
   const handleLogout = async () => {
     try {
-      await dispatch(logoutUser()).unwrap();
+      await dispatch(
+        logoutUser()
+      ).unwrap();
     } catch {
-      // Logout API fail hone par bhi local authentication cleanup hota rahega.
+      // Logout thunk network error par bhi local session clear karta hai.
     } finally {
-      navigate("/login", {
-        replace: true,
-      });
+      navigate(
+        "/login",
+        {
+          replace: true,
+        }
+      );
     }
   };
 
-  // Navbar Explore action: sabhi user roles ke liye homepage listings tak smooth scroll karega.
-  const handleExploreListings = (event) => {
+  // ======================================
+  // Homepage Explore navigation
+  // ======================================
+
+  const handleExploreListings = (
+    event
+  ) => {
     event.preventDefault();
 
-    if (location.pathname !== "/") {
-      navigate("/#home-properties");
+    if (
+      location.pathname !== "/"
+    ) {
+      navigate(
+        "/#home-properties"
+      );
+
       return;
     }
 
     document
-      .getElementById("home-properties")
+      .getElementById(
+        "home-properties"
+      )
       ?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
   };
 
-  const handleHomeSearchTrigger = () => {
-    const isMobile = window.matchMedia(
-      "(max-width: 767px)"
-    ).matches;
+  // ======================================
+  // Docked search trigger
+  // ======================================
 
-    if (isMobile) {
-      setHomeNavbarSearchOpen(false);
-      setHomeMobileSearchRequest(
-        (current) => current + 1
+  const handleHomeSearchTrigger =
+    () => {
+      const isMobile =
+        window.matchMedia(
+          "(max-width: 767px)"
+        ).matches;
+
+      if (isMobile) {
+        setHomeNavbarSearchOpen(
+          false
+        );
+
+        setHomeMobileSearchRequest(
+          (current) =>
+            current + 1
+        );
+
+        return;
+      }
+
+      setHomeNavbarSearchOpen(
+        (current) => !current
       );
-      return;
-    }
+    };
 
-    setHomeNavbarSearchOpen(
-      (current) => !current
+  const isPremiumGuest =
+    Boolean(
+      roleType === "guest" &&
+        guestMembership?.isActive
     );
-  };
 
-  const isPremiumGuest = Boolean(
-    roleType === "guest" &&
-      guestMembership?.isActive
-  );
+  const isPremiumHost =
+    Boolean(
+      roleType === "host" &&
+        hostSubscription?.isActive
+    );
 
-  const isPremiumHost = Boolean(
-    roleType === "host" &&
-      hostSubscription?.isActive
-  );
+  const contentOffset =
+    useWorkspaceSidebar
+      ? sidebarCollapsed
+        ? "lg:pl-[92px]"
+        : "lg:pl-[280px]"
+      : "";
 
-  const contentOffset = useWorkspaceSidebar
-    ? sidebarCollapsed
-      ? "lg:pl-[92px]"
-      : "lg:pl-[280px]"
-    : "";
+  const dashboardPath =
+    roleType === "admin"
+      ? "/owner/dashboard"
+      : roleType === "host"
+        ? "/host/dashboard"
+        : "/guest/dashboard";
 
   return (
     <div
       className={`min-h-screen text-slate-900 ${
-        isPremiumGuest && !isHomePage
+        isPremiumGuest &&
+        !isHomePage
           ? "premium-guest-shell premium-theme-dark"
-          : isPremiumHost && !isHomePage
+          : isPremiumHost &&
+              !isHomePage
             ? "premium-host-shell"
             : "hydewest-shell"
       }`}
     >
+      {/* Role workspace sidebar */}
       {useWorkspaceSidebar && (
         <RoleSidebar
           roleType={roleType}
           user={user}
           avatarUrl={avatarUrl}
-          collapsed={sidebarCollapsed}
-          mobileOpen={mobileSidebarOpen}
+          collapsed={
+            sidebarCollapsed
+          }
+          mobileOpen={
+            mobileSidebarOpen
+          }
           onCloseMobile={() =>
-            setMobileSidebarOpen(false)
+            setMobileSidebarOpen(
+              false
+            )
           }
           onLogout={handleLogout}
-          isPremiumGuest={isPremiumGuest}
-          isPremiumHost={isPremiumHost}
-          membership={guestMembership}
-          hostSubscription={hostSubscription}
+          isPremiumGuest={
+            isPremiumGuest
+          }
+          isPremiumHost={
+            isPremiumHost
+          }
+          membership={
+            guestMembership
+          }
+          hostSubscription={
+            hostSubscription
+          }
         />
       )}
 
       <div
         className={`flex min-h-screen flex-col transition-[padding] duration-300 ${contentOffset}`}
       >
+        {/* ======================================
+            Homepage navbar
+        ====================================== */}
+
         {isHomePage && (
           <>
             <motion.header
@@ -283,7 +476,12 @@ export default function MainLayout() {
               }}
               transition={{
                 duration: 0.35,
-                ease: [0.22, 1, 0.36, 1],
+                ease: [
+                  0.22,
+                  1,
+                  0.36,
+                  1,
+                ],
               }}
               className={`fixed inset-x-0 top-0 z-[100] border-b shadow-[0_14px_45px_rgba(0,0,0,.18)] transition-all duration-500 ${
                 homeSearchDocked
@@ -291,10 +489,17 @@ export default function MainLayout() {
                   : "border-white/[0.1] bg-[#070a12]/30 backdrop-blur-xl"
               }`}
             >
-              <div className="relative mx-auto flex min-h-[68px] max-w-7xl items-center justify-between gap-2 px-3 sm:gap-3 sm:px-6 lg:px-8">
+              {/* 
+                Three-column navbar:
+                1. Brand exact left
+                2. Navigation exact centre
+                3. User actions exact right
+              */}
+              <div className="relative grid min-h-[68px] w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-2 sm:px-4 lg:px-5">
+                {/* Left navbar brand */}
                 <Link
                   to="/"
-                  className="flex min-w-0 items-center gap-2 sm:gap-3"
+                  className="col-start-1 flex min-w-0 items-center justify-self-start gap-2 overflow-hidden sm:gap-3"
                 >
                   <motion.span
                     whileHover={{
@@ -311,7 +516,8 @@ export default function MainLayout() {
                   </span>
                 </Link>
 
-                <nav className="hidden items-center gap-1 md:flex">
+                {/* Centre desktop navigation */}
+                <nav className="col-start-2 hidden items-center justify-self-center gap-1 md:flex">
                   <Link
                     to="/"
                     className="relative rounded-xl px-3 py-2 text-xs font-black text-white after:absolute after:inset-x-3 after:-bottom-0.5 after:h-0.5 after:rounded-full after:bg-[#ff4f78]"
@@ -319,10 +525,11 @@ export default function MainLayout() {
                     Home
                   </Link>
 
-                  {/* Navbar Explore link: homepage listing section ko open karega. */}
                   <Link
                     to="/#home-properties"
-                    onClick={handleExploreListings}
+                    onClick={
+                      handleExploreListings
+                    }
                     className="rounded-xl px-3 py-2 text-xs font-black text-white/68 transition hover:bg-white/[0.08] hover:text-white"
                   >
                     Explore
@@ -331,11 +538,7 @@ export default function MainLayout() {
                   {isAuthenticated && (
                     <Link
                       to={
-                        roleType === "admin"
-                          ? "/owner/dashboard"
-                          : roleType === "host"
-                            ? "/host/dashboard"
-                            : "/guest/dashboard"
+                        dashboardPath
                       }
                       className="rounded-xl px-3 py-2 text-xs font-black text-white/68 transition hover:bg-white/[0.08] hover:text-white"
                     >
@@ -344,8 +547,11 @@ export default function MainLayout() {
                   )}
                 </nav>
 
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <AnimatePresence initial={false}>
+                {/* Right navbar actions */}
+                <div className="col-start-3 flex min-w-0 items-center justify-self-end gap-1.5 sm:gap-2">
+                  <AnimatePresence
+                    initial={false}
+                  >
                     {homeSearchDocked && (
                       <motion.button
                         type="button"
@@ -371,7 +577,9 @@ export default function MainLayout() {
                         whileTap={{
                           scale: 0.94,
                         }}
-                        onClick={handleHomeSearchTrigger}
+                        onClick={
+                          handleHomeSearchTrigger
+                        }
                         className={`grid h-10 w-10 place-items-center rounded-2xl border text-base font-black shadow-lg transition sm:w-auto sm:px-3 ${
                           homeNavbarSearchOpen
                             ? "border-rose-300 bg-white text-[#a90838]"
@@ -382,7 +590,9 @@ export default function MainLayout() {
                           homeNavbarSearchOpen
                         }
                       >
-                        <FiSearch aria-hidden="true" />
+                        <FiSearch
+                          aria-hidden="true"
+                        />
 
                         <span className="ml-2 hidden text-xs sm:inline">
                           Search
@@ -394,7 +604,9 @@ export default function MainLayout() {
                   {isAuthenticated ? (
                     <>
                       <NotificationBell
-                        to={meta.notificationPath}
+                        to={
+                          meta.notificationPath
+                        }
                         tone={
                           isPremiumGuest
                             ? "admin"
@@ -404,11 +616,7 @@ export default function MainLayout() {
 
                       <Link
                         to={
-                          roleType === "admin"
-                            ? "/owner/dashboard"
-                            : roleType === "host"
-                              ? "/host/dashboard"
-                              : "/guest/dashboard"
+                          dashboardPath
                         }
                         className="hidden rounded-full bg-gradient-to-r from-[#ff4f78] to-[#b90e44] px-4 py-2.5 text-xs font-black text-white shadow-[0_12px_30px_rgba(255,56,92,.22)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_38px_rgba(255,56,92,.34)] lg:inline-flex"
                       >
@@ -421,16 +629,20 @@ export default function MainLayout() {
                       >
                         {avatarUrl ? (
                           <img
-                            src={avatarUrl}
+                            src={
+                              avatarUrl
+                            }
                             alt={
-                              user?.name || "Profile"
+                              user?.name ||
+                              "Profile"
                             }
                             className="h-full w-full object-cover"
                           />
                         ) : (
                           user?.name
                             ?.charAt(0)
-                            ?.toUpperCase() || "U"
+                            ?.toUpperCase() ||
+                          "U"
                         )}
                       </Link>
                     </>
@@ -453,6 +665,7 @@ export default function MainLayout() {
                   )}
                 </div>
 
+                {/* Desktop floating search */}
                 <AnimatePresence>
                   {homeSearchDocked &&
                     homeNavbarSearchOpen && (
@@ -492,6 +705,7 @@ export default function MainLayout() {
               </div>
             </motion.header>
 
+            {/* Mobile homepage search controller */}
             <SearchBar
               compact
               hideMobileTrigger
@@ -504,6 +718,10 @@ export default function MainLayout() {
           </>
         )}
 
+        {/* ======================================
+            Workspace mobile controls
+        ====================================== */}
+
         {useWorkspaceSidebar && (
           <>
             <motion.button
@@ -512,10 +730,13 @@ export default function MainLayout() {
                 scale: 0.94,
               }}
               onClick={() =>
-                setMobileSidebarOpen(true)
+                setMobileSidebarOpen(
+                  true
+                )
               }
               className={`fixed left-3 top-3 z-30 grid h-11 w-11 place-items-center rounded-2xl border text-lg font-black shadow-xl backdrop-blur lg:hidden ${
-                isPremiumGuest || isPremiumHost
+                isPremiumGuest ||
+                isPremiumHost
                   ? "border-amber-400/30 bg-[#171208]/90 text-amber-200"
                   : "border-rose-200/70 bg-[#fff8f8]/90 text-[#b20b3b]"
               }`}
@@ -534,7 +755,8 @@ export default function MainLayout() {
               }}
               onClick={() =>
                 setSidebarCollapsed(
-                  (current) => !current
+                  (current) =>
+                    !current
                 )
               }
               className={`fixed top-4 z-50 hidden h-10 w-10 place-items-center rounded-2xl border text-sm font-black shadow-lg backdrop-blur lg:grid ${
@@ -542,7 +764,8 @@ export default function MainLayout() {
                   ? "left-[72px]"
                   : "left-[260px]"
               } ${
-                isPremiumGuest || isPremiumHost
+                isPremiumGuest ||
+                isPremiumHost
                   ? "border-amber-400/25 bg-[#171208]/92 text-amber-200"
                   : "border-rose-200 bg-[#fff8f8]/92 text-[#b20b3b]"
               }`}
@@ -552,39 +775,51 @@ export default function MainLayout() {
                   : "Collapse sidebar"
               }
             >
-              {sidebarCollapsed ? "»" : "«"}
+              {sidebarCollapsed
+                ? "»"
+                : "«"}
             </motion.button>
           </>
         )}
 
+        {/* ======================================
+            Main page content
+        ====================================== */}
+
         <main
           className={`app-content relative flex-1 ${
-            isPremiumGuest && !isHomePage
+            isPremiumGuest &&
+            !isHomePage
               ? "premium-guest-content premium-theme-dark"
-              : isPremiumHost && !isHomePage
+              : isPremiumHost &&
+                  !isHomePage
                 ? "premium-host-content"
                 : ""
           }`}
           data-premium-guest={
-            isPremiumGuest && !isHomePage
+            isPremiumGuest &&
+            !isHomePage
               ? "true"
               : "false"
           }
           data-premium-host={
-            isPremiumHost && !isHomePage
+            isPremiumHost &&
+            !isHomePage
               ? "true"
               : "false"
           }
         >
-          {isPremiumGuest && !isHomePage && (
-            <div
-              aria-hidden="true"
-              className="premium-guest-ambient pointer-events-none absolute inset-x-0 top-0 h-[28rem] overflow-hidden"
-            >
-              <span className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
-              <span className="absolute left-1/4 top-16 h-52 w-52 rounded-full bg-yellow-600/8 blur-3xl" />
-            </div>
-          )}
+          {isPremiumGuest &&
+            !isHomePage && (
+              <div
+                aria-hidden="true"
+                className="premium-guest-ambient pointer-events-none absolute inset-x-0 top-0 h-[28rem] overflow-hidden"
+              >
+                <span className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-amber-300/10 blur-3xl" />
+
+                <span className="absolute left-1/4 top-16 h-52 w-52 rounded-full bg-yellow-600/8 blur-3xl" />
+              </div>
+            )}
 
           <AnimatePresence
             mode="wait"
@@ -606,7 +841,12 @@ export default function MainLayout() {
               }}
               transition={{
                 duration: 0.24,
-                ease: [0.22, 1, 0.36, 1],
+                ease: [
+                  0.22,
+                  1,
+                  0.36,
+                  1,
+                ],
               }}
               className="relative z-[1] min-h-full"
             >
@@ -623,10 +863,12 @@ export default function MainLayout() {
           </AnimatePresence>
         </main>
 
+        {/* Global footer */}
         <Footer
           compact={!isHomePage}
           premium={
-            (isPremiumGuest || isPremiumHost) &&
+            (isPremiumGuest ||
+              isPremiumHost) &&
             !isHomePage
           }
           theme="dark"

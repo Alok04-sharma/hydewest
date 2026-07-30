@@ -1,0 +1,82 @@
+/* ======================================
+   Premium Host Add Property readability
+====================================== */
+
+/* Current location heading and helper copy stay readable on the dark premium page. */
+.premium-host-add-property
+  .premium-host-page
+  h1[class*="text-slate-950"] {
+  color: #ffffff !important;
+}
+
+.premium-host-add-property
+  .premium-host-page
+  h1[class*="text-slate-950"]
+  + p[class*="text-slate-500"] {
+  color: rgba(255, 255, 255, 0.68) !important;
+}
+
+/* Browser-geolocation card uses a light surface with intentionally dark copy. */
+.premium-host-add-property
+  .premium-host-page
+  div[class*="rounded-[24px]"][class~="text-center"] {
+  border-color: rgba(253, 230, 138, 0.75) !important;
+  color: #0f172a !important;
+
+  background:
+    linear-gradient(
+      145deg,
+      #fffdf5 0%,
+      #fff7df 52%,
+      #ffedd5 100%
+    ) !important;
+
+  box-shadow:
+    0 18px 50px
+    rgba(0, 0, 0, 0.22);
+}
+
+.premium-host-add-property
+  .premium-host-page
+  div[class*="rounded-[24px]"][class~="text-center"]
+  h3 {
+  color: #0f172a !important;
+}
+
+.premium-host-add-property
+  .premium-host-page
+  div[class*="rounded-[24px]"][class~="text-center"]
+  h3
+  + p {
+  color: #475569 !important;
+  font-weight: 600;
+}
+
+/* Keep the location action clear on the new light card. */
+.premium-host-add-property
+  .premium-host-page
+  div[class*="rounded-[24px]"][class~="text-center"]
+  button {
+  color: #fef3c7 !important;
+  background: #0f172a !important;
+
+  box-shadow:
+    0 12px 28px
+    rgba(15, 23, 42, 0.2);
+}
+
+.premium-host-add-property
+  .premium-host-page
+  div[class*="rounded-[24px]"][class~="text-center"]
+  button:hover {
+  background: #1e293b !important;
+}
+
+/* Mobile spacing for current-coordinate card. */
+@media (max-width: 639px) {
+  .premium-host-add-property
+    .premium-host-page
+    div[class*="rounded-[24px]"][class~="text-center"] {
+    padding: 1.1rem !important;
+  }
+}

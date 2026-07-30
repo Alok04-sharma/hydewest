@@ -40,6 +40,7 @@ import HostNotifications from "../pages/host/HostNotifications";
 import OwnerDashboard from "../pages/owner/OwnerDashboard";
 import AdminRevenueAnalytics from "../pages/owner/AdminRevenueAnalytics";
 import SearchAnalytics from "../pages/owner/SearchAnalytics";
+import Users from "../pages/owner/Users";
 import SupportManagement from "../pages/owner/SupportManagement";
 import SupportCenter from "../pages/support/SupportCenter";
 import LegalPage from "../pages/legal/LegalPage";
@@ -118,6 +119,7 @@ export default function AppRoutes() {
           <Route path="owner/dashboard" element={<OwnerDashboard />} />
           <Route path="owner/revenue-analytics" element={<AdminRevenueAnalytics />} />
           <Route path="owner/search-analytics" element={<SearchAnalytics />} />
+          <Route path="owner/guests" element={<Users />} />
           <Route path="owner/support" element={<SupportManagement />} />
           <Route path="owner/hosts" element={<HostManagement />} />
           <Route path="owner/hosts/:hostId" element={<HostProfile />} />

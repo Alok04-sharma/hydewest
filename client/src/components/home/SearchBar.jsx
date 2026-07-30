@@ -1,12 +1,6 @@
-import React, {
-  useEffect,
-  useState,
-} from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  AnimatePresence,
-  motion,
-} from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useDispatch } from "react-redux";
 import {
   FiChevronDown,
@@ -37,41 +31,31 @@ export default function SearchBar({
   hideMobileTrigger = false,
   hideDesktopForm = false,
   mobileOpenRequest = 0,
+  heroCompact = false,
 }) {
-  const [city, setCityInput] =
-    useState("");
-
-  const [
-    propertyType,
-    setPropertyType,
-  ] = useState("");
-
-  const [guests, setGuests] =
-    useState("");
-
-  const [
-    isMobileModalOpen,
-    setIsMobileModalOpen,
-  ] = useState(false);
+  const [city, setCityInput] = useState("");
+  const [propertyType, setPropertyType] = useState("");
+  const [guests, setGuests] = useState("");
+  const [isMobileModalOpen, setIsMobileModalOpen] = useState(false);
 
   const dispatch = useDispatch();
 
+  // Navbar mobile search request modal open karta hai.
   useEffect(() => {
     if (mobileOpenRequest > 0) {
       setIsMobileModalOpen(true);
     }
   }, [mobileOpenRequest]);
 
+  // Mobile modal open hone par body scroll lock karta hai.
   useEffect(() => {
     if (!isMobileModalOpen) {
       return undefined;
     }
 
-    const previousOverflow =
-      document.body.style.overflow;
+    const previousOverflow = document.body.style.overflow;
 
-    document.body.style.overflow =
-      "hidden";
+    document.body.style.overflow = "hidden";
 
     const handleEscape = (event) => {
       if (event.key === "Escape") {
@@ -79,22 +63,15 @@ export default function SearchBar({
       }
     };
 
-    window.addEventListener(
-      "keydown",
-      handleEscape
-    );
+    window.addEventListener("keydown", handleEscape);
 
     return () => {
-      document.body.style.overflow =
-        previousOverflow;
-
-      window.removeEventListener(
-        "keydown",
-        handleEscape
-      );
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
     };
   }, [isMobileModalOpen]);
 
+  // Search filters submit karta hai.
   const handleSearch = (event) => {
     event?.preventDefault();
 
@@ -119,9 +96,7 @@ export default function SearchBar({
 
     window.requestAnimationFrame(() => {
       document
-        .getElementById(
-          "home-properties"
-        )
+        .getElementById("home-properties")
         ?.scrollIntoView({
           behavior: "smooth",
           block: "start",
@@ -129,12 +104,14 @@ export default function SearchBar({
     });
   };
 
+  // Search fields reset karta hai.
   const clear = () => {
     setCityInput("");
     setPropertyType("");
     setGuests("");
   };
 
+  // Mobile search modal.
   const mobileModal = (
     <AnimatePresence>
       {isMobileModalOpen && (
@@ -150,16 +127,11 @@ export default function SearchBar({
           }}
           className="fixed inset-0 z-[300] flex items-end bg-[#050611]/85 p-2 backdrop-blur-xl md:hidden"
           style={{
-            paddingTop:
-              "max(0.5rem, env(safe-area-inset-top))",
-            paddingBottom:
-              "max(0.5rem, env(safe-area-inset-bottom))",
+            paddingTop: "max(0.5rem, env(safe-area-inset-top))",
+            paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))",
           }}
           onMouseDown={(event) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
+            if (event.target === event.currentTarget) {
               setIsMobileModalOpen(false);
             }
           }}
@@ -200,9 +172,7 @@ export default function SearchBar({
 
               <button
                 type="button"
-                onClick={() =>
-                  setIsMobileModalOpen(false)
-                }
+                onClick={() => setIsMobileModalOpen(false)}
                 className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl border border-white/10 bg-white/[0.05] text-lg text-white/75 shadow-lg transition hover:border-[#ff4d8d]/35 hover:bg-[#ff4d8d]/10 hover:text-white"
                 aria-label="Close search"
               >
@@ -210,10 +180,7 @@ export default function SearchBar({
               </button>
             </div>
 
-            <form
-              onSubmit={handleSearch}
-              className="mt-5 space-y-4"
-            >
+            <form onSubmit={handleSearch} className="mt-5 space-y-4">
               <label className="block">
                 <span className="mb-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
                   <FiMapPin className="text-[#ff6aa1]" />
@@ -225,9 +192,7 @@ export default function SearchBar({
                   placeholder="Goa, Jaipur, beach..."
                   value={city}
                   onChange={(event) =>
-                    setCityInput(
-                      event.target.value
-                    )
+                    setCityInput(event.target.value)
                   }
                   className="w-full rounded-2xl border border-white/10 bg-white/[0.055] p-3.5 text-sm font-bold text-white outline-none placeholder:text-slate-500 transition focus:border-[#ff4d8d]/60 focus:bg-white/[0.075] focus:ring-4 focus:ring-[#ff4d8d]/10"
                 />
@@ -243,16 +208,11 @@ export default function SearchBar({
                   <select
                     value={propertyType}
                     onChange={(event) =>
-                      setPropertyType(
-                        event.target.value
-                      )
+                      setPropertyType(event.target.value)
                     }
                     className="w-full appearance-none rounded-2xl border border-white/10 bg-white/[0.055] p-3.5 pr-11 text-sm font-bold text-white outline-none transition focus:border-[#ff4d8d]/60 focus:bg-white/[0.075] focus:ring-4 focus:ring-[#ff4d8d]/10"
                   >
-                    <option
-                      className="bg-[#111827]"
-                      value=""
-                    >
+                    <option className="bg-[#111827]" value="">
                       Any type
                     </option>
 
@@ -283,9 +243,7 @@ export default function SearchBar({
                   placeholder="Number of guests"
                   value={guests}
                   onChange={(event) =>
-                    setGuests(
-                      event.target.value
-                    )
+                    setGuests(event.target.value)
                   }
                   className="w-full rounded-2xl border border-white/10 bg-white/[0.055] p-3.5 text-sm font-bold text-white outline-none placeholder:text-slate-500 transition focus:border-[#ff4d8d]/60 focus:bg-white/[0.075] focus:ring-4 focus:ring-[#ff4d8d]/10"
                 />
@@ -323,44 +281,55 @@ export default function SearchBar({
 
   return (
     <>
-      {/* Mobile search trigger: separate dark boxes ke badle unified pink-white bar. */}
+      {/* Mobile search trigger: horizontal aur vertical size slightly increased. */}
       {!hideMobileTrigger && (
         <motion.button
           type="button"
           whileTap={{
             scale: 0.985,
           }}
-          onClick={() =>
-            setIsMobileModalOpen(true)
-          }
+          onClick={() => setIsMobileModalOpen(true)}
           className={`home-search-shell flex w-full items-center justify-between text-left md:hidden ${
-            compact
-              ? "rounded-2xl px-3 py-2"
-              : "rounded-[22px] px-3.5 py-2.5"
+            heroCompact
+              ? "rounded-[20px] px-3 py-2"
+              : compact
+                ? "rounded-2xl px-3 py-2"
+                : "rounded-[22px] px-3.5 py-2.5"
           }`}
         >
           <span className="flex min-w-0 items-center gap-3">
             <span
               className={`grid shrink-0 place-items-center rounded-xl bg-[#d9165b] text-white shadow-lg shadow-pink-900/20 ${
-                compact
+                heroCompact
                   ? "h-8 w-8 text-sm"
-                  : "h-9 w-9"
+                  : compact
+                    ? "h-8 w-8 text-sm"
+                    : "h-9 w-9"
               }`}
             >
               <FiSearch />
             </span>
 
             <span className="min-w-0">
-              <span className="block truncate text-xs font-black text-slate-950">
-                {city.trim() ||
-                  "Where do you want to stay?"}
+              <span
+                className={`block truncate font-black text-slate-950 ${
+                  heroCompact
+                    ? "text-[11px]"
+                    : "text-xs"
+                }`}
+              >
+                {city.trim() || "Where do you want to stay?"}
               </span>
 
               {!compact && (
-                <span className="mt-0.5 block truncate text-[10px] font-bold text-[#9f1239]">
-                  {propertyType ||
-                    "Any property"}{" "}
-                  ·{" "}
+                <span
+                  className={`mt-0.5 block truncate font-bold text-[#9f1239] ${
+                    heroCompact
+                      ? "text-[9px]"
+                      : "text-[10px]"
+                  }`}
+                >
+                  {propertyType || "Any property"} ·{" "}
                   {guests
                     ? `${guests} guests`
                     : "Add guests"}
@@ -373,19 +342,27 @@ export default function SearchBar({
         </motion.button>
       )}
 
-      {/* Desktop search bar: charon controls ek continuous gradient shell ke andar hain. */}
+      {/* Desktop hero search: horizontal aur vertical size slightly increased. */}
       {!hideDesktopForm && (
         <form
           onSubmit={handleSearch}
           className={`home-search-shell hidden w-full items-center md:flex ${
-            compact
-              ? "gap-2 rounded-[18px] px-2 py-1.5"
-              : "gap-3 rounded-[22px] px-3 py-2"
+            heroCompact
+              ? "gap-2 rounded-[20px] px-3 py-2"
+              : compact
+                ? "gap-2 rounded-[18px] px-2 py-1.5"
+                : "gap-3 rounded-[22px] px-3 py-2"
           }`}
         >
-          <label className="min-w-0 flex-[1.35] px-1">
+          <label className="min-w-0 flex-[1.35] px-1.5">
             {!compact && (
-              <span className="home-search-label flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.16em]">
+              <span
+                className={`home-search-label flex items-center gap-1.5 font-black uppercase ${
+                  heroCompact
+                    ? "text-[8px] tracking-[0.14em]"
+                    : "text-[9px] tracking-[0.16em]"
+                }`}
+              >
                 <FiMapPin />
                 Destination
               </span>
@@ -400,21 +377,27 @@ export default function SearchBar({
               }
               value={city}
               onChange={(event) =>
-                setCityInput(
-                  event.target.value
-                )
+                setCityInput(event.target.value)
               }
               className={`home-search-control w-full bg-transparent font-black outline-none ${
-                compact
-                  ? "text-xs"
-                  : "mt-0.5 text-sm"
+                heroCompact
+                  ? "mt-0.5 text-[11px]"
+                  : compact
+                    ? "text-xs"
+                    : "mt-0.5 text-sm"
               }`}
             />
           </label>
 
-          <label className="relative min-w-0 flex-1 px-1">
+          <label className="relative min-w-0 flex-1 px-1.5">
             {!compact && (
-              <span className="home-search-label flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.16em]">
+              <span
+                className={`home-search-label flex items-center gap-1.5 font-black uppercase ${
+                  heroCompact
+                    ? "text-[8px] tracking-[0.14em]"
+                    : "text-[9px] tracking-[0.16em]"
+                }`}
+              >
                 <FiHome />
                 Property
               </span>
@@ -423,14 +406,14 @@ export default function SearchBar({
             <select
               value={propertyType}
               onChange={(event) =>
-                setPropertyType(
-                  event.target.value
-                )
+                setPropertyType(event.target.value)
               }
               className={`home-search-control w-full cursor-pointer appearance-none bg-transparent pr-5 font-black outline-none ${
-                compact
-                  ? "text-xs"
-                  : "mt-0.5 text-sm"
+                heroCompact
+                  ? "mt-0.5 text-[11px]"
+                  : compact
+                    ? "text-xs"
+                    : "mt-0.5 text-sm"
               }`}
             >
               <option value="">
@@ -450,9 +433,15 @@ export default function SearchBar({
             <FiChevronDown className="pointer-events-none absolute bottom-1 right-1 text-xs text-[#9f1239]" />
           </label>
 
-          <label className="min-w-0 flex-[0.7] px-1">
+          <label className="min-w-0 flex-[0.7] px-1.5">
             {!compact && (
-              <span className="home-search-label flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.16em]">
+              <span
+                className={`home-search-label flex items-center gap-1.5 font-black uppercase ${
+                  heroCompact
+                    ? "text-[8px] tracking-[0.14em]"
+                    : "text-[9px] tracking-[0.16em]"
+                }`}
+              >
                 <FiUsers />
                 Guests
               </span>
@@ -468,14 +457,14 @@ export default function SearchBar({
               }
               value={guests}
               onChange={(event) =>
-                setGuests(
-                  event.target.value
-                )
+                setGuests(event.target.value)
               }
               className={`home-search-control w-full bg-transparent font-black outline-none ${
-                compact
-                  ? "text-xs"
-                  : "mt-0.5 text-sm"
+                heroCompact
+                  ? "mt-0.5 text-[11px]"
+                  : compact
+                    ? "text-xs"
+                    : "mt-0.5 text-sm"
               }`}
             />
           </label>
@@ -490,9 +479,11 @@ export default function SearchBar({
               scale: 0.96,
             }}
             className={`home-search-ripple flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#d9165b] font-black text-white shadow-[0_10px_26px_rgba(217,22,91,.28)] ${
-              compact
-                ? "h-9 px-3 text-[11px]"
-                : "h-10 px-3.5 text-xs"
+              heroCompact
+                ? "h-10 px-4 text-[10px]"
+                : compact
+                  ? "h-9 px-3 text-[11px]"
+                  : "h-10 px-3.5 text-xs"
             }`}
             aria-label="Search"
           >

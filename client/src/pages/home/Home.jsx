@@ -7,7 +7,6 @@ import {
   FiBriefcase,
   FiChevronLeft,
   FiChevronRight,
-  FiClock,
   FiCompass,
   FiCreditCard,
   FiGrid,
@@ -49,7 +48,7 @@ const CATEGORIES = [
   { name: "Resort", Icon: FiAward, value: "Resort" },
 ];
 
-// ye feature baad m use krenge
+// Ye feature baad mein use karenge.
 const SHOW_HOME_METRICS = false;
 
 const TRUST_ITEMS = [
@@ -93,14 +92,28 @@ const WHY_ITEMS = [
   },
 ];
 
+// Listing ki cover image return karta hai.
 const getCoverImage = (listing) => {
-  const images = Array.isArray(listing?.images) ? listing.images : [];
-  const cover = images.find((image) => image?.isCover) || images[0];
+  const images = Array.isArray(listing?.images)
+    ? listing.images
+    : [];
 
-  return typeof cover === "string" ? cover : cover?.url || "";
+  const cover =
+    images.find((image) => image?.isCover) ||
+    images[0];
+
+  return typeof cover === "string"
+    ? cover
+    : cover?.url || "";
 };
 
-function AnimatedMetric({ value, suffix = "", label, Icon }) {
+// Animated homepage metric card.
+function AnimatedMetric({
+  value,
+  suffix = "",
+  label,
+  Icon,
+}) {
   const ref = useRef(null);
 
   const inView = useInView(ref, {
@@ -109,6 +122,7 @@ function AnimatedMetric({ value, suffix = "", label, Icon }) {
   });
 
   const [displayValue, setDisplayValue] = useState(0);
+
   const safeValue = Math.max(Number(value || 0), 0);
 
   useEffect(() => {
@@ -118,20 +132,30 @@ function AnimatedMetric({ value, suffix = "", label, Icon }) {
 
     const duration = 900;
     const startedAt = performance.now();
+
     let frameId = 0;
 
     const tick = (time) => {
-      const progress = Math.min((time - startedAt) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const progress = Math.min(
+        (time - startedAt) / duration,
+        1
+      );
 
-      setDisplayValue(Math.round(safeValue * eased));
+      const eased =
+        1 - Math.pow(1 - progress, 3);
+
+      setDisplayValue(
+        Math.round(safeValue * eased)
+      );
 
       if (progress < 1) {
-        frameId = window.requestAnimationFrame(tick);
+        frameId =
+          window.requestAnimationFrame(tick);
       }
     };
 
-    frameId = window.requestAnimationFrame(tick);
+    frameId =
+      window.requestAnimationFrame(tick);
 
     return () => {
       window.cancelAnimationFrame(frameId);
@@ -139,8 +163,14 @@ function AnimatedMetric({ value, suffix = "", label, Icon }) {
   }, [inView, safeValue]);
 
   return (
-    <div ref={ref} className="home-stat-card">
-      <span className="home-stat-icon" aria-hidden="true">
+    <div
+      ref={ref}
+      className="home-stat-card"
+    >
+      <span
+        className="home-stat-icon"
+        aria-hidden="true"
+      >
         <Icon />
       </span>
 
@@ -158,6 +188,7 @@ function AnimatedMetric({ value, suffix = "", label, Icon }) {
   );
 }
 
+// Reusable homepage section heading.
 function SectionHeading({
   eyebrow,
   title,
@@ -193,15 +224,25 @@ export default function Home() {
   const dispatch = useDispatch();
   const location = useLocation();
 
-  const { listings, loading, error } = useSelector(
+  const {
+    listings,
+    loading,
+    error,
+  } = useSelector(
     (state) => state.listing
   );
 
-  const [selectedCategory, setSelectedCategory] = useState("");
+  const [
+    selectedCategory,
+    setSelectedCategory,
+  ] = useState("");
+
   const [heroIndex, setHeroIndex] = useState(0);
 
   const [tabVisible, setTabVisible] = useState(
-    typeof document === "undefined" ? true : !document.hidden
+    typeof document === "undefined"
+      ? true
+      : !document.hidden
   );
 
   const [searchDocked, setSearchDocked] = useState(false);
@@ -209,28 +250,34 @@ export default function Home() {
   const categoryRailRef = useRef(null);
   const heroRef = useRef(null);
 
+  // Initial listings load.
   useEffect(() => {
     dispatch(fetchAllListings());
   }, [dispatch]);
 
-  // Navbar Explore target: sabhi role pages se listing section tak scroll karega.
+  // Navbar Explore link se listing section tak smooth scrolling.
   useEffect(() => {
-    if (location.hash !== "#home-properties") {
+    if (
+      location.hash !==
+      "#home-properties"
+    ) {
       return undefined;
     }
 
     let secondFrame = 0;
 
-    const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => {
-        document
-          .getElementById("home-properties")
-          ?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
+    const firstFrame =
+      window.requestAnimationFrame(() => {
+        secondFrame =
+          window.requestAnimationFrame(() => {
+            document
+              .getElementById("home-properties")
+              ?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
           });
       });
-    });
 
     return () => {
       window.cancelAnimationFrame(firstFrame);
@@ -238,6 +285,7 @@ export default function Home() {
     };
   }, [location.hash]);
 
+  // Hero images preload aur tab visibility handle karta hai.
   useEffect(() => {
     HERO_IMAGES.forEach((src) => {
       const image = new Image();
@@ -261,6 +309,7 @@ export default function Home() {
     };
   }, []);
 
+  // Hero slideshow.
   useEffect(() => {
     if (!tabVisible) {
       return undefined;
@@ -268,7 +317,8 @@ export default function Home() {
 
     const timer = window.setInterval(() => {
       setHeroIndex(
-        (current) => (current + 1) % HERO_IMAGES.length
+        (current) =>
+          (current + 1) % HERO_IMAGES.length
       );
     }, 6500);
 
@@ -277,53 +327,79 @@ export default function Home() {
     };
   }, [tabVisible]);
 
+  // Hero cross karne ke baad navbar search show karta hai.
   useEffect(() => {
     const updateDockedState = () => {
       const heroBottom =
-        heroRef.current?.getBoundingClientRect().bottom;
+        heroRef.current?.getBoundingClientRect()
+          .bottom;
 
       const navbarHeight = 72;
 
       const nextDocked =
-        Number.isFinite(heroBottom) && heroBottom <= navbarHeight;
+        Number.isFinite(heroBottom) &&
+        heroBottom <= navbarHeight;
 
       setSearchDocked((current) =>
-        current === nextDocked ? current : nextDocked
+        current === nextDocked
+          ? current
+          : nextDocked
       );
     };
 
     updateDockedState();
 
-    window.addEventListener("scroll", updateDockedState, {
-      passive: true,
-    });
+    window.addEventListener(
+      "scroll",
+      updateDockedState,
+      {
+        passive: true,
+      }
+    );
 
-    window.addEventListener("resize", updateDockedState);
+    window.addEventListener(
+      "resize",
+      updateDockedState
+    );
 
     return () => {
-      window.removeEventListener("scroll", updateDockedState);
-      window.removeEventListener("resize", updateDockedState);
+      window.removeEventListener(
+        "scroll",
+        updateDockedState
+      );
+
+      window.removeEventListener(
+        "resize",
+        updateDockedState
+      );
 
       window.dispatchEvent(
-        new CustomEvent("hydewest:home-search-docked", {
-          detail: {
-            docked: false,
-          },
-        })
+        new CustomEvent(
+          "hydewest:home-search-docked",
+          {
+            detail: {
+              docked: false,
+            },
+          }
+        )
       );
     };
   }, []);
 
   useEffect(() => {
     window.dispatchEvent(
-      new CustomEvent("hydewest:home-search-docked", {
-        detail: {
-          docked: searchDocked,
-        },
-      })
+      new CustomEvent(
+        "hydewest:home-search-docked",
+        {
+          detail: {
+            docked: searchDocked,
+          },
+        }
+      )
     );
   }, [searchDocked]);
 
+  // Homepage metrics calculate karta hai.
   const metrics = useMemo(() => {
     const citySet = new Set();
     const hostSet = new Set();
@@ -333,17 +409,23 @@ export default function Home() {
     listings.forEach((listing) => {
       if (listing?.location?.city) {
         citySet.add(
-          String(listing.location.city).trim().toLowerCase()
+          String(listing.location.city)
+            .trim()
+            .toLowerCase()
         );
       }
 
-      const hostId = listing?.host?._id || listing?.host;
+      const hostId =
+        listing?.host?._id ||
+        listing?.host;
 
       if (hostId) {
         hostSet.add(String(hostId));
       }
 
-      bookings += Number(listing?.bookingCount || 0);
+      bookings += Number(
+        listing?.bookingCount || 0
+      );
     });
 
     return {
@@ -354,6 +436,7 @@ export default function Home() {
     };
   }, [listings]);
 
+  // Featured city cards generate karta hai.
   const featuredLocations = useMemo(() => {
     const cityMap = new Map();
 
@@ -368,17 +451,20 @@ export default function Home() {
 
       const key = city.toLowerCase();
 
-      const current = cityMap.get(key) || {
-        city,
-        state: listing?.location?.state || "",
-        count: 0,
-        image: "",
-      };
+      const current =
+        cityMap.get(key) || {
+          city,
+          state:
+            listing?.location?.state || "",
+          count: 0,
+          image: "",
+        };
 
       current.count += 1;
 
       if (!current.image) {
-        current.image = getCoverImage(listing);
+        current.image =
+          getCoverImage(listing);
       }
 
       cityMap.set(key, current);
@@ -393,6 +479,7 @@ export default function Home() {
       .slice(0, 4);
   }, [listings]);
 
+  // Category cards ko horizontal scroll karta hai.
   const scrollCategories = (direction) => {
     const rail = categoryRailRef.current;
 
@@ -403,11 +490,15 @@ export default function Home() {
     rail.scrollBy({
       left:
         direction *
-        Math.min(rail.clientWidth * 0.72, 540),
+        Math.min(
+          rail.clientWidth * 0.72,
+          540
+        ),
       behavior: "smooth",
     });
   };
 
+  // Listing filters apply karke results section tak scroll karta hai.
   const runSearch = (query) => {
     dispatch(setFilter(query));
     dispatch(searchListingsThunk(query));
@@ -444,6 +535,10 @@ export default function Home() {
 
   return (
     <div className="hydewest-home min-h-screen overflow-x-hidden bg-[#090b17] text-white">
+      {/* ======================================
+          Hero section
+      ====================================== */}
+
       <section
         ref={heroRef}
         className="relative flex min-h-[100svh] items-center overflow-hidden bg-slate-950 pt-20"
@@ -478,6 +573,7 @@ export default function Home() {
           />
         </AnimatePresence>
 
+        {/* Hero background overlays */}
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,5,15,.88)_0%,rgba(9,11,23,.66)_47%,rgba(9,11,23,.36)_100%)]" />
 
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(9,11,23,.18)_0%,rgba(9,11,23,.08)_52%,rgba(9,11,23,.9)_100%)]" />
@@ -492,10 +588,10 @@ export default function Home() {
           aria-hidden="true"
         />
 
-        {/* Hero content anchor: browser zoom par bhi poora content left edge se scale hoga. */}
+        {/* Hero shell apni original position par rahega. */}
         <div className="home-hero-content-shell relative w-full px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16 xl:px-12 2xl:px-16">
-          <div className="max-w-4xl">
-            {/* Hero badge styling: left side strong pink aur right side light shade. */}
+          {/* Hero copy fixed height mein rahegi. */}
+          <div className="home-hero-copy-block max-w-4xl">
             <motion.p
               initial={{
                 opacity: 0,
@@ -509,19 +605,22 @@ export default function Home() {
                 duration: 0.55,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="inline-flex items-center gap-2 rounded-full border border-pink-200/25 bg-[linear-gradient(100deg,rgba(255,77,141,.78)_0%,rgba(255,77,141,.42)_42%,rgba(255,255,255,.10)_100%)] px-4 py-2 text-[9px] font-black uppercase tracking-[0.22em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,.18)] backdrop-blur-xl sm:text-[10px]"
+              className="inline-flex max-w-full items-center gap-1.5 whitespace-nowrap rounded-full border border-pink-200/25 bg-[linear-gradient(100deg,rgba(255,77,141,.78)_0%,rgba(255,77,141,.42)_42%,rgba(255,255,255,.10)_100%)] px-2.5 py-1 text-[6px] font-black uppercase tracking-[0.12em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,.18)] backdrop-blur-xl sm:gap-2 sm:px-3 sm:py-1.5 sm:text-[7px] sm:tracking-[0.17em] lg:text-[8px]"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d] shadow-[0_0_16px_#ff4d8d]" />
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#ff4d8d] shadow-[0_0_16px_#ff4d8d]" />
 
-              Verified stays · flexible durations · premium rewards
+              <span className="truncate">
+                Verified stays · flexible durations · premium rewards
+              </span>
             </motion.p>
 
-            {/* Hero heading: left aligned aur final line pink-white shade ke saath. */}
+            {/* Hero heading exactly three lines mein locked hai. */}
             <motion.h1
               initial="hidden"
               animate="visible"
               variants={{
                 hidden: {},
+
                 visible: {
                   transition: {
                     staggerChildren: 0.12,
@@ -529,7 +628,7 @@ export default function Home() {
                   },
                 },
               }}
-              className="mt-6 max-w-3xl text-left text-balance text-[clamp(2.35rem,6.4vw,5.5rem)] font-black leading-[0.98] tracking-[-0.05em] text-white"
+              className="mt-4 max-w-3xl overflow-visible pb-2 text-left text-[clamp(1.65rem,4.8vw,4.35rem)] font-black leading-[1.04] tracking-[-0.05em] text-white sm:mt-5"
             >
               {[
                 "Stay somewhere",
@@ -544,17 +643,24 @@ export default function Home() {
                       y: 28,
                       filter: "blur(8px)",
                     },
+
                     visible: {
                       opacity: 1,
                       y: 0,
                       filter: "blur(0px)",
+
                       transition: {
                         duration: 0.72,
-                        ease: [0.22, 1, 0.36, 1],
+                        ease: [
+                          0.22,
+                          1,
+                          0.36,
+                          1,
+                        ],
                       },
                     },
                   }}
-                  className={`block ${
+                  className={`block whitespace-nowrap pb-[0.12em] ${
                     index === 2
                       ? "home-heading-highlight"
                       : ""
@@ -564,30 +670,9 @@ export default function Home() {
                 </motion.span>
               ))}
             </motion.h1>
-
-            <motion.p
-              initial={{
-                opacity: 0,
-                y: 18,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              transition={{
-                delay: 0.52,
-                duration: 0.65,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-              className="mt-6 max-w-2xl text-left text-sm font-medium leading-7 text-white/68 sm:text-base lg:text-lg"
-            >
-              Search verified apartments, villas and unique homes.
-              Compare flexible stays, transparent prices and member
-              benefits in one refined experience.
-            </motion.p>
           </div>
 
-          {/* Homepage search bar: hero ke left side par anchored rahega. */}
+          {/* Search bar thodi horizontally aur vertically badi ki gayi hai. */}
           <motion.div
             initial={{
               opacity: 0,
@@ -604,17 +689,18 @@ export default function Home() {
               duration: 0.65,
               ease: [0.22, 1, 0.36, 1],
             }}
-            className="mt-8 max-w-[900px]"
+            className="home-hero-search-slot mt-8 max-w-[760px]"
           >
-            <SearchBar />
+            <SearchBar heroCompact />
           </motion.div>
 
-          {/* Hero trust cards: zoom par bhi left side se hi resize honge. */}
+          {/* Trust cards unchanged hain. */}
           <motion.div
             initial="hidden"
             animate="visible"
             variants={{
               hidden: {},
+
               visible: {
                 transition: {
                   staggerChildren: 0.08,
@@ -622,48 +708,61 @@ export default function Home() {
                 },
               },
             }}
-            className="mt-4 grid max-w-[1060px] grid-cols-2 gap-2 sm:grid-cols-4"
+            className="home-hero-trust-slot mt-4 grid max-w-[700px] grid-cols-2 gap-1.5 sm:grid-cols-4"
           >
-            {TRUST_ITEMS.map(({ label, caption, Icon }) => (
-              <motion.div
-                key={label}
-                variants={{
-                  hidden: {
-                    opacity: 0,
-                    y: 12,
-                  },
-                  visible: {
-                    opacity: 1,
-                    y: 0,
-                    transition: {
-                      duration: 0.45,
-                      ease: [0.22, 1, 0.36, 1],
+            {TRUST_ITEMS.map(
+              ({
+                label,
+                caption,
+                Icon,
+              }) => (
+                <motion.div
+                  key={label}
+                  variants={{
+                    hidden: {
+                      opacity: 0,
+                      y: 12,
                     },
-                  },
-                }}
-                className="home-trust-card"
-              >
-                <span
-                  className="home-trust-icon"
-                  aria-hidden="true"
+
+                    visible: {
+                      opacity: 1,
+                      y: 0,
+
+                      transition: {
+                        duration: 0.45,
+                        ease: [
+                          0.22,
+                          1,
+                          0.36,
+                          1,
+                        ],
+                      },
+                    },
+                  }}
+                  className="home-trust-card"
                 >
-                  <Icon />
-                </span>
-
-                <span className="min-w-0">
-                  <span className="block truncate text-[11px] font-black text-white sm:text-xs">
-                    {label}
+                  <span
+                    className="home-trust-icon"
+                    aria-hidden="true"
+                  >
+                    <Icon />
                   </span>
 
-                  <span className="mt-0.5 block truncate text-[9px] font-semibold text-white/42">
-                    {caption}
+                  <span className="min-w-0">
+                    <span className="block truncate text-[8px] font-black text-white sm:text-[9px] lg:text-[10px]">
+                      {label}
+                    </span>
+
+                    <span className="mt-0.5 block truncate text-[6px] font-semibold text-white/42 sm:text-[7px] lg:text-[8px]">
+                      {caption}
+                    </span>
                   </span>
-                </span>
-              </motion.div>
-            ))}
+                </motion.div>
+              )
+            )}
           </motion.div>
 
-          {/* ye feature baad m use krenge */}
+          {/* Ye feature baad mein use karenge. */}
           {SHOW_HOME_METRICS && (
             <motion.div
               initial={{
@@ -707,6 +806,7 @@ export default function Home() {
           )}
         </div>
 
+        {/* Hero image navigation dots */}
         <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 sm:bottom-6">
           {HERO_IMAGES.map((src, index) => (
             <button
@@ -724,33 +824,38 @@ export default function Home() {
         </div>
       </section>
 
-      <motion.section
-        initial={{
-          opacity: 0,
-          y: 26,
-        }}
-        whileInView={{
-          opacity: 1,
-          y: 0,
-        }}
-        viewport={{
-          once: true,
-          amount: 0.25,
-        }}
-        transition={{
-          duration: 0.65,
-          ease: [0.22, 1, 0.36, 1],
-        }}
-        className="relative border-y border-white/[0.08] bg-[#0d1020]"
-      >
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-          <div className="mb-5 flex items-end justify-between gap-4">
+      {/* ======================================
+          Categories and listings
+      ====================================== */}
+
+      <main className="mx-auto max-w-[1600px] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        {/* Category explorer */}
+        <motion.div
+          initial={{
+            opacity: 0,
+            y: 24,
+          }}
+          whileInView={{
+            opacity: 1,
+            y: 0,
+          }}
+          viewport={{
+            once: true,
+            amount: 0.25,
+          }}
+          transition={{
+            duration: 0.65,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          className="mb-14"
+        >
+          <div className="mb-7 flex items-end justify-between gap-4">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#ff4d8d]">
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-[#ff4d8d] sm:text-[11px]">
                 Explore categories
               </p>
 
-              <h2 className="mt-2 text-2xl font-black tracking-[-0.03em] text-white sm:text-3xl">
+              <h2 className="mt-2 text-3xl font-black tracking-[-0.04em] text-white sm:text-4xl">
                 Find the stay that fits your trip
               </h2>
             </div>
@@ -776,55 +881,64 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Category cards: poori slider rail section ke bilkul centre mein rahegi. */}
           <div
             ref={categoryRailRef}
             className="home-category-rail no-scrollbar mx-auto flex items-stretch gap-3 overflow-x-auto scroll-smooth pb-2"
           >
-            {CATEGORIES.map(({ name, Icon, value }) => {
-              const active = selectedCategory === value;
+            {CATEGORIES.map(
+              ({
+                name,
+                Icon,
+                value,
+              }) => {
+                const active =
+                  selectedCategory === value;
 
-              return (
-                <motion.button
-                  key={name}
-                  type="button"
-                  onClick={() => handleCategorySelect(value)}
-                  whileHover={{
-                    y: -4,
-                  }}
-                  whileTap={{
-                    scale: 0.97,
-                  }}
-                  className={`home-category-card ${
-                    active ? "is-active" : ""
-                  }`}
-                >
-                  <span
-                    className="home-category-icon"
-                    aria-hidden="true"
+                return (
+                  <motion.button
+                    key={name}
+                    type="button"
+                    onClick={() =>
+                      handleCategorySelect(value)
+                    }
+                    whileHover={{
+                      y: -5,
+                    }}
+                    whileTap={{
+                      scale: 0.97,
+                    }}
+                    className={`home-category-card ${
+                      active
+                        ? "is-active"
+                        : ""
+                    }`}
                   >
-                    <Icon />
-                  </span>
+                    <span
+                      className="home-category-icon"
+                      aria-hidden="true"
+                    >
+                      <Icon />
+                    </span>
 
-                  <span className="whitespace-nowrap text-xs font-black text-white">
-                    {name}
-                  </span>
+                    <span className="whitespace-nowrap text-sm font-black text-white">
+                      {name}
+                    </span>
 
-                  <span className="text-[9px] font-semibold text-white/42">
-                    {active ? "Selected" : "Explore"}
-                  </span>
-                </motion.button>
-              );
-            })}
+                    <span className="text-[10px] font-semibold text-white/42">
+                      {active
+                        ? "Selected"
+                        : "Explore"}
+                    </span>
+                  </motion.button>
+                );
+              }
+            )}
           </div>
-        </div>
-      </motion.section>
+        </motion.div>
 
-      <main
-        id="home-properties"
-        className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20 lg:px-8"
-      >
+        {/* Popular listing heading */}
         <motion.div
+          id="home-properties"
           initial={{
             opacity: 0,
             y: 24,
@@ -841,7 +955,7 @@ export default function Home() {
             duration: 0.65,
             ease: [0.22, 1, 0.36, 1],
           }}
-          className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"
+          className="mb-8 scroll-mt-24 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"
         >
           <SectionHeading
             eyebrow="Popular listings"
@@ -849,14 +963,15 @@ export default function Home() {
             description="Every property shown here is approved before it appears on hydewest."
           />
 
-          {/* Listing count badge: dark pink-to-black background. */}
-          {!loading && listings.length > 0 && (
-            <span className="w-fit rounded-full border border-pink-300/20 bg-[linear-gradient(110deg,#b90e44_0%,#5b0b2c_48%,#090b17_100%)] px-4 py-2 text-xs font-black text-slate-300 shadow-[0_10px_28px_rgba(185,14,68,.18)] backdrop-blur-xl">
-              {listings.length} stays found
-            </span>
-          )}
+          {!loading &&
+            listings.length > 0 && (
+              <span className="w-fit rounded-full border border-pink-300/20 bg-[linear-gradient(110deg,#b90e44_0%,#5b0b2c_48%,#090b17_100%)] px-4 py-2 text-xs font-black text-slate-300 shadow-[0_10px_28px_rgba(185,14,68,.18)] backdrop-blur-xl">
+                {listings.length} stays found
+              </span>
+            )}
         </motion.div>
 
+        {/* Listing loading skeleton */}
         {loading && (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({
@@ -867,17 +982,15 @@ export default function Home() {
                 className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-white/[0.045] p-3"
               >
                 <div className="home-dark-skeleton aspect-[4/3] rounded-[22px]" />
-
                 <div className="home-dark-skeleton mt-4 h-4 rounded-full" />
-
                 <div className="home-dark-skeleton mt-3 h-3 w-2/3 rounded-full" />
-
                 <div className="home-dark-skeleton mt-6 h-10 rounded-2xl" />
               </div>
             ))}
           </div>
         )}
 
+        {/* Listing request error */}
         {error && !loading && (
           <div className="mx-auto my-10 max-w-xl rounded-[28px] border border-rose-400/20 bg-rose-400/[0.08] p-7 text-center shadow-2xl backdrop-blur-xl">
             <p className="font-black text-rose-100">
@@ -886,7 +999,9 @@ export default function Home() {
 
             <button
               type="button"
-              onClick={() => dispatch(fetchAllListings())}
+              onClick={() =>
+                dispatch(fetchAllListings())
+              }
               className="mt-5 rounded-2xl bg-gradient-to-r from-[#ff4d8d] to-[#8b5cf6] px-5 py-3 text-sm font-black text-white shadow-lg shadow-pink-950/30 transition hover:-translate-y-0.5"
             >
               Try again
@@ -894,50 +1009,57 @@ export default function Home() {
           </div>
         )}
 
-        {!loading && !error && listings.length === 0 && (
-          <div className="mx-auto my-10 max-w-md rounded-[30px] border border-white/[0.08] bg-white/[0.045] px-6 py-14 text-center shadow-2xl backdrop-blur-xl">
-            <FiCompass className="mx-auto text-4xl text-[#ff4d8d]" />
+        {/* Empty listing state */}
+        {!loading &&
+          !error &&
+          listings.length === 0 && (
+            <div className="mx-auto my-10 max-w-md rounded-[30px] border border-white/[0.08] bg-white/[0.045] px-6 py-14 text-center shadow-2xl backdrop-blur-xl">
+              <FiCompass className="mx-auto text-4xl text-[#ff4d8d]" />
 
-            <p className="mt-5 text-xl font-black text-white">
-              No properties found
-            </p>
+              <p className="mt-5 text-xl font-black text-white">
+                No properties found
+              </p>
 
-            <p className="mt-2 text-sm font-medium text-slate-400">
-              Try another destination or reset the selected category.
-            </p>
-          </div>
-        )}
+              <p className="mt-2 text-sm font-medium text-slate-400">
+                Try another destination or reset the selected category.
+              </p>
+            </div>
+          )}
 
-        {!loading && listings.length > 0 && (
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{
-              once: true,
-              amount: 0.08,
-            }}
-            variants={{
-              hidden: {},
-              visible: {
-                transition: {
-                  staggerChildren: 0.06,
+        {/* Listing cards */}
+        {!loading &&
+          listings.length > 0 && (
+            <motion.div
+              initial="hidden"
+              whileInView="visible"
+              viewport={{
+                once: true,
+                amount: 0.08,
+              }}
+              variants={{
+                hidden: {},
+
+                visible: {
+                  transition: {
+                    staggerChildren: 0.06,
+                  },
                 },
-              },
-            }}
-            className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-          >
-            {listings.map((item, index) => (
-              <ListingCard
-                key={item._id}
-                apartment={item}
-                index={index}
-                homeLuxury
-              />
-            ))}
-          </motion.div>
-        )}
+              }}
+              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            >
+              {listings.map((item, index) => (
+                <ListingCard
+                  key={item._id}
+                  apartment={item}
+                  index={index}
+                  homeLuxury
+                />
+              ))}
+            </motion.div>
+          )}
       </main>
 
+      {/* Featured locations */}
       {featuredLocations.length > 0 && (
         <section className="border-y border-white/[0.07] bg-[#0d1020] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
           <div className="mx-auto max-w-7xl">
@@ -975,6 +1097,7 @@ export default function Home() {
               }}
               variants={{
                 hidden: {},
+
                 visible: {
                   transition: {
                     staggerChildren: 0.09,
@@ -983,71 +1106,85 @@ export default function Home() {
               }}
               className="mt-9 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
             >
-              {featuredLocations.map((locationItem) => (
-                <motion.button
-                  key={`${locationItem.city}-${locationItem.state}`}
-                  type="button"
-                  onClick={() =>
-                    handleLocationSelect(locationItem.city)
-                  }
-                  variants={{
-                    hidden: {
-                      opacity: 0,
-                      y: 24,
-                    },
-                    visible: {
-                      opacity: 1,
-                      y: 0,
-                      transition: {
-                        duration: 0.6,
-                        ease: [0.22, 1, 0.36, 1],
+              {featuredLocations.map(
+                (locationItem) => (
+                  <motion.button
+                    key={`${locationItem.city}-${locationItem.state}`}
+                    type="button"
+                    onClick={() =>
+                      handleLocationSelect(
+                        locationItem.city
+                      )
+                    }
+                    variants={{
+                      hidden: {
+                        opacity: 0,
+                        y: 24,
                       },
-                    },
-                  }}
-                  whileHover={{
-                    y: -6,
-                  }}
-                  whileTap={{
-                    scale: 0.985,
-                  }}
-                  className="home-location-card group"
-                >
-                  {locationItem.image ? (
-                    <img
-                      src={locationItem.image}
-                      alt={`${locationItem.city} stays`}
-                      loading="lazy"
-                      className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#4c1d95] to-[#be185d]" />
-                  )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#090b17] via-[#090b17]/25 to-transparent" />
+                      visible: {
+                        opacity: 1,
+                        y: 0,
 
-                  <div className="relative mt-auto text-left">
-                    <p className="text-xl font-black tracking-tight text-white">
-                      {locationItem.city}
-                    </p>
+                        transition: {
+                          duration: 0.6,
+                          ease: [
+                            0.22,
+                            1,
+                            0.36,
+                            1,
+                          ],
+                        },
+                      },
+                    }}
+                    whileHover={{
+                      y: -6,
+                    }}
+                    whileTap={{
+                      scale: 0.985,
+                    }}
+                    className="home-location-card group"
+                  >
+                    {locationItem.image ? (
+                      <img
+                        src={locationItem.image}
+                        alt={`${locationItem.city} stays`}
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#4c1d95] to-[#be185d]" />
+                    )}
 
-                    <p className="mt-1 text-xs font-semibold text-white/60">
-                      {[
-                        locationItem.state,
-                        `${locationItem.count} stay${
-                          locationItem.count === 1 ? "" : "s"
-                        }`,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  </div>
-                </motion.button>
-              ))}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#090b17] via-[#090b17]/25 to-transparent" />
+
+                    <div className="relative mt-auto text-left">
+                      <p className="text-xl font-black tracking-tight text-white">
+                        {locationItem.city}
+                      </p>
+
+                      <p className="mt-1 text-xs font-semibold text-white/60">
+                        {[
+                          locationItem.state,
+                          `${locationItem.count} stay${
+                            locationItem.count === 1
+                              ? ""
+                              : "s"
+                          }`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                  </motion.button>
+                )
+              )}
             </motion.div>
           </div>
         </section>
       )}
 
+      {/* Why hydewest */}
       <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <div className="mx-auto max-w-7xl rounded-[32px] border border-white/[0.09] bg-[linear-gradient(135deg,rgba(255,77,141,.09),rgba(139,92,246,.06)_45%,rgba(255,255,255,.025))] p-6 shadow-[0_28px_100px_rgba(0,0,0,.28)] backdrop-blur-2xl sm:p-9 lg:p-12">
           <motion.div
@@ -1085,6 +1222,7 @@ export default function Home() {
             }}
             variants={{
               hidden: {},
+
               visible: {
                 transition: {
                   staggerChildren: 0.1,
@@ -1093,41 +1231,54 @@ export default function Home() {
             }}
             className="mt-10 grid gap-4 md:grid-cols-3"
           >
-            {WHY_ITEMS.map(({ title, text, Icon }) => (
-              <motion.article
-                key={title}
-                variants={{
-                  hidden: {
-                    opacity: 0,
-                    y: 22,
-                  },
-                  visible: {
-                    opacity: 1,
-                    y: 0,
-                    transition: {
-                      duration: 0.58,
-                      ease: [0.22, 1, 0.36, 1],
+            {WHY_ITEMS.map(
+              ({
+                title,
+                text,
+                Icon,
+              }) => (
+                <motion.article
+                  key={title}
+                  variants={{
+                    hidden: {
+                      opacity: 0,
+                      y: 22,
                     },
-                  },
-                }}
-                whileHover={{
-                  y: -5,
-                }}
-                className="rounded-[26px] border border-white/[0.08] bg-[#111827]/80 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,.05),0_18px_50px_rgba(0,0,0,.2)]"
-              >
-                <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[#ff4d8d]/20 bg-[#ff4d8d]/10 text-xl text-[#ff75a8]">
-                  <Icon />
-                </span>
 
-                <h3 className="mt-5 text-lg font-black text-white">
-                  {title}
-                </h3>
+                    visible: {
+                      opacity: 1,
+                      y: 0,
 
-                <p className="mt-3 text-sm font-medium leading-6 text-slate-400">
-                  {text}
-                </p>
-              </motion.article>
-            ))}
+                      transition: {
+                        duration: 0.58,
+                        ease: [
+                          0.22,
+                          1,
+                          0.36,
+                          1,
+                        ],
+                      },
+                    },
+                  }}
+                  whileHover={{
+                    y: -5,
+                  }}
+                  className="rounded-[26px] border border-white/[0.08] bg-[#111827]/80 p-6 shadow-[inset_0_1px_0_rgba(255,255,255,.05),0_18px_50px_rgba(0,0,0,.2)]"
+                >
+                  <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[#ff4d8d]/20 bg-[#ff4d8d]/10 text-xl text-[#ff75a8]">
+                    <Icon />
+                  </span>
+
+                  <h3 className="mt-5 text-lg font-black text-white">
+                    {title}
+                  </h3>
+
+                  <p className="mt-3 text-sm font-medium leading-6 text-slate-400">
+                    {text}
+                  </p>
+                </motion.article>
+              )
+            )}
           </motion.div>
         </div>
       </section>

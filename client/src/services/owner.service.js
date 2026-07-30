@@ -12,8 +12,14 @@ const ownerService = {
     return response.data;
   },
 
-  getSearchAnalytics: async () => {
-    const response = await api.get("/api/owner/analytics/search");
+  getSearchAnalytics: async (params = {}) => {
+    const response = await api.get("/api/owner/analytics/search", { params });
+    return response.data;
+  },
+
+  // Guest Management
+  getGuests: async (params = {}) => {
+    const response = await api.get("/api/owner/guests", { params });
     return response.data;
   },
 

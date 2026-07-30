@@ -32,6 +32,8 @@ const money = (value) =>
 
 const compactMoney = (value) =>
   new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "INR",
     notation: "compact",
     compactDisplay: "short",
     maximumFractionDigits: 1,
@@ -89,7 +91,9 @@ function RevenueTrendChart({ rows, period }) {
     }
 
     return rows.map((row) => ({
+      key: row.key || row.label || "—",
       label: row.label || "—",
+      fullLabel: row.fullLabel || row.label || "—",
       subscriptionRevenue: Number(row.subscriptionRevenue || 0),
       guestCommissionRevenue: Number(row.guestCommissionRevenue || 0),
       total: Number(
@@ -104,9 +108,15 @@ function RevenueTrendChart({ rows, period }) {
     Math.max(normalizedRows.length - 1, 0)
   );
 
+  const rowSignature = useMemo(
+    () => normalizedRows.map((row) => `${row.key}:${row.total}`).join("|"),
+    [normalizedRows]
+  );
+
+  // Period ya graph data change hote hi latest calendar bucket select hota hai.
   useEffect(() => {
     setActiveIndex(Math.max(normalizedRows.length - 1, 0));
-  }, [normalizedRows.length, period]);
+  }, [period, rowSignature, normalizedRows.length]);
 
   const activeRow =
     normalizedRows[Math.min(activeIndex, normalizedRows.length - 1)] ||
@@ -153,7 +163,7 @@ function RevenueTrendChart({ rows, period }) {
             Selected period
           </p>
           <p className="mt-1 text-lg font-black text-slate-950">
-            {activeRow.label}
+            {activeRow.fullLabel}
           </p>
           <p className="mt-1 text-xs font-semibold text-slate-500">
             Total {money(activeRow.total)}
@@ -263,7 +273,7 @@ function RevenueTrendChart({ rows, period }) {
 
             return (
               <g
-                key={`${row.label}-${index}`}
+                key={`${row.key}-${index}`}
                 onMouseEnter={() => setActiveIndex(index)}
                 onFocus={() => setActiveIndex(index)}
                 tabIndex={0}
@@ -350,7 +360,7 @@ function RevenueTrendChart({ rows, period }) {
 
           {points.map((point, index) => (
             <circle
-              key={`${point.label}-total`}
+              key={`${point.key}-total`}
               cx={point.x}
               cy={point.y}
               r={index === activeIndex ? 6.5 : 4.5}
@@ -530,7 +540,11 @@ export default function AdminRevenueAnalytics() {
             </div>
           </div>
 
-          <RevenueTrendChart rows={graphRows} period={period} />
+          <RevenueTrendChart
+            key={period}
+            rows={graphRows}
+            period={period}
+          />
         </section>
 
         <section className="grid gap-6 xl:grid-cols-3">

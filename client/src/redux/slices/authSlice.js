@@ -160,6 +160,7 @@ const authSlice = createSlice({
       state.error = null;
       state.successMessage = null;
     },
+
     setOtpEmail: (state, action) => {
       const email = String(action.payload || "").trim().toLowerCase();
 
@@ -171,11 +172,13 @@ const authSlice = createSlice({
         sessionStorage.removeItem("login_email");
       }
     },
+
     clearOtpEmail: (state) => {
       state.otpSentEmail = null;
       sessionStorage.removeItem("login_email");
     },
   },
+
   extraReducers: (builder) => {
     builder
       // Register
