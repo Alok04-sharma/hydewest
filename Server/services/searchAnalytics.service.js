@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+
 const SearchAnalytics = require("../models/searchAnalytics.model");
 
 const clean = (value, max = 240) =>
@@ -8,30 +9,64 @@ const clean = (value, max = 240) =>
     .slice(0, max);
 
 const dayBucket = (date = new Date()) =>
-  date.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  date.toLocaleDateString("en-CA", {
+    timeZone: "Asia/Kolkata",
+  });
+
+// ======================================
+// Search location normalisation
+// ======================================
 
 const buildSearchLocation = (query = {}) => {
   const rawLocation = clean(query.location);
   const explicitCity = clean(query.city, 100);
   const explicitState = clean(query.state, 100);
   const explicitArea = clean(query.area, 120);
-  const explicitPin = clean(query.pinCode || query.zipCode || query.pin, 12);
+  const explicitPin = clean(
+    query.pinCode || query.zipCode || query.pin,
+    12
+  );
 
   const pinFromText = rawLocation.match(/\b\d{6}\b/)?.[0] || "";
-  const parts = rawLocation.split(",").map((item) => item.trim()).filter(Boolean);
+
+  const parts = rawLocation
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  let inferredCity = "";
+  let inferredState = "";
+  let inferredArea = "";
+
+  if (parts.length === 1 && !pinFromText) {
+    inferredCity = parts[0];
+  } else if (parts.length === 2) {
+    inferredCity = parts[0];
+    inferredState = parts[1];
+  } else if (parts.length >= 3) {
+    inferredArea = parts[0];
+    inferredCity = parts[parts.length - 2];
+    inferredState = parts[parts.length - 1];
+  }
 
   return {
-    searchText: rawLocation || explicitCity || explicitArea || explicitPin,
-    city: explicitCity || (parts.length === 1 && !pinFromText ? parts[0] : ""),
-    state: explicitState || (parts.length >= 2 ? parts[parts.length - 1] : ""),
-    area: explicitArea || (parts.length >= 2 ? parts[0] : ""),
+    searchText:
+      rawLocation || explicitCity || explicitArea || explicitPin,
+    city: explicitCity || inferredCity,
+    state: explicitState || inferredState,
+    area: explicitArea || inferredArea,
     pinCode: explicitPin || pinFromText,
     propertyType: clean(query.propertyType, 80),
   };
 };
 
+// ======================================
+// Record one search without double-counting first insert
+// ======================================
+
 const recordSearch = async ({ query = {}, guestId = null }) => {
   const location = buildSearchLocation(query);
+
   const hasIntent = Boolean(
     location.searchText ||
       location.city ||
@@ -41,11 +76,14 @@ const recordSearch = async ({ query = {}, guestId = null }) => {
       location.propertyType
   );
 
-  // Do not pollute analytics when the page only fetches the default listing feed.
-  if (!hasIntent) return null;
+  // Default listing feed should not create analytics noise.
+  if (!hasIntent) {
+    return null;
+  }
 
   const bucket = dayBucket();
   const guestKey = guestId ? String(guestId) : "anonymous";
+
   const signature = [
     guestKey,
     bucket,
@@ -56,24 +94,70 @@ const recordSearch = async ({ query = {}, guestId = null }) => {
     location.pinCode,
     location.propertyType.toLowerCase(),
   ].join("|");
-  const searchKey = crypto.createHash("sha256").update(signature).digest("hex");
+
+  const searchKey = crypto
+    .createHash("sha256")
+    .update(signature)
+    .digest("hex");
+
   const now = new Date();
 
-  return SearchAnalytics.findOneAndUpdate(
+  // Existing row: increment exactly once.
+  const existingRow = await SearchAnalytics.findOneAndUpdate(
     { searchKey },
     {
-      $setOnInsert: {
-        guest: guestId || null,
-        ...location,
-        dayBucket: bucket,
-        firstSearchedAt: now,
-        searchKey,
+      $set: {
+        lastSearchedAt: now,
       },
-      $set: { lastSearchedAt: now },
-      $inc: { searchCount: 1 },
+      $inc: {
+        searchCount: 1,
+      },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    {
+      new: true,
+    }
   );
+
+  if (existingRow) {
+    return existingRow;
+  }
+
+  // New row: start at one instead of schema default one plus another increment.
+  try {
+    return await SearchAnalytics.create({
+      guest: guestId || null,
+      ...location,
+      searchCount: 1,
+      countVersion: 2,
+      dayBucket: bucket,
+      firstSearchedAt: now,
+      lastSearchedAt: now,
+      searchKey,
+    });
+  } catch (error) {
+    // Concurrent identical requests may race on the unique searchKey.
+    if (error?.code === 11000) {
+      return SearchAnalytics.findOneAndUpdate(
+        { searchKey },
+        {
+          $set: {
+            lastSearchedAt: now,
+          },
+          $inc: {
+            searchCount: 1,
+          },
+        },
+        {
+          new: true,
+        }
+      );
+    }
+
+    throw error;
+  }
 };
 
-module.exports = { recordSearch, buildSearchLocation };
+module.exports = {
+  recordSearch,
+  buildSearchLocation,
+};

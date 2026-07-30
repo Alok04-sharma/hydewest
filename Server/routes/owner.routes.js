@@ -8,6 +8,7 @@ const ROLES = require("../constants/roles");
 
 const { getRevenueAnalytics } = require("../controllers/ownerAnalytics.controller");
 const { getSearchAnalytics } = require("../controllers/ownerSearchAnalytics.controller");
+const { getGuests } = require("../controllers/ownerGuest.controller");
 
 const {
   getDashboard,
@@ -70,6 +71,9 @@ router.delete("/notifications/:notificationId", deleteNotification);
 router.get("/subscriptions", getSubscriptions);
 router.get("/subscriptions/payments", getSubscriptionPayments);
 router.get("/subscriptions/:subscriptionId", getSubscriptionDetails);
+
+// Guest Management
+router.get("/guests", getGuests);
 
 // Host Management
 router.get("/hosts", getHosts);
