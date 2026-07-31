@@ -1,26 +1,29 @@
 const nodemailer = require("nodemailer");
 
-// Nodemailer Transporter Config using Gmail
+// Nodemailer transporter using Gmail App Password authentication.
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER, // Aapka Gmail address
-    pass: process.env.EMAIL_PASS, // Aapka 16-digit App Password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
+  connectionTimeout: 15000,
+  greetingTimeout: 10000,
+  socketTimeout: 20000,
 });
 
 const sendOTPEmail = async (email, otp) => {
   try {
     const mailOptions = {
-      from: `"StayNest" <${process.env.EMAIL_USER}>`,
-      to: email, // Ab har naye user par email jayega!
-      subject: "StayNest - Verify Your Email",
+      from: `"hydewest" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "hydewest - Verify Your Email",
       html: `
 <!DOCTYPE html>
 <html>
 <head>
 <meta charset="UTF-8">
-<title>StayNest Verification</title>
+<title>hydewest Verification</title>
 </head>
 
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,Helvetica,sans-serif;">
@@ -35,7 +38,7 @@ const sendOTPEmail = async (email, otp) => {
 <tr>
 <td style="background:#FF385C;padding:28px;text-align:center;">
 <h1 style="margin:0;color:#fff;font-size:32px;">
-🏡 StayNest
+🏡 hydewest
 </h1>
 <p style="margin-top:10px;color:#ffe5ea;font-size:15px;">
 Secure Email Verification
@@ -57,7 +60,7 @@ Hi,
 
 <p style="color:#555;font-size:16px;line-height:28px;">
 Use the verification code below to securely sign in to your
-<strong>StayNest</strong> account.
+<strong>hydewest</strong> account.
 </p>
 
 <div style="
@@ -106,7 +109,7 @@ This is an automated message. Please do not reply.
 </p>
 
 <p style="margin-top:12px;color:#666;font-size:14px;">
-© ${new Date().getFullYear()} StayNest. All rights reserved.
+© ${new Date().getFullYear()} hydewest. All rights reserved.
 </p>
 
 </td>

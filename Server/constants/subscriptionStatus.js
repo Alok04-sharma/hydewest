@@ -9,6 +9,7 @@ const SUBSCRIPTION_STATUS = Object.freeze({
 
 const SUBSCRIPTION_PAYMENT_STATUS = Object.freeze({
   PENDING: "pending",
+  PROCESSING: "processing",
   SUCCESS: "success",
   FAILED: "failed",
   REFUNDED: "refunded",

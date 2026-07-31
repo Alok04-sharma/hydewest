@@ -6,6 +6,7 @@ const USER_STATUS = require("../constants/userStatus");
 
 const {
   saveOTP,
+  hasPendingRegistration,
   verifyOTP,
 } = require("../services/otp.service");
 
@@ -26,126 +27,131 @@ const isSuspended = (user) => {
 };
 
 const getSuspensionMessage = (user) => {
-  const reason =
-    user?.moderation?.suspensionReason;
+  const reason = user?.moderation?.suspensionReason;
 
   return reason
     ? `Your account is suspended: ${reason}`
     : "Your account is suspended. Please contact platform support.";
 };
 
-// ======================================
-// Register / Direct Signup
-// ======================================
+const sendOtpMail = async ({ email, otp, context }) => {
+  try {
+    await sendOTPEmail(email, otp);
 
-const registerUser = asyncHandler(
-  async (req, res) => {
-    const name = String(
-      req.body.name || ""
-    ).trim();
-
-    const email = String(
-      req.body.email || ""
-    )
-      .trim()
-      .toLowerCase();
-
-    const phone = String(
-      req.body.phone || ""
-    ).trim();
-
-    // Public registration can create only Guest or Host accounts.
-    const selectedRole =
-      req.body.role === ROLES.HOST
-        ? ROLES.HOST
-        : ROLES.GUEST;
-
-    const existingUser =
-      await User.findOne({
-        email,
-      });
-
-    if (existingUser) {
-      return sendResponse(
-        res,
-        409,
-        false,
-        "An account with this email already exists. Please sign in."
-      );
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`${context} OTP email sent successfully to ${email}`);
     }
+  } catch (mailError) {
+    console.error(`${context} OTP mail failed:`, mailError.message);
 
-    const user = await User.create({
-      name,
-      email,
-      phone,
-      role: selectedRole,
-      isHost:
-        selectedRole === ROLES.HOST,
-      isVerified: true,
-      status: USER_STATUS.ACTIVE,
-    });
-
-    if (selectedRole === ROLES.GUEST && req.body.referralCode) {
-      try {
-        await processReferralRegistration({
-          code: req.body.referralCode,
-          guest: user,
-        });
-      } catch (referralError) {
-        console.error(
-          "Referral Registration Error:",
-          referralError.message
-        );
-      }
-    }
-
-    const token = generateToken(
-      user._id
+    const error = new Error(
+      "The verification email could not be sent. Please check the mail configuration and try again."
     );
+    error.statusCode = 503;
+    throw error;
+  }
+};
+
+const logDevelopmentOtp = (email, otp) => {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    String(process.env.LOG_DEV_OTP || "false").toLowerCase() === "true"
+  ) {
+    console.log("\n========================================");
+    console.log(`DEV OTP for [${email}]: ${otp}`);
+    console.log("========================================\n");
+  }
+};
+
+// ======================================
+// Register: create only a pending OTP record
+// ======================================
+
+const registerUser = asyncHandler(async (req, res) => {
+  const name = String(req.body.name || "").trim();
+  const email = String(req.body.email || "")
+    .trim()
+    .toLowerCase();
+  const phone = String(req.body.phone || "").trim();
+
+  // Public registration can create only Guest or Host accounts.
+  const selectedRole =
+    req.body.role === ROLES.HOST ? ROLES.HOST : ROLES.GUEST;
+
+  const existingUser = await User.findOne({ email }).select(
+    "_id isDeleted status"
+  );
+
+  if (existingUser) {
+    // Do not reveal whether the email is registered. For an active account,
+    // treat this as a login OTP request; submitted signup profile fields are ignored.
+    if (
+      !existingUser.isDeleted &&
+      existingUser.status !== USER_STATUS.REMOVED &&
+      !isSuspended(existingUser)
+    ) {
+      const loginOtp = await saveOTP(email, { purpose: "login" });
+      logDevelopmentOtp(email, loginOtp);
+      await sendOtpMail({ email, otp: loginOtp, context: "Existing account" });
+    }
 
     return sendResponse(
       res,
-      201,
+      200,
       true,
-      "Account created successfully.",
+      "If this email can be used, an OTP has been sent.",
       {
-        token,
-        user,
+        requiresOtp: true,
+        email,
       }
     );
   }
-);
 
-// ======================================
-// Send OTP for Login
-// ======================================
+  // A real User is deliberately NOT created before email ownership is proven.
+  // This prevents email pre-registration/account-pre-hijacking attacks.
+  const otp = await saveOTP(email, {
+    purpose: "register",
+    registrationData: {
+      name,
+      phone,
+      role: selectedRole,
+      referralCode:
+        selectedRole === ROLES.GUEST
+          ? String(req.body.referralCode || "").trim()
+          : "",
+    },
+  });
 
-const sendOTP = asyncHandler(
-  async (req, res) => {
-    const email = String(
-      req.body.email || ""
-    )
-      .trim()
-      .toLowerCase();
+  logDevelopmentOtp(email, otp);
+  await sendOtpMail({ email, otp, context: "Registration" });
 
-    const existingUser =
-      await User.findOne({
-        email,
-      });
-
-    if (!existingUser) {
-      return sendResponse(
-        res,
-        404,
-        false,
-        "Account not found. Please register first."
-      );
+  return sendResponse(
+    res,
+    201,
+    true,
+    "Registration OTP sent. Verify your email to create the account.",
+    {
+      requiresOtp: true,
+      email,
     }
+  );
+});
 
+// ======================================
+// Send OTP for login or pending signup
+// ======================================
+
+const sendOTP = asyncHandler(async (req, res) => {
+  const email = String(req.body.email || "")
+    .trim()
+    .toLowerCase();
+
+  const existingUser = await User.findOne({ email });
+
+  if (existingUser) {
     if (
       existingUser.isDeleted ||
-      existingUser.status ===
-        USER_STATUS.REMOVED
+      existingUser.status === USER_STATUS.REMOVED
     ) {
       return sendResponse(
         res,
@@ -160,113 +166,60 @@ const sendOTP = asyncHandler(
         res,
         403,
         false,
-        getSuspensionMessage(
-          existingUser
-        )
+        getSuspensionMessage(existingUser)
       );
     }
 
-    const otp = await saveOTP(email);
-
-    if (
-      process.env.NODE_ENV !==
-      "production"
-    ) {
-      console.log(
-        "\n========================================"
-      );
-
-      console.log(
-        `DEV OTP for [${email}]: ${otp}`
-      );
-
-      console.log(
-        "========================================\n"
-      );
-    }
-
-    try {
-      await sendOTPEmail(
-        email,
-        otp
-      );
-
-      console.log(
-        `OTP email sent successfully to ${email}`
-      );
-    } catch (mailError) {
-      console.error(
-        "Mail Send Error:",
-        mailError.message
-      );
-
-      return sendResponse(
-        res,
-        500,
-        false,
-        "The email could not be sent. Please check the mail configuration."
-      );
-    }
+    const otp = await saveOTP(email, { purpose: "login" });
+    logDevelopmentOtp(email, otp);
+    await sendOtpMail({ email, otp, context: "Login" });
 
     return sendResponse(
       res,
       200,
       true,
-      "The OTP has been sent to your email address."
+      "If an account exists for this email, an OTP has been sent."
     );
   }
-);
+
+  // Registration OTP can be resent only while a valid pending registration exists.
+  const pendingRegistration = await hasPendingRegistration(email);
+
+  if (pendingRegistration) {
+    const otp = await saveOTP(email, { purpose: "register" });
+    logDevelopmentOtp(email, otp);
+    await sendOtpMail({ email, otp, context: "Registration" });
+  }
+
+  // Keep unknown-email and pending-registration responses identical.
+  return sendResponse(
+    res,
+    200,
+    true,
+    "If an account or pending registration exists for this email, an OTP has been sent."
+  );
+});
 
 // ======================================
-// Verify OTP and Complete Login
+// Verify OTP and create/login the account
 // ======================================
 
-const verifyUserOTP = asyncHandler(
-  async (req, res) => {
-    const email = String(
-      req.body.email || ""
-    )
-      .trim()
-      .toLowerCase();
+const verifyUserOTP = asyncHandler(async (req, res) => {
+  const email = String(req.body.email || "")
+    .trim()
+    .toLowerCase();
+  const otp = String(req.body.otp || "").trim();
 
-    const otp = String(
-      req.body.otp || ""
-    ).trim();
+  let user = await User.findOne({ email });
 
-    const result =
-      await verifyOTP(
-        email,
-        otp
-      );
+  if (user) {
+    const result = await verifyOTP(email, otp, { purpose: "login" });
 
     if (!result.success) {
-      return sendResponse(
-        res,
-        400,
-        false,
-        result.message
-      );
+      return sendResponse(res, 400, false, result.message);
     }
 
-    const user =
-      await User.findOne({
-        email,
-      });
-
-    if (!user) {
-      return sendResponse(
-        res,
-        404,
-        false,
-        "Account not found. Please register first."
-      );
-    }
-
-    if (
-      user.isDeleted ||
-      user.status ===
-        USER_STATUS.REMOVED
-    ) {
+    if (user.isDeleted || user.status === USER_STATUS.REMOVED) {
       return sendResponse(
         res,
         403,
@@ -284,26 +237,75 @@ const verifyUserOTP = asyncHandler(
       );
     }
 
-    user.lastLoginAt =
-      new Date();
-
+    // Supports legacy unverified users while keeping all new signups pending-only.
+    user.isVerified = true;
+    user.lastLoginAt = new Date();
     await user.save();
+  } else {
+    const result = await verifyOTP(email, otp, { purpose: "register" });
 
-    const token =
-      generateToken(user._id);
+    if (!result.success || !result.registrationData) {
+      return sendResponse(
+        res,
+        400,
+        false,
+        "OTP is invalid or has expired."
+      );
+    }
 
-    return sendResponse(
-      res,
-      200,
-      true,
-      "Login Successful!",
-      {
-        token,
-        user,
+    const registration = result.registrationData;
+
+    try {
+      user = await User.create({
+        name: registration.name,
+        email,
+        phone: registration.phone || "",
+        role:
+          registration.role === ROLES.HOST ? ROLES.HOST : ROLES.GUEST,
+        isHost: registration.role === ROLES.HOST,
+        isVerified: true,
+        status: USER_STATUS.ACTIVE,
+        lastLoginAt: new Date(),
+      });
+    } catch (createError) {
+      // Concurrent OTP verification requests may race against the unique email index.
+      if (createError?.code !== 11000) {
+        throw createError;
       }
-    );
+
+      user = await User.findOne({ email });
+
+      if (!user) {
+        throw createError;
+      }
+    }
+
+    if (
+      user.role === ROLES.GUEST &&
+      registration.referralCode
+    ) {
+      try {
+        await processReferralRegistration({
+          code: registration.referralCode,
+          guest: user,
+        });
+      } catch (referralError) {
+        console.error(
+          "Referral verification processing failed:",
+          referralError.message
+        );
+      }
+    }
   }
-);
+
+  const tokenUser = await User.findById(user._id).select("+tokenVersion");
+  const token = generateToken(tokenUser);
+
+  return sendResponse(res, 200, true, "Login Successful!", {
+    token,
+    user,
+  });
+});
 
 // ======================================
 // Get Profile
@@ -351,6 +353,14 @@ const updateProfile = asyncHandler(
             req.body.phone
           ).trim()
         : undefined;
+
+    if (name && (name.length < 2 || name.length > 80)) {
+      return sendResponse(res, 400, false, "Name must contain 2 to 80 characters.");
+    }
+
+    if (phone !== undefined && phone.length > 20) {
+      return sendResponse(res, 400, false, "Phone number is too long.");
+    }
 
     if (name) {
       user.name = name;
@@ -401,16 +411,16 @@ const updateProfile = asyncHandler(
 // Logout
 // ======================================
 
-const logout = asyncHandler(
-  async (req, res) => {
-    return sendResponse(
-      res,
-      200,
-      true,
-      "Logged out successfully."
-    );
-  }
-);
+const logout = asyncHandler(async (req, res) => {
+  // Invalidate every previously issued JWT for this account. This is safer
+  // than a client-only logout because a copied token stops working as well.
+  await User.updateOne(
+    { _id: req.user._id },
+    { $inc: { tokenVersion: 1 } }
+  );
+
+  return sendResponse(res, 200, true, "Logged out successfully.");
+});
 
 module.exports = {
   registerUser,

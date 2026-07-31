@@ -2,7 +2,14 @@ const express = require("express");
 
 const authMiddleware = require("../middleware/auth.middleware");
 const roleMiddleware = require("../middleware/role.middleware");
+const validate = require("../middleware/validate.middleware");
+const { bookingLimiter } = require("../middleware/rateLimit.middleware");
 const ROLES = require("../constants/roles");
+const {
+  bookingQuoteSchema,
+  createBookingSchema,
+  cancelBookingSchema,
+} = require("../validators/booking.validator");
 const {
   getBookingQuote,
   createBooking,
@@ -18,6 +25,8 @@ router.post(
   "/quote",
   authMiddleware,
   roleMiddleware(ROLES.GUEST),
+  bookingLimiter,
+  validate(bookingQuoteSchema),
   getBookingQuote
 );
 
@@ -25,6 +34,8 @@ router.post(
   "/create",
   authMiddleware,
   roleMiddleware(ROLES.GUEST),
+  bookingLimiter,
+  validate(createBookingSchema),
   createBooking
 );
 
@@ -46,6 +57,8 @@ router.patch(
   "/:id/cancel",
   authMiddleware,
   roleMiddleware(ROLES.GUEST),
+  bookingLimiter,
+  validate(cancelBookingSchema),
   cancelBooking
 );
 

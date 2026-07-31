@@ -1,26 +1,19 @@
 const sendResponse = require("../utils/sendResponse");
-const ROLES = require("../constants/roles");
 
 const roleMiddleware = (...allowedRoles) => {
+  const formattedAllowed = allowedRoles.map((role) =>
+    String(role || "").toLowerCase()
+  );
+
   return (req, res, next) => {
     if (!req.user) {
-      return sendResponse(
-        res,
-        401,
-        false,
-        "Authentication required."
-      );
+      return sendResponse(res, 401, false, "Authentication required.");
     }
 
     const userRole = String(req.user.role || "").toLowerCase();
 
-    // Grant full access to "super_admin", "owner", "admin"
-    if (userRole === "super_admin" || userRole === "owner" || userRole === "admin") {
-      return next();
-    }
-
-    const formattedAllowed = allowedRoles.map((r) => String(r).toLowerCase());
-
+    // Administrators are not silently treated as Guests or Hosts. Sensitive
+    // actions must explicitly list every role that is allowed to perform them.
     if (formattedAllowed.includes(userRole)) {
       return next();
     }

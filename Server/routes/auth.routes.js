@@ -11,7 +11,16 @@ const {
 
 const validate = require("../middleware/validate.middleware");
 const authMiddleware = require("../middleware/auth.middleware");
-const upload = require("../middleware/upload.middleware");
+const {
+  avatarUpload,
+  validateAvatarSignature,
+} = require("../middleware/upload.middleware");
+const {
+  registerLimiter,
+  otpSendLimiter,
+  otpVerifyLimiter,
+  avatarUploadLimiter,
+} = require("../middleware/rateLimit.middleware");
 
 const {
   registerSchema,
@@ -21,27 +30,18 @@ const {
 
 const router = express.Router();
 
-// Direct Signup / Register
-router.post("/register", validate(registerSchema), registerUser);
-
-// Send OTP for Login
-router.post("/send-otp", validate(sendOTPSchema), sendOTP);
-
-// Verify OTP and Login
-router.post("/verify-otp", validate(verifyOTPSchema), verifyUserOTP);
-
-// Get Logged-in User Profile
+router.post("/register", registerLimiter, validate(registerSchema), registerUser);
+router.post("/send-otp", otpSendLimiter, validate(sendOTPSchema), sendOTP);
+router.post("/verify-otp", otpVerifyLimiter, validate(verifyOTPSchema), verifyUserOTP);
 router.get("/profile", authMiddleware, getProfile);
-
-// Update Profile
 router.put(
   "/profile",
   authMiddleware,
-  upload.single("avatar"),
+  avatarUploadLimiter,
+  avatarUpload.single("avatar"),
+  validateAvatarSignature,
   updateProfile
 );
-
-// Logout
 router.post("/logout", authMiddleware, logout);
 
 module.exports = router;

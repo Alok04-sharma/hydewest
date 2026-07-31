@@ -67,21 +67,35 @@ const createUserNotification = async ({
     return Notification.create(notificationData);
   }
 
-  return Notification.findOneAndUpdate(
-    {
-      recipient: user._id,
-      dedupeKey: eventKey,
-      isDeleted: false,
-    },
-    {
-      $setOnInsert: notificationData,
-    },
-    {
-      returnDocument: "after",
-      upsert: true,
-      setDefaultsOnInsert: true,
+  try {
+    return await Notification.findOneAndUpdate(
+      {
+        recipient: user._id,
+        dedupeKey: eventKey,
+        isDeleted: false,
+      },
+      {
+        $setOnInsert: notificationData,
+      },
+      {
+        returnDocument: "after",
+        upsert: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+  } catch (error) {
+    // Two workers can race on the same idempotency key. The unique partial
+    // index chooses one winner; every other worker returns that same record.
+    if (error?.code === 11000) {
+      return Notification.findOne({
+        recipient: user._id,
+        dedupeKey: eventKey,
+        isDeleted: false,
+      });
     }
-  );
+
+    throw error;
+  }
 };
 
 const createAdminNotifications = async ({

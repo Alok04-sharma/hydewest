@@ -16,6 +16,7 @@ const {
   getActiveGuestMembership,
 } = require("../services/guestMembership.service");
 const { calculateBookingShares } = require("../services/revenue.service");
+const { acquireBookingLock, releaseBookingLock } = require("../services/bookingLock.service");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -395,7 +396,20 @@ const createBooking = asyncHandler(async (req, res) => {
     totalAmount: result.quote.totalAmount,
   });
 
-  const booking = await Booking.create({
+  const bookingLockToken = await acquireBookingLock(apartment._id);
+  let booking;
+
+  try {
+    // Re-check inside the distributed lock to prevent concurrent double booking.
+    await validateBookingRules({
+      apartment,
+      startDate,
+      endDate,
+      guestsCount: req.body.guestsCount,
+      bookingUnit: req.body.bookingUnit,
+    });
+
+    booking = await Booking.create({
     guest: req.user._id,
     apartment: apartment._id,
     host: apartment.host,
@@ -448,7 +462,10 @@ const createBooking = asyncHandler(async (req, res) => {
         changedAt: new Date(),
       },
     ],
-  });
+    });
+  } finally {
+    await releaseBookingLock(apartment._id, bookingLockToken).catch(() => null);
+  }
 
   if (
     result.quote.loyaltyPointsUsed > 0 &&

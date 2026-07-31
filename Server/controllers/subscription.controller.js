@@ -1,4 +1,3 @@
-const crypto = require("crypto");
 const asyncHandler = require("express-async-handler");
 
 const razorpay = require("../config/razorpay");
@@ -28,7 +27,47 @@ const {
 } = require("../services/invoice.service");
 const sendResponse = require("../utils/sendResponse");
 const { recordSubscriptionRevenue } = require("../services/revenue.service");
+const {
+  verifyRazorpayCheckout,
+  claimPaymentForProcessing,
+  createHttpError,
+} = require("../utils/razorpaySecurity");
 const { HOST_COMMISSION } = require("../constants/revenue");
+
+const ORDER_REUSE_MS = 15 * 60 * 1000;
+
+const findReusableSubscriptionOrder = async ({ hostId, planCode }) => {
+  const payment = await SubscriptionPayment.findOne({
+    host: hostId,
+    planCode,
+    status: SUBSCRIPTION_PAYMENT_STATUS.PENDING,
+    isDeleted: false,
+    createdAt: { $gte: new Date(Date.now() - ORDER_REUSE_MS) },
+  }).sort({ createdAt: -1 });
+
+  if (!payment) return null;
+
+  try {
+    const order = await razorpay.orders.fetch(payment.razorpayOrderId);
+
+    if (["created", "attempted"].includes(String(order?.status || ""))) {
+      const subscription = await Subscription.findById(payment.subscription);
+      if (subscription) return { order, payment, subscription };
+    }
+
+    if (String(order?.status || "") === "paid") {
+      throw createHttpError(
+        "An earlier Host subscription order is already paid. Retry verification instead of paying again.",
+        409,
+        "ORDER_ALREADY_PAID"
+      );
+    }
+  } catch (error) {
+    if (error?.code === "ORDER_ALREADY_PAID") throw error;
+  }
+
+  return null;
+};
 
 const buildInvoiceNumber = (payment, paidAt = new Date()) => {
   const date = new Date(paidAt);
@@ -163,6 +202,27 @@ const createSubscriptionOrder = asyncHandler(async (req, res) => {
     );
   }
 
+  const reusable = await findReusableSubscriptionOrder({
+    hostId: host._id,
+    planCode: plan.code,
+  });
+
+  if (reusable) {
+    return sendResponse(
+      res,
+      200,
+      true,
+      "Existing subscription payment order reused.",
+      {
+        keyId: process.env.RAZORPAY_KEY_ID,
+        order: reusable.order,
+        subscription: reusable.subscription,
+        payment: reusable.payment,
+        host: { name: host.name, email: host.email },
+      }
+    );
+  }
+
   const order = await razorpay.orders.create({
     amount: Math.round(plan.amount * 100),
     currency: plan.currency,
@@ -262,11 +322,7 @@ const createSubscriptionOrder = asyncHandler(async (req, res) => {
 const verifySubscriptionPayment = asyncHandler(async (req, res) => {
   const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
-  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
-    return sendResponse(res, 400, false, "Incomplete Razorpay payment details.");
-  }
-
-  const payment = await SubscriptionPayment.findOne({
+  let payment = await SubscriptionPayment.findOne({
     razorpayOrderId,
     host: req.user._id,
     isDeleted: false,
@@ -292,119 +348,163 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
       200,
       true,
       "Subscription payment was already verified.",
-      {
-        subscription: existingSubscription,
-        payment,
-      }
+      { subscription: existingSubscription, payment }
     );
   }
 
-  const generatedSignature = crypto
-    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-    .update(`${razorpayOrderId}|${razorpayPaymentId}`)
-    .digest("hex");
+  let gatewayPayment;
 
-  if (generatedSignature !== razorpaySignature) {
-    payment.status = SUBSCRIPTION_PAYMENT_STATUS.FAILED;
-    payment.failedAt = new Date();
-    payment.failureReason = "Razorpay signature verification failed.";
-    await payment.save();
-
-    await Subscription.findByIdAndUpdate(payment.subscription, {
-      status: SUBSCRIPTION_STATUS.FAILED,
-      paymentStatus: SUBSCRIPTION_PAYMENT_STATUS.FAILED,
+  try {
+    gatewayPayment = await verifyRazorpayCheckout({
+      razorpay,
+      orderId: razorpayOrderId,
+      paymentId: razorpayPaymentId,
+      signature: razorpaySignature,
+      expectedAmount: payment.amount,
+      expectedCurrency: payment.currency,
     });
+  } catch (verificationError) {
+    if (Number(verificationError.statusCode) === 400) {
+      payment.status = SUBSCRIPTION_PAYMENT_STATUS.FAILED;
+      payment.failedAt = new Date();
+      payment.failureReason = verificationError.message;
+      await payment.save();
 
-    await createUserNotification({
-      recipient: req.user._id,
-      type: NOTIFICATION_TYPE.HOST_SUBSCRIPTION_PAYMENT_FAILED,
-      title: "Subscription payment failed",
-      message:
-        "Your subscription payment could not be verified. No Host plan was activated. Please try again.",
-      actor: req.user._id,
-      entityType: "Subscription",
-      entityId: payment.subscription,
-      actionUrl: "/host/subscription/plans",
-      eventKey: `host-subscription-payment-failed:${payment._id}`,
-      metadata: {
-        paymentId: payment._id,
-        razorpayOrderId,
-        failureReason: payment.failureReason,
-      },
-    });
+      await Subscription.findByIdAndUpdate(payment.subscription, {
+        status: SUBSCRIPTION_STATUS.FAILED,
+        paymentStatus: SUBSCRIPTION_PAYMENT_STATUS.FAILED,
+      });
+
+      await createUserNotification({
+        recipient: req.user._id,
+        type: NOTIFICATION_TYPE.HOST_SUBSCRIPTION_PAYMENT_FAILED,
+        title: "Subscription payment failed",
+        message:
+          "Your subscription payment could not be verified. No Host plan was activated. Please try again.",
+        actor: req.user._id,
+        entityType: "Subscription",
+        entityId: payment.subscription,
+        actionUrl: "/host/subscription/plans",
+        eventKey: `host-subscription-payment-failed:${payment._id}`,
+        metadata: {
+          paymentId: payment._id,
+          razorpayOrderId,
+          failureReason: payment.failureReason,
+        },
+      });
+    }
+
+    throw verificationError;
+  }
+
+  const claimedPayment = await claimPaymentForProcessing({
+    Model: SubscriptionPayment,
+    paymentId: payment._id,
+    ownerFilter: { host: req.user._id },
+    gatewayPaymentId: razorpayPaymentId,
+    gatewaySignature: razorpaySignature,
+    pendingStatus: SUBSCRIPTION_PAYMENT_STATUS.PENDING,
+    failedStatus: SUBSCRIPTION_PAYMENT_STATUS.FAILED,
+    processingStatus: SUBSCRIPTION_PAYMENT_STATUS.PROCESSING,
+  });
+
+  if (!claimedPayment) {
+    const current = await SubscriptionPayment.findById(payment._id);
+
+    if (current?.status === SUBSCRIPTION_PAYMENT_STATUS.SUCCESS) {
+      const subscription = await Subscription.findById(current.subscription);
+      return sendResponse(
+        res,
+        200,
+        true,
+        "Subscription payment was already verified.",
+        { subscription, payment: current }
+      );
+    }
+
+    if (
+      current?.status === SUBSCRIPTION_PAYMENT_STATUS.PROCESSING &&
+      current.razorpayPaymentId === razorpayPaymentId
+    ) {
+      return sendResponse(
+        res,
+        409,
+        false,
+        "Subscription payment verification is already in progress. Retry after a few seconds."
+      );
+    }
 
     return sendResponse(
       res,
-      400,
+      409,
       false,
-      "Subscription payment verification failed."
+      "Subscription payment cannot be linked to this order."
     );
   }
 
+  payment = claimedPayment;
   const now = new Date();
 
-  const latestCoverage = await Subscription.findOne({
-    host: req.user._id,
-    isDeleted: false,
-    paymentStatus: SUBSCRIPTION_PAYMENT_STATUS.SUCCESS,
-    status: {
-      $in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.SCHEDULED],
-    },
-    expiryDate: { $gt: now },
-    _id: { $ne: payment.subscription },
-  }).sort({ expiryDate: -1 });
+  if (!payment.coverageStart || !payment.coverageEnd || !payment.activationStatus) {
+    const latestCoverage = await Subscription.findOne({
+      host: req.user._id,
+      isDeleted: false,
+      paymentStatus: SUBSCRIPTION_PAYMENT_STATUS.SUCCESS,
+      status: {
+        $in: [SUBSCRIPTION_STATUS.ACTIVE, SUBSCRIPTION_STATUS.SCHEDULED],
+      },
+      expiryDate: { $gt: now },
+      _id: { $ne: payment.subscription },
+    }).sort({ expiryDate: -1 });
 
-  const coverageStart =
-    latestCoverage?.expiryDate && new Date(latestCoverage.expiryDate) > now
-      ? new Date(latestCoverage.expiryDate)
-      : now;
-
-  const expiryDate = addMonthsUTC(coverageStart, payment.durationMonths);
-  const subscriptionStatus =
-    coverageStart.getTime() <= now.getTime() + 1000
-      ? SUBSCRIPTION_STATUS.ACTIVE
-      : SUBSCRIPTION_STATUS.SCHEDULED;
-
-  payment.razorpayPaymentId = razorpayPaymentId;
-  payment.razorpaySignature = razorpaySignature;
-  payment.status = SUBSCRIPTION_PAYMENT_STATUS.SUCCESS;
-  payment.paidAt = now;
-  payment.failureReason = "";
-  payment.invoiceNumber = buildInvoiceNumber(payment, now);
-  payment.invoiceGeneratedAt = now;
-  await payment.save();
+    payment.coverageStart =
+      latestCoverage?.expiryDate && new Date(latestCoverage.expiryDate) > now
+        ? new Date(latestCoverage.expiryDate)
+        : now;
+    payment.coverageEnd = addMonthsUTC(
+      payment.coverageStart,
+      payment.durationMonths
+    );
+    payment.activationStatus =
+      payment.coverageStart.getTime() <= now.getTime() + 1000
+        ? SUBSCRIPTION_STATUS.ACTIVE
+        : SUBSCRIPTION_STATUS.SCHEDULED;
+    await payment.save();
+  }
 
   const subscription = await Subscription.findById(payment.subscription);
 
   if (!subscription) {
-    return sendResponse(res, 404, false, "Subscription record not found.");
+    throw createHttpError(
+      "Subscription record is missing for this payment.",
+      500,
+      "SUBSCRIPTION_RECORD_MISSING"
+    );
   }
 
-  subscription.status = subscriptionStatus;
+  subscription.status = payment.activationStatus;
   subscription.paymentStatus = SUBSCRIPTION_PAYMENT_STATUS.SUCCESS;
-  subscription.startDate = coverageStart;
-  subscription.expiryDate = expiryDate;
-  subscription.nextRenewalDate = expiryDate;
+  subscription.startDate = payment.coverageStart;
+  subscription.expiryDate = payment.coverageEnd;
+  subscription.nextRenewalDate = payment.coverageEnd;
   subscription.activatedAt =
-    subscriptionStatus === SUBSCRIPTION_STATUS.ACTIVE ? now : null;
+    payment.activationStatus === SUBSCRIPTION_STATUS.ACTIVE
+      ? subscription.activatedAt || now
+      : null;
   subscription.payment = payment._id;
   subscription.razorpayOrderId = razorpayOrderId;
   subscription.razorpayPaymentId = razorpayPaymentId;
   await subscription.save();
 
-  await User.updateOne(
-    { _id: req.user._id },
-    {
-      $set: {
-        subscriptionStatus:
-          subscriptionStatus === SUBSCRIPTION_STATUS.ACTIVE
-            ? "active"
-            : "scheduled",
-        subscriptionExpiry: expiryDate,
-        commissionPercentage: HOST_COMMISSION.SUBSCRIBED_ADMIN_PERCENT,
-      },
-    }
-  );
+  payment.paidAt = payment.paidAt || now;
+  payment.invoiceNumber =
+    payment.invoiceNumber || buildInvoiceNumber(payment, payment.paidAt);
+  payment.invoiceGeneratedAt = payment.invoiceGeneratedAt || payment.paidAt;
+  payment.metadata = {
+    ...(payment.metadata || {}),
+    razorpayStatus: gatewayPayment?.status,
+    paymentMethod: gatewayPayment?.method || "unknown",
+  };
 
   await recordSubscriptionRevenue({
     hostId: req.user._id,
@@ -412,16 +512,23 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
     subscription,
   });
 
+  // Refreshing the summary safely mirrors whichever plan is active right now.
+  // A future scheduled renewal does not accidentally replace current benefits.
+  await getHostSubscriptionSummary(req.user._id);
+
   const host = await User.findById(req.user._id).select("name email");
 
   await createAdminNotifications({
     type: NOTIFICATION_TYPE.HOST_SUBSCRIPTION_PAYMENT_RECEIVED,
     title: "Host subscription payment received",
-    message: `${host?.name || host?.email || "A host"} successfully purchased the ${subscription.planName} Host plan.`,
+    message: `${
+      host?.name || host?.email || "A host"
+    } successfully purchased the ${subscription.planName} Host plan.`,
     actor: req.user._id,
     entityType: "Subscription",
     entityId: subscription._id,
     actionUrl: "/owner/subscriptions",
+    eventKey: `host-subscription-payment-success:${payment._id}`,
     metadata: {
       hostId: req.user._id,
       planCode: subscription.planCode,
@@ -435,7 +542,7 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
   });
 
   const hostNotificationType =
-    subscriptionStatus === SUBSCRIPTION_STATUS.SCHEDULED
+    payment.activationStatus === SUBSCRIPTION_STATUS.SCHEDULED
       ? NOTIFICATION_TYPE.HOST_SUBSCRIPTION_RENEWAL_SCHEDULED
       : NOTIFICATION_TYPE.HOST_SUBSCRIPTION_PAYMENT_RECEIVED;
 
@@ -443,19 +550,23 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
     recipient: req.user._id,
     type: hostNotificationType,
     title:
-      subscriptionStatus === SUBSCRIPTION_STATUS.SCHEDULED
+      payment.activationStatus === SUBSCRIPTION_STATUS.SCHEDULED
         ? "Subscription renewal scheduled"
         : "Subscription activated",
     message:
-      subscriptionStatus === SUBSCRIPTION_STATUS.SCHEDULED
-        ? `Payment successful. Your ${subscription.planName} renewal will start on ${new Date(
+      payment.activationStatus === SUBSCRIPTION_STATUS.SCHEDULED
+        ? `Payment successful. Your ${
+            subscription.planName
+          } renewal will start on ${new Date(
             subscription.startDate
           ).toLocaleDateString("en-IN", {
             day: "2-digit",
             month: "short",
             year: "numeric",
           })}.`
-        : `Payment successful. Your ${subscription.planName} Host plan is active until ${new Date(
+        : `Payment successful. Your ${
+            subscription.planName
+          } Host plan is active until ${new Date(
             subscription.expiryDate
           ).toLocaleDateString("en-IN", {
             day: "2-digit",
@@ -480,17 +591,22 @@ const verifySubscriptionPayment = asyncHandler(async (req, res) => {
     },
   });
 
+  // Write success last so a process interruption can resume from a stale
+  // processing record without extending coverage a second time.
+  payment.status = SUBSCRIPTION_PAYMENT_STATUS.SUCCESS;
+  payment.processingStartedAt = null;
+  payment.failedAt = null;
+  payment.failureReason = "";
+  await payment.save();
+
   return sendResponse(
     res,
     200,
     true,
-    subscriptionStatus === SUBSCRIPTION_STATUS.SCHEDULED
+    payment.activationStatus === SUBSCRIPTION_STATUS.SCHEDULED
       ? "Subscription renewal payment verified. The new plan will start after your current plan ends."
       : "Subscription activated successfully.",
-    {
-      subscription,
-      payment,
-    }
+    { subscription, payment }
   );
 });
 

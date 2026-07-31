@@ -2,22 +2,22 @@
   "name": "server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "migrate:phase1": "node scripts/backfillPhase1Revenue.js"
+    "migrate:phase1": "node scripts/backfillPhase1Revenue.js",
+    "check": "node scripts/predeployCheck.js",
+    "jobs:all": "node scripts/runScheduledJobs.js all",
+    "migrate:security": "node scripts/predeploySecurityMigration.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
-    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
-    "dayjs": "^1.11.21",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-async-handler": "^1.2.0",
@@ -31,14 +31,15 @@
     "nodemailer": "^9.0.3",
     "pdfkit": "^0.19.1",
     "razorpay": "^2.9.8",
-    "resend": "^6.17.2",
     "slugify": "^1.6.9",
     "socket.io": "^4.8.1",
     "streamifier": "^0.1.1",
-    "uuid": "^14.0.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
+  },
+  "engines": {
+    "node": ">=20.19.0 <23"
   }
 }

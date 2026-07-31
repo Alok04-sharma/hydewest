@@ -13,6 +13,74 @@ const { calculateListingQuote } = require("../services/listingPricing.service");
 const { recordSearch } = require("../services/searchAnalytics.service");
 const { generateRatesFromDailyPrice, cloneDefaultCouponPresets } = require("../constants/pricingPresets");
 
+const escapeRegex = (value) =>
+  String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const buildSafeRegex = (value, maxLength = 120) =>
+  new RegExp(escapeRegex(String(value || "").trim().slice(0, maxLength)), "i");
+
+// Public listing responses intentionally hide exact addresses, exact GPS
+// coordinates, Cloudinary management IDs and moderation/internal history.
+const toPublicApartment = (document) => {
+  const data = document?.toObject ? document.toObject() : { ...(document || {}) };
+  const location = data.location || {};
+
+  data.location = {
+    country: location.country || "",
+    state: location.state || "",
+    city: location.city || "",
+    area: location.area || "",
+  };
+
+  if (data.host && typeof data.host === "object") {
+    data.host = {
+      _id: data.host._id,
+      name: data.host.name || "",
+      avatar: data.host.avatar || "",
+      isHost: Boolean(data.host.isHost),
+      createdAt: data.host.createdAt || null,
+    };
+  }
+
+  data.images = (data.images || []).map((image) => ({
+    url: image.url,
+    isCover: Boolean(image.isCover),
+    order: Number(image.order || 0),
+  }));
+
+  data.videos = (data.videos || []).map((video) => ({
+    url: video.url,
+    thumbnailUrl: video.thumbnailUrl || "",
+    duration: Number(video.duration || 0),
+    order: Number(video.order || 0),
+  }));
+
+  data.coupons = (data.coupons || []).map((coupon) => ({
+    code: coupon.code,
+    label: coupon.label,
+    description: coupon.description,
+    discountType: coupon.discountType,
+    discountValue: coupon.discountValue,
+    minBookingAmount: coupon.minBookingAmount,
+    maxDiscount: coupon.maxDiscount,
+    validFrom: coupon.validFrom,
+    validUntil: coupon.validUntil,
+    usageLimit: coupon.usageLimit,
+    isActive: coupon.isActive,
+    premiumOnly: coupon.premiumOnly,
+    paymentMethod: coupon.paymentMethod,
+    source: coupon.source,
+  }));
+
+  delete data.moderation;
+  delete data.statusHistory;
+  delete data.priceHistory;
+  delete data.isDeleted;
+  delete data.__v;
+
+  return data;
+};
+
 const JSON_FIELDS = [
   "guestCapacity",
   "bedDetails",
@@ -563,15 +631,16 @@ const getAllApartments = asyncHandler(async (req, res) => {
     status: APARTMENT_STATUS.APPROVED,
     isDeleted: false,
   })
-    .populate("host", "name email avatar")
-    .sort({ createdAt: -1 });
+    .populate("host", "name avatar isHost createdAt")
+    .sort({ createdAt: -1 })
+    .limit(100);
 
   return sendResponse(
     res,
     200,
     true,
     "Apartments fetched successfully.",
-    apartmentDocuments
+    apartmentDocuments.map(toPublicApartment)
   );
 });
 
@@ -584,7 +653,7 @@ const getApartmentDetails = asyncHandler(async (req, res) => {
     },
     { $inc: { views: 1 } },
     { returnDocument: "after" }
-  ).populate("host", "name email avatar createdAt");
+  ).populate("host", "name avatar isHost createdAt");
 
   if (!apartment) {
     return sendResponse(res, 404, false, "Approved apartment not found or unavailable.");
@@ -595,7 +664,7 @@ const getApartmentDetails = asyncHandler(async (req, res) => {
     200,
     true,
     "Apartment details fetched successfully.",
-    apartment
+    toPublicApartment(apartment)
   );
 });
 
@@ -935,11 +1004,11 @@ const searchApartments = asyncHandler(async (req, res) => {
   const limit = Math.min(Math.max(Number.parseInt(req.query.limit, 10) || 12, 1), 50);
   const query = { status: APARTMENT_STATUS.APPROVED, isDeleted: false };
 
-  if (city) query["location.city"] = { $regex: city, $options: "i" };
-  if (state) query["location.state"] = { $regex: state, $options: "i" };
-  if (country) query["location.country"] = { $regex: country, $options: "i" };
+  if (city) query["location.city"] = buildSafeRegex(city, 100);
+  if (state) query["location.state"] = buildSafeRegex(state, 100);
+  if (country) query["location.country"] = buildSafeRegex(country, 100);
   if (location) {
-    const matcher = { $regex: location, $options: "i" };
+    const matcher = buildSafeRegex(location, 160);
     query.$or = [
       { "location.city": matcher },
       { "location.state": matcher },
@@ -959,7 +1028,7 @@ const searchApartments = asyncHandler(async (req, res) => {
   }
   if (guests) query.guests = { $gte: Number(guests) };
   if (bedrooms) query.bedrooms = { $gte: Number(bedrooms) };
-  if (propertyType) query.propertyType = propertyType;
+  if (propertyType) query.propertyType = String(propertyType).trim().slice(0, 80);
   if (amenities) {
     query.amenities = {
       $all: String(amenities).split(",").map((item) => item.trim()).filter(Boolean),
@@ -984,7 +1053,7 @@ const searchApartments = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
   const [apartments, total] = await Promise.all([
     Apartment.find(query)
-      .populate("host", "name email avatar isHost createdAt")
+      .populate("host", "name avatar isHost createdAt")
       .sort(sortMap[sortBy] || sortMap.newest)
       .skip(skip)
       .limit(limit),
@@ -996,7 +1065,7 @@ const searchApartments = asyncHandler(async (req, res) => {
     limit,
     total,
     totalPages: Math.max(Math.ceil(total / limit), 1),
-    apartments,
+    apartments: apartments.map(toPublicApartment),
   });
 });
 

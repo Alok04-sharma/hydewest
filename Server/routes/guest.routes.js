@@ -1,6 +1,12 @@
 const express = require("express");
 
 const authMiddleware = require("../middleware/auth.middleware");
+const { paymentLimiter } = require("../middleware/rateLimit.middleware");
+const validate = require("../middleware/validate.middleware");
+const {
+  planOrderSchema,
+  paymentVerificationSchema,
+} = require("../validators/payment.validator");
 const roleMiddleware = require("../middleware/role.middleware");
 const ROLES = require("../constants/roles");
 const {
@@ -50,8 +56,18 @@ router.get("/recommendations", getSmartRecommendations);
 router.post("/trip-planner", createTripPlan);
 router.get("/membership", getMyMembership);
 router.get("/membership/payments", getMyPayments);
-router.post("/membership/create-order", createOrder);
-router.post("/membership/verify-payment", verifyPayment);
+router.post(
+  "/membership/create-order",
+  paymentLimiter,
+  validate(planOrderSchema),
+  createOrder
+);
+router.post(
+  "/membership/verify-payment",
+  paymentLimiter,
+  validate(paymentVerificationSchema),
+  verifyPayment
+);
 router.get("/membership/payments/:paymentId/invoice", downloadInvoice);
 
 module.exports = router;

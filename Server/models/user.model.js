@@ -92,6 +92,24 @@ const userSchema = new mongoose.Schema(
     isVerified: {
       type: Boolean,
       default: false,
+      index: true,
+    },
+
+    // Every JWT carries this value. Incrementing it invalidates all previously
+    // issued access tokens for this account (used by logout/security actions).
+    tokenVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+      select: false,
+    },
+
+    // Referral is applied only after the email address is verified.
+    pendingReferralCode: {
+      type: String,
+      trim: true,
+      default: "",
+      select: false,
     },
 
     lastLoginAt: {

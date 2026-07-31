@@ -97,6 +97,12 @@ const bookingSchema = new mongoose.Schema(
       coverageType: { type: String, default: "" },
     },
     couponUsageRecorded: { type: Boolean, default: false },
+    paymentFinalization: {
+      gatewayPaymentId: { type: String, default: "", trim: true },
+      finalizedAt: { type: Date, default: null },
+      apartmentCountSyncedAt: { type: Date, default: null },
+      couponCountSyncedAt: { type: Date, default: null },
+    },
     priorityScore: { type: Number, default: 0, index: true },
     status: { type: String, enum: Object.values(BOOKING_STATUS), default: BOOKING_STATUS.PENDING, index: true },
     paymentStatus: { type: String, enum: Object.values(PAYMENT_STATUS), default: PAYMENT_STATUS.PENDING, index: true },

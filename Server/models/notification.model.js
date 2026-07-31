@@ -55,7 +55,6 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
-      index: true,
     },
     isRead: {
       type: Boolean,
@@ -77,6 +76,15 @@ const notificationSchema = new mongoose.Schema(
 
 notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
 notificationSchema.index({ recipient: 1, type: 1, createdAt: -1 });
-notificationSchema.index({ recipient: 1, dedupeKey: 1 });
+notificationSchema.index(
+  { recipient: 1, dedupeKey: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      dedupeKey: { $type: "string", $gt: "" },
+      isDeleted: false,
+    },
+  }
+);
 
 module.exports = mongoose.model("Notification", notificationSchema);

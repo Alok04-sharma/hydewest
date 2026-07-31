@@ -1,5 +1,4 @@
 const jwt = require("jsonwebtoken");
-
 const User = require("../models/user.model");
 const USER_STATUS = require("../constants/userStatus");
 const sendResponse = require("../utils/sendResponse");
@@ -8,42 +7,52 @@ const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
-    if (
-      !authHeader ||
-      !authHeader.startsWith("Bearer ")
-    ) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return sendResponse(res, 401, false, "Access denied. Please login first.");
+    }
+
+    const token = authHeader.slice(7).trim();
+
+    if (!token) {
+      return sendResponse(res, 401, false, "Access denied. Please login first.");
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, {
+      issuer: process.env.JWT_ISSUER || "hydewest-api",
+      audience: process.env.JWT_AUDIENCE || "hydewest-client",
+      algorithms: ["HS256"],
+    });
+
+    if (String(decoded.sub || decoded.id) !== String(decoded.id)) {
+      return sendResponse(res, 401, false, "Invalid authentication session.");
+    }
+
+    const user = await User.findById(decoded.id)
+      .select("+tokenVersion -__v");
+
+    if (!user) {
+      return sendResponse(res, 401, false, "Invalid authentication session.");
+    }
+
+    if (Number(decoded.tokenVersion || 0) !== Number(user.tokenVersion || 0)) {
       return sendResponse(
         res,
         401,
         false,
-        "Access denied. Please login first."
+        "This session has been signed out. Please login again."
       );
     }
 
-    const token = authHeader.split(" ")[1];
-
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET
-    );
-
-    const user = await User.findById(
-      decoded.id
-    ).select("-__v");
-
-    if (!user) {
+    if (!user.isVerified) {
       return sendResponse(
         res,
-        404,
+        403,
         false,
-        "User not found."
+        "Please verify your email before continuing."
       );
     }
 
-    if (
-      user.isDeleted ||
-      user.status === USER_STATUS.REMOVED
-    ) {
+    if (user.isDeleted || user.status === USER_STATUS.REMOVED) {
       return sendResponse(
         res,
         403,
@@ -66,16 +75,12 @@ const authMiddleware = async (req, res, next) => {
       );
     }
 
+    user.tokenVersion = undefined;
     req.user = user;
-
-    next();
-  } catch (error) {
-    return sendResponse(
-      res,
-      401,
-      false,
-      "Invalid or expired token."
-    );
+    req.authTokenVersion = Number(decoded.tokenVersion || 0);
+    return next();
+  } catch {
+    return sendResponse(res, 401, false, "Invalid or expired token.");
   }
 };
 

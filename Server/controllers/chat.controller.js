@@ -48,6 +48,9 @@ const sendMessage = asyncHandler(async (req, res) => {
   if (!conversation || !canAccess(conversation, req.user._id)) return sendResponse(res, 404, false, "Conversation not found.");
   const text = String(req.body.text || "").trim();
   if (!text) return sendResponse(res, 400, false, "Message cannot be empty.");
+  if (text.length > 2000) {
+    return sendResponse(res, 400, false, "Message must be 2000 characters or fewer.");
+  }
 
   const senderIsHost = String(conversation.host) === String(req.user._id);
   const receiver = senderIsHost ? conversation.guest : conversation.host;
