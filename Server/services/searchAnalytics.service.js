@@ -114,7 +114,7 @@ const recordSearch = async ({ query = {}, guestId = null }) => {
       },
     },
     {
-      new: true,
+      returnDocument: "after",
     }
   );
 
@@ -148,7 +148,7 @@ const recordSearch = async ({ query = {}, guestId = null }) => {
           },
         },
         {
-          new: true,
+          returnDocument: "after",
         }
       );
     }

@@ -18,7 +18,7 @@ const startConversation = asyncHandler(async (req, res) => {
   const conversation = await Conversation.findOneAndUpdate(
     { guest: req.user._id, host: apartment.host, apartment: apartment._id },
     { $setOnInsert: { guest: req.user._id, host: apartment.host, apartment: apartment._id } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
+    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }
   ).populate("host guest", "name avatar role").populate("apartment", "title images");
   return sendResponse(res, 200, true, "Conversation ready.", conversation);
 });

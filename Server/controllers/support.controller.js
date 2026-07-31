@@ -112,7 +112,7 @@ const updateAdminSupportTicket = asyncHandler(async (req, res) => {
   const ticket = await SupportTicket.findOneAndUpdate(
     { _id: req.params.ticketId, isDeleted: false },
     update.$push ? { $set: { assignedTo: update.assignedTo, ...(update.status ? { status: update.status, resolvedAt: update.resolvedAt } : {}) }, $push: update.$push } : { $set: update },
-    { new: true }
+    { returnDocument: "after" }
   );
   if (!ticket) return sendResponse(res, 404, false, "Support ticket not found.");
 

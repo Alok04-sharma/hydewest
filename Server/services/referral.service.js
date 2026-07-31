@@ -52,7 +52,7 @@ const trackReferralVisit = async (code) => {
       $inc: { clicks: 1 },
       $set: { lastClickedAt: new Date() },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 };
 

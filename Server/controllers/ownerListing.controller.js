@@ -852,7 +852,7 @@ const removeListing = asyncHandler(
           },
         },
       },
-      { new: true, runValidators: false }
+      { returnDocument: "after", runValidators: false }
     ).select("_id title host moderation isDeleted status");
 
     if (!listing) {

@@ -92,7 +92,7 @@ const markNotificationRead = asyncHandler(async (req, res) => {
         readAt: new Date(),
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!notification) {
@@ -144,7 +144,7 @@ const deleteNotification = asyncHandler(async (req, res) => {
         isDeleted: true,
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!notification) {

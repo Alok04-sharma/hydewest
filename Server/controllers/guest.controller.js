@@ -130,7 +130,7 @@ const createPriceAlert = asyncHandler(async (req, res) => {
       },
       $setOnInsert: { guest: req.user._id, apartment: apartment._id },
     },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
+    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }
   );
 
   return sendResponse(res, 200, true, "Price alert enabled.", alert);

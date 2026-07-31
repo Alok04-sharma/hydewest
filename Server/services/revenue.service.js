@@ -84,7 +84,7 @@ const recordBookingCommission = async ({ booking, payment, apartment, shares }) 
         },
       },
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   );
 };
 
@@ -110,7 +110,7 @@ const recordSubscriptionRevenue = async ({ hostId, payment, subscription }) => {
         },
       },
     },
-    { upsert: true, new: true }
+    { upsert: true, returnDocument: "after" }
   );
 };
 

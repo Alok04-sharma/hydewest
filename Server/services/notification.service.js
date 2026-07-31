@@ -77,7 +77,7 @@ const createUserNotification = async ({
       $setOnInsert: notificationData,
     },
     {
-      new: true,
+      returnDocument: "after",
       upsert: true,
       setDefaultsOnInsert: true,
     }

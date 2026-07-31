@@ -6,7 +6,7 @@ const getOrCreateAccount = async (guestId) =>
   LoyaltyAccount.findOneAndUpdate(
     { guest: guestId, isDeleted: false },
     { $setOnInsert: { guest: guestId } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
+    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }
   );
 
 const calculateTier = (lifetimeEarned) => {

@@ -583,7 +583,7 @@ const getApartmentDetails = asyncHandler(async (req, res) => {
       isDeleted: false,
     },
     { $inc: { views: 1 } },
-    { new: true }
+    { returnDocument: "after" }
   ).populate("host", "name email avatar createdAt");
 
   if (!apartment) {
@@ -865,7 +865,7 @@ const deleteApartment = asyncHandler(async (req, res) => {
         },
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!apartment) return sendResponse(res, 404, false, "Apartment not found.");
