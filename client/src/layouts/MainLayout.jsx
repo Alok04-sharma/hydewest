@@ -1,4 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 import {
   Link,
   Outlet,
@@ -20,6 +23,7 @@ import NotificationBell from "../components/common/NotificationBell";
 import RoleSidebar from "../components/layout/RoleSidebar";
 import Footer from "../components/layout/Footer";
 import SearchBar from "../components/home/SearchBar";
+import BrandLogo from "../components/brand/BrandLogo";
 import guestMembershipService from "../services/guestMembership.service";
 import subscriptionService from "../services/subscription.service";
 
@@ -27,7 +31,9 @@ import subscriptionService from "../services/subscription.service";
 // User role resolver
 // ======================================
 
-const getRoleType = (user) => {
+const getRoleType = (
+  user
+) => {
   const role = String(
     user?.role || ""
   ).toLowerCase();
@@ -53,25 +59,28 @@ const getRoleType = (user) => {
 };
 
 // ======================================
-// Role based notification configuration
+// Role based notifications
 // ======================================
 
 const roleMeta = {
   admin: {
     notificationPath:
       "/owner/notifications",
+
     tone: "admin",
   },
 
   host: {
     notificationPath:
       "/host/notifications",
+
     tone: "host",
   },
 
   guest: {
     notificationPath:
       "/notifications",
+
     tone: "host",
   },
 };
@@ -84,9 +93,14 @@ export default function MainLayout() {
     (state) => state.auth
   );
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const dispatch =
+    useDispatch();
+
+  const navigate =
+    useNavigate();
+
+  const location =
+    useLocation();
 
   const [
     mobileSidebarOpen,
@@ -142,21 +156,24 @@ export default function MainLayout() {
     typeof user?.avatar ===
     "string"
       ? user.avatar
-      : user?.avatar?.url || "";
+      : user?.avatar?.url ||
+        "";
 
   // ======================================
   // Close mobile sidebar after navigation
   // ======================================
 
   useEffect(() => {
-    setMobileSidebarOpen(false);
+    setMobileSidebarOpen(
+      false
+    );
   }, [
     location.pathname,
     location.search,
   ]);
 
   // ======================================
-  // Homepage search dock event listener
+  // Homepage search dock listener
   // ======================================
 
   useEffect(() => {
@@ -165,7 +182,8 @@ export default function MainLayout() {
     ) => {
       setHomeSearchDocked(
         Boolean(
-          event.detail?.docked
+          event.detail
+            ?.docked
         )
       );
     };
@@ -189,7 +207,10 @@ export default function MainLayout() {
 
   useEffect(() => {
     if (!isHomePage) {
-      setHomeSearchDocked(false);
+      setHomeSearchDocked(
+        false
+      );
+
       setHomeNavbarSearchOpen(
         false
       );
@@ -197,7 +218,9 @@ export default function MainLayout() {
   }, [isHomePage]);
 
   useEffect(() => {
-    if (!homeSearchDocked) {
+    if (
+      !homeSearchDocked
+    ) {
       setHomeNavbarSearchOpen(
         false
       );
@@ -231,7 +254,8 @@ export default function MainLayout() {
 
         if (active) {
           setGuestMembership(
-            response.data || null
+            response.data ||
+              null
           );
         }
       } catch {
@@ -282,7 +306,8 @@ export default function MainLayout() {
 
         if (active) {
           setHostSubscription(
-            response.data || null
+            response.data ||
+              null
           );
         }
       } catch {
@@ -307,57 +332,58 @@ export default function MainLayout() {
   ]);
 
   // ======================================
-  // Logout handler
+  // Logout
   // ======================================
 
-  const handleLogout = async () => {
-    try {
-      await dispatch(
-        logoutUser()
-      ).unwrap();
-    } catch {
-      // Logout thunk network error par bhi local session clear karta hai.
-    } finally {
-      navigate(
-        "/login",
-        {
-          replace: true,
-        }
-      );
-    }
-  };
+  const handleLogout =
+    async () => {
+      try {
+        await dispatch(
+          logoutUser()
+        ).unwrap();
+      } catch {
+        // Logout API fail hone par thunk local session clear karta hai.
+      } finally {
+        navigate(
+          "/login",
+          {
+            replace: true,
+          }
+        );
+      }
+    };
 
   // ======================================
-  // Homepage Explore navigation
+  // Explore homepage listings
   // ======================================
 
-  const handleExploreListings = (
-    event
-  ) => {
-    event.preventDefault();
+  const handleExploreListings =
+    (event) => {
+      event.preventDefault();
 
-    if (
-      location.pathname !== "/"
-    ) {
-      navigate(
-        "/#home-properties"
-      );
+      if (
+        location.pathname !==
+        "/"
+      ) {
+        navigate(
+          "/#home-properties"
+        );
 
-      return;
-    }
+        return;
+      }
 
-    document
-      .getElementById(
-        "home-properties"
-      )
-      ?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-  };
+      document
+        .getElementById(
+          "home-properties"
+        )
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+    };
 
   // ======================================
-  // Docked search trigger
+  // Docked navbar search
   // ======================================
 
   const handleHomeSearchTrigger =
@@ -381,19 +407,22 @@ export default function MainLayout() {
       }
 
       setHomeNavbarSearchOpen(
-        (current) => !current
+        (current) =>
+          !current
       );
     };
 
   const isPremiumGuest =
     Boolean(
-      roleType === "guest" &&
+      roleType ===
+        "guest" &&
         guestMembership?.isActive
     );
 
   const isPremiumHost =
     Boolean(
-      roleType === "host" &&
+      roleType ===
+        "host" &&
         hostSubscription?.isActive
     );
 
@@ -407,7 +436,8 @@ export default function MainLayout() {
   const dashboardPath =
     roleType === "admin"
       ? "/owner/dashboard"
-      : roleType === "host"
+      : roleType ===
+          "host"
         ? "/host/dashboard"
         : "/guest/dashboard";
 
@@ -428,7 +458,9 @@ export default function MainLayout() {
         <RoleSidebar
           roleType={roleType}
           user={user}
-          avatarUrl={avatarUrl}
+          avatarUrl={
+            avatarUrl
+          }
           collapsed={
             sidebarCollapsed
           }
@@ -440,7 +472,9 @@ export default function MainLayout() {
               false
             )
           }
-          onLogout={handleLogout}
+          onLogout={
+            handleLogout
+          }
           isPremiumGuest={
             isPremiumGuest
           }
@@ -490,33 +524,35 @@ export default function MainLayout() {
               }`}
             >
               {/* 
-                Three-column navbar:
-                1. Brand exact left
-                2. Navigation exact centre
-                3. User actions exact right
+                Navbar layout:
+                Logo exact left,
+                navigation exact centre,
+                user actions exact right.
               */}
               <div className="relative grid min-h-[68px] w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-2 sm:px-4 lg:px-5">
-                {/* Left navbar brand */}
+                {/* 
+                  Logo image already contains the wordmark.
+                  Purana h icon aur separate hydewest text remove hai.
+                */}
                 <Link
                   to="/"
-                  className="col-start-1 flex min-w-0 items-center justify-self-start gap-2 overflow-hidden sm:gap-3"
+                  className="col-start-1 flex min-w-0 items-center justify-self-start overflow-hidden"
+                  aria-label="Go to hydewest homepage"
                 >
                   <motion.span
                     whileHover={{
-                      rotate: -8,
-                      scale: 1.06,
+                      scale: 1.03,
                     }}
-                    className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#ff385c] to-[#a90838] font-black text-white shadow-lg shadow-rose-950/30"
+                    whileTap={{
+                      scale: 0.98,
+                    }}
+                    className="inline-flex min-w-0 items-center text-white"
                   >
-                    h
+                    <BrandLogo variant="navbar" />
                   </motion.span>
-
-                  <span className="hidden truncate text-xl font-black lowercase tracking-tight text-white drop-shadow sm:inline">
-                    hydewest
-                  </span>
                 </Link>
 
-                {/* Centre desktop navigation */}
+                {/* Desktop centred navigation */}
                 <nav className="col-start-2 hidden items-center justify-self-center gap-1 md:flex">
                   <Link
                     to="/"
@@ -783,7 +819,7 @@ export default function MainLayout() {
         )}
 
         {/* ======================================
-            Main page content
+            Main application content
         ====================================== */}
 
         <main

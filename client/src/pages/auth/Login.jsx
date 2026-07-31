@@ -1,47 +1,96 @@
-import React, { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
-import { clearAuthMessages, sendOTP } from "../../redux/slices/authSlice";
+import React, {
+  useEffect,
+  useState,
+} from "react";
+import {
+  useDispatch,
+  useSelector,
+} from "react-redux";
+import {
+  Link,
+  useNavigate,
+} from "react-router-dom";
+
+import BrandLogo from "../../components/brand/BrandLogo";
+import {
+  clearAuthMessages,
+  sendOTP,
+} from "../../redux/slices/authSlice";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [
+    email,
+    setEmail,
+  ] = useState("");
 
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const dispatch =
+    useDispatch();
 
-  const { loading, error, successMessage } = useSelector(
+  const navigate =
+    useNavigate();
+
+  const {
+    loading,
+    error,
+    successMessage,
+  } = useSelector(
     (state) => state.auth
   );
 
+  // Page open hone par purane authentication messages clear karta hai.
   useEffect(() => {
-    dispatch(clearAuthMessages());
+    dispatch(
+      clearAuthMessages()
+    );
   }, [dispatch]);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+  // Registered email par login OTP request bhejta hai.
+  const handleSubmit =
+    async (event) => {
+      event.preventDefault();
 
-    const normalizedEmail = email.trim().toLowerCase();
+      const normalizedEmail =
+        email
+          .trim()
+          .toLowerCase();
 
-    if (!normalizedEmail) {
-      return;
-    }
+      if (!normalizedEmail) {
+        return;
+      }
 
-    try {
-      await dispatch(sendOTP(normalizedEmail)).unwrap();
-      navigate("/verify-otp", { replace: true });
-    } catch {
-      // The Redux state already contains the request error.
-    }
-  };
+      try {
+        await dispatch(
+          sendOTP(
+            normalizedEmail
+          )
+        ).unwrap();
+
+        navigate(
+          "/verify-otp",
+          {
+            replace: true,
+          }
+        );
+      } catch {
+        // Redux state request error already store karta hai.
+      }
+    };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen flex-col justify-center bg-gray-50 py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
-          <div className="h-12 w-12 rounded-full bg-[#FF385C] flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-            S
-          </div>
-        </div>
+        {/* 
+          Login branding:
+          Logo image ke andar wordmark hone ke karan
+          purana circular S icon remove kiya gaya hai.
+        */}
+        <Link
+          to="/"
+          className="flex justify-center"
+          aria-label="Go to hydewest homepage"
+        >
+          <BrandLogo variant="auth" />
+        </Link>
 
         <h2 className="mt-4 text-center text-3xl font-extrabold text-gray-900">
           Welcome to hydewest
@@ -53,26 +102,35 @@ export default function Login() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-xl rounded-2xl sm:px-10 border border-gray-100">
+        <div className="rounded-2xl border border-gray-100 bg-white px-4 py-8 shadow-xl sm:px-10">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
               {error}
             </div>
           )}
 
-          {successMessage && !error && (
-            <div className="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm">
-              {successMessage}
-            </div>
-          )}
+          {successMessage &&
+            !error && (
+              <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+                {
+                  successMessage
+                }
+              </div>
+            )}
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form
+            className="space-y-6"
+            onSubmit={
+              handleSubmit
+            }
+          >
             <div>
               <label
                 htmlFor="login-email"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="mb-1 block text-sm font-medium text-gray-700"
               >
-                Registered Email Address
+                Registered Email
+                Address
               </label>
 
               <input
@@ -81,28 +139,42 @@ export default function Login() {
                 required
                 autoComplete="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(
+                  event
+                ) =>
+                  setEmail(
+                    event
+                      .target
+                      .value
+                  )
+                }
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FF385C] transition text-gray-800 text-sm"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-800 transition focus:outline-none focus:ring-2 focus:ring-[#FF385C]"
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl shadow-md text-sm font-bold text-white bg-[#FF385C] hover:bg-[#E00B41] transition disabled:opacity-50"
+              className="w-full rounded-xl bg-[#FF385C] px-4 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#E00B41] disabled:opacity-50"
             >
-              {loading ? "Sending OTP..." : "Send OTP"}
+              {loading
+                ? "Sending OTP..."
+                : "Send OTP"}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm border-t border-gray-100 pt-5">
-            <span className="text-gray-500">New to hydewest? </span>
+          <div className="mt-6 border-t border-gray-100 pt-5 text-center text-sm">
+            <span className="text-gray-500">
+              New to hydewest?{" "}
+            </span>
+
             <Link
               to="/register"
               className="font-semibold text-[#FF385C] hover:underline"
             >
-              Create an account first
+              Create an account
+              first
             </Link>
           </div>
         </div>

@@ -1,0 +1,42 @@
+/* ======================================
+   Global Hoefler Text typography
+====================================== */
+
+:root {
+  --hydewest-font-family:
+    "Hoefler Text",
+    HoeflerText,
+    Baskerville,
+    "Times New Roman",
+    Times,
+    serif;
+}
+
+/* Pure React project ke sabhi visible elements par global font apply hoga. */
+html,
+body,
+#root,
+#root * {
+  font-family:
+    var(
+      --hydewest-font-family
+    )
+    !important;
+}
+
+/* Form controls browser default font use na karein. */
+button,
+input,
+select,
+textarea,
+option,
+label,
+table,
+th,
+td,
+code,
+pre {
+  font-family:
+    inherit
+    !important;
+}
