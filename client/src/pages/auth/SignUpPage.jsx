@@ -164,17 +164,14 @@ export default function SignUpPage() {
       };
 
       try {
-        const result =
-          await dispatch(
-            registerUser(
-              payload
-            )
-          ).unwrap();
+        await dispatch(
+          registerUser(
+            payload
+          )
+        ).unwrap();
 
         navigate(
-          getDashboardPath(
-            result.user
-          ),
+          "/verify-otp",
           {
             replace: true,
           }

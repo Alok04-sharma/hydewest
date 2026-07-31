@@ -27,15 +27,16 @@ export const registerUser = createAsyncThunk(
       const response = await authService.register(userData);
       const authData = response.data?.data;
 
-      if (!authData?.token || !authData?.user) {
-        return rejectWithValue("Backend se valid user data nahi mila.");
+      if (!authData?.requiresOtp || !authData?.email) {
+        return rejectWithValue("Backend se verification data nahi mila.");
       }
 
-      localStorage.setItem(APP_CONFIG.TOKEN_KEY, authData.token);
+      const normalizedEmail = String(authData.email).trim().toLowerCase();
+      sessionStorage.setItem("login_email", normalizedEmail);
 
       return {
-        token: authData.token,
-        user: authData.user,
+        email: normalizedEmail,
+        requiresOtp: true,
         message: response.data?.message,
       };
     } catch (error) {
@@ -189,9 +190,10 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
-        state.token = action.payload.token;
-        state.user = action.payload.user;
+        state.isAuthenticated = false;
+        state.token = null;
+        state.user = null;
+        state.otpSentEmail = action.payload.email;
         state.successMessage = action.payload.message;
       })
       .addCase(registerUser.rejected, (state, action) => {
