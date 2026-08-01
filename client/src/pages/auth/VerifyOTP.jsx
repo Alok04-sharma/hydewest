@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+
 import {
   clearAuthMessages,
   sendOTP,
   verifyOTP,
 } from "../../redux/slices/authSlice";
+
 import { ROLES } from "../../constants/roles";
 
 const getDashboardPath = (user) => {
@@ -15,7 +17,10 @@ const getDashboardPath = (user) => {
     return "/host/dashboard";
   }
 
-  if (role === ROLES.OWNER || role === ROLES.SUPER_ADMIN) {
+  if (
+    role === ROLES.OWNER ||
+    role === ROLES.SUPER_ADMIN
+  ) {
     return "/owner/dashboard";
   }
 
@@ -38,7 +43,9 @@ export default function VerifyOTP() {
   } = useSelector((state) => state.auth);
 
   const activeEmail =
-    otpSentEmail || sessionStorage.getItem("login_email") || "";
+    otpSentEmail ||
+    sessionStorage.getItem("login_email") ||
+    "";
 
   useEffect(() => {
     dispatch(clearAuthMessages());
@@ -46,18 +53,33 @@ export default function VerifyOTP() {
 
   useEffect(() => {
     if (!activeEmail && !isAuthenticated) {
-      navigate("/login", { replace: true });
+      navigate("/login", {
+        replace: true,
+      });
     }
-  }, [activeEmail, isAuthenticated, navigate]);
+  }, [
+    activeEmail,
+    isAuthenticated,
+    navigate,
+  ]);
 
   useEffect(() => {
     if (isAuthenticated && user) {
-      navigate(getDashboardPath(user), { replace: true });
+      navigate(getDashboardPath(user), {
+        replace: true,
+      });
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [
+    isAuthenticated,
+    user,
+    navigate,
+  ]);
 
   const handleOTPChange = (event) => {
-    const numericOTP = event.target.value.replace(/\D/g, "").slice(0, 6);
+    const numericOTP = event.target.value
+      .replace(/\D/g, "")
+      .slice(0, 6);
+
     setOtp(numericOTP);
   };
 
@@ -76,24 +98,31 @@ export default function VerifyOTP() {
         })
       ).unwrap();
 
-      navigate(getDashboardPath(result.user), { replace: true });
+      navigate(getDashboardPath(result.user), {
+        replace: true,
+      });
     } catch {
-      // The Redux state already contains the request error.
+      // Request error Redux state mein available hai.
     }
   };
 
   const handleResendOTP = async () => {
     if (!activeEmail) {
-      navigate("/login", { replace: true });
+      navigate("/login", {
+        replace: true,
+      });
+
       return;
     }
 
     setOtp("");
 
     try {
-      await dispatch(sendOTP(activeEmail)).unwrap();
+      await dispatch(
+        sendOTP(activeEmail)
+      ).unwrap();
     } catch {
-      // The Redux state already contains the request error.
+      // Request error Redux state mein available hai.
     }
   };
 
@@ -102,10 +131,10 @@ export default function VerifyOTP() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen flex-col justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="h-12 w-12 rounded-full bg-[#FF385C] flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#FF385C] text-2xl font-bold text-white shadow-lg">
             🔑
           </div>
         </div>
@@ -116,29 +145,40 @@ export default function VerifyOTP() {
 
         <p className="mt-2 text-center text-sm text-gray-600">
           We sent an OTP to{" "}
-          <span className="font-semibold text-gray-900">{activeEmail}</span>.
+          <span className="break-all font-semibold text-gray-900">
+            {activeEmail}
+          </span>
+          .
         </p>
+
+        <div className="mx-auto mt-4 max-w-sm rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-center text-xs font-semibold leading-5 text-amber-800">
+          Didn&apos;t receive the OTP? Please check your
+          Spam or Promotions folder.
+        </div>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-xl rounded-2xl sm:px-10 border border-gray-100">
+        <div className="rounded-2xl border border-gray-100 bg-white px-4 py-8 shadow-xl sm:px-10">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm">
+            <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">
               {error}
             </div>
           )}
 
           {successMessage && !error && (
-            <div className="mb-6 p-4 rounded-xl bg-green-50 border border-green-200 text-green-700 text-sm">
+            <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700">
               {successMessage}
             </div>
           )}
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form
+            className="space-y-6"
+            onSubmit={handleSubmit}
+          >
             <div>
               <label
                 htmlFor="login-otp"
-                className="block text-center text-sm font-medium text-gray-700 mb-2"
+                className="mb-2 block text-center text-sm font-medium text-gray-700"
               >
                 6-Digit Security Code
               </label>
@@ -153,16 +193,21 @@ export default function VerifyOTP() {
                 value={otp}
                 onChange={handleOTPChange}
                 placeholder="• • • • • •"
-                className="w-full text-center tracking-[0.5em] text-2xl font-bold py-3 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#FF385C]"
+                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-center text-2xl font-bold tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-[#FF385C]"
               />
             </div>
 
             <button
               type="submit"
-              disabled={loading || otp.length !== 6}
-              className="w-full py-3.5 px-4 rounded-xl shadow-md text-sm font-bold text-white bg-[#FF385C] hover:bg-[#E00B41] transition disabled:opacity-50"
+              disabled={
+                loading ||
+                otp.length !== 6
+              }
+              className="w-full rounded-xl bg-[#FF385C] px-4 py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#E00B41] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Verifying OTP..." : "Verify & Login"}
+              {loading
+                ? "Verifying OTP..."
+                : "Verify & Login"}
             </button>
           </form>
 
@@ -170,7 +215,7 @@ export default function VerifyOTP() {
             type="button"
             disabled={loading}
             onClick={handleResendOTP}
-            className="w-full mt-4 text-sm font-semibold text-[#FF385C] hover:underline disabled:opacity-50"
+            className="mt-4 w-full text-sm font-semibold text-[#FF385C] hover:underline disabled:cursor-not-allowed disabled:opacity-50"
           >
             Resend OTP
           </button>
