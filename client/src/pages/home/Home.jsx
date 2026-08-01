@@ -29,11 +29,17 @@ import {
 import ListingCard from "../../components/listing/ListingCard.jsx";
 import SearchBar from "../../components/home/SearchBar.jsx";
 import "./HomeLuxury.css";
+import "./HomeHeroLayout.css";
 
 const HERO_IMAGES = [
-  "/images/hero/hero1.WEBP",
   "/images/hero/hero2.WEBP",
   "/images/hero/hero3.WEBP",
+  "/images/hero/hero4.WEBP",
+  "/images/hero/hero5.WEBP",
+];
+
+const MOBILE_HERO_IMAGES = [
+  "/images/hero/hero2.WEBP",
   "/images/hero/hero4.WEBP",
   "/images/hero/hero5.WEBP",
 ];
@@ -207,6 +213,10 @@ export default function Home() {
       : false
   );
 
+  const activeHeroImages = isMobileViewport
+    ? MOBILE_HERO_IMAGES
+    : HERO_IMAGES;
+
   const categoryRailRef = useRef(null);
   const heroRef = useRef(null);
 
@@ -318,6 +328,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    setHeroIndex(
+      (current) =>
+        current >= activeHeroImages.length
+          ? 0
+          : current
+    );
+  }, [activeHeroImages.length]);
+
+  useEffect(() => {
     if (!tabVisible) {
       return undefined;
     }
@@ -328,7 +347,7 @@ export default function Home() {
           setHeroIndex(
             (current) =>
               (current + 1) %
-              HERO_IMAGES.length
+              activeHeroImages.length
           );
         },
         6500
@@ -338,7 +357,10 @@ export default function Home() {
       window.clearInterval(
         timer
       );
-  }, [tabVisible]);
+  }, [
+    tabVisible,
+    activeHeroImages.length,
+  ]);
 
   useEffect(() => {
     const updateDockedState =
@@ -645,12 +667,12 @@ export default function Home() {
         >
           <motion.img
             key={
-              HERO_IMAGES[
+              activeHeroImages[
                 heroIndex
               ]
             }
             src={
-              HERO_IMAGES[
+              activeHeroImages[
                 heroIndex
               ]
             }
@@ -705,35 +727,38 @@ export default function Home() {
           aria-hidden="true"
         />
 
+        {/* Search position only: navbar ke just neeche. */}
+        <motion.div
+          initial={{
+              opacity: 0,
+              y: 24,
+              scale: 0.985,
+            }}
+          animate={{
+              opacity: 1,
+              y: 0,
+              scale: 1,
+            }}
+          transition={{
+              delay: 0.68,
+              duration: 0.65,
+              ease: [
+                0.22,
+                1,
+                0.36,
+                1,
+              ],
+            }}
+          className="home-hero-search home-hero-top-search"
+        >
+          <div className="home-hero-search-inner">
+            <SearchBar />
+          </div>
+        </motion.div>
+
+
         <div className="home-hero-content relative mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
-          <div className="max-w-4xl">
-            <motion.p
-              initial={{
-                opacity: 0,
-                y: 14,
-              }}
-              animate={{
-                opacity: 1,
-                y: 0,
-              }}
-              transition={{
-                duration: 0.55,
-                ease: [
-                  0.22,
-                  1,
-                  0.36,
-                  1,
-                ],
-              }}
-              className="inline-flex items-center gap-2 rounded-full border border-pink-200/25 bg-[linear-gradient(100deg,rgba(255,77,141,.78)_0%,rgba(255,77,141,.42)_42%,rgba(255,255,255,.10)_100%)] px-4 py-2 text-[9px] font-black uppercase tracking-[0.22em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,.18)] backdrop-blur-xl sm:text-[10px]"
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ff4d8d] shadow-[0_0_16px_#ff4d8d]" />
-
-              Verified stays ·
-              flexible durations ·
-              premium rewards
-            </motion.p>
-
+          <div className="home-hero-copy max-w-4xl">
             <motion.h1
               initial="hidden"
               animate="visible"
@@ -750,7 +775,7 @@ export default function Home() {
                   },
                 },
               }}
-              className="home-hero-title mt-6 max-w-3xl text-left text-balance text-[clamp(2.35rem,6.4vw,5.5rem)] font-black leading-[0.98] tracking-[-0.05em] text-white"
+              className="home-hero-title mt-0 max-w-3xl text-left text-balance text-[clamp(2.35rem,6.4vw,5.5rem)] font-black leading-[0.98] tracking-[-0.05em] text-white"
             >
               {[
                 "Stay somewhere",
@@ -833,32 +858,6 @@ export default function Home() {
             </motion.p>
           </div>
 
-          {/* Mobile search heading ke neeche full width rahegi. */}
-          <motion.div
-            initial={{
-              opacity: 0,
-              y: 24,
-              scale: 0.985,
-            }}
-            animate={{
-              opacity: 1,
-              y: 0,
-              scale: 1,
-            }}
-            transition={{
-              delay: 0.68,
-              duration: 0.65,
-              ease: [
-                0.22,
-                1,
-                0.36,
-                1,
-              ],
-            }}
-            className="home-hero-search mt-8 max-w-[900px]"
-          >
-            <SearchBar />
-          </motion.div>
 
           {/* Mobile par trust cards CSS se completely hidden hain. */}
           <motion.div
@@ -986,7 +985,7 @@ export default function Home() {
         </div>
 
         <div className="home-hero-dots absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-2 sm:bottom-6">
-          {HERO_IMAGES.map(
+          {activeHeroImages.map(
             (
               src,
               index

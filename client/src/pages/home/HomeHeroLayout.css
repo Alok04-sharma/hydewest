@@ -1,0 +1,883 @@
+/*
+  Homepage navbar search and hero layout overrides.
+
+  This file must remain imported after HomeLuxury.css.
+
+  SearchBar component, Redux state, submit logic,
+  mobile modal and navbar scroll behaviour are unchanged.
+*/
+
+/* ======================================
+   Remove old hero search
+====================================== */
+
+.home-hero-top-search {
+  display: none !important;
+}
+
+/* ======================================
+   Existing navbar layout
+====================================== */
+
+.home-navbar-grid {
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto;
+
+  grid-template-areas:
+    "logo search actions";
+
+  column-gap:
+    clamp(
+      0.35rem,
+      1vw,
+      1rem
+    );
+}
+
+.home-navbar-logo {
+  grid-area: logo;
+}
+
+.home-navbar-links {
+  grid-area: links;
+}
+
+.home-navbar-search {
+  grid-area: search;
+
+  width:
+    min(
+      100%,
+      720px
+    );
+
+  min-width: 0;
+
+  justify-self: end;
+}
+
+.home-navbar-actions {
+  grid-area: actions;
+}
+
+/*
+  Scroll ke baad existing full SearchBar hide hoti hai
+  aur Search icon actions area mein show hota hai.
+*/
+.home-navbar-grid.is-docked {
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
+  grid-template-areas:
+    "logo actions";
+}
+
+/* ======================================
+   SearchBar base appearance
+====================================== */
+
+.home-navbar-search
+  .home-search-shell {
+  width: 100%;
+  min-width: 0;
+
+  border: 0 !important;
+  outline: 0 !important;
+
+  background:
+    transparent !important;
+
+  box-shadow:
+    none !important;
+
+  backdrop-filter:
+    none !important;
+
+  -webkit-backdrop-filter:
+    none !important;
+}
+
+/* ======================================
+   Desktop and laptop SearchBar
+====================================== */
+
+@media (min-width: 768px) {
+  .home-navbar-search {
+    position: relative;
+    isolation: isolate;
+
+    width:
+      min(
+        100%,
+        620px
+      );
+
+    border-radius:
+      1.25rem;
+
+    justify-self: end;
+  }
+
+  .home-navbar-search::before {
+    position: absolute;
+    z-index: -1;
+
+    inset:
+      0.15rem
+      0;
+
+    border-radius:
+      1.2rem;
+
+    background:
+      linear-gradient(
+        100deg,
+        rgba(
+          237,
+          28,
+          36,
+          0.11
+        ) 0%,
+        rgba(
+          237,
+          28,
+          36,
+          0.065
+        ) 42%,
+        rgba(
+          237,
+          28,
+          36,
+          0.025
+        ) 76%,
+        rgba(
+          255,
+          255,
+          255,
+          0.018
+        ) 100%
+      );
+
+    box-shadow:
+      inset 0 -1px 0
+        rgba(
+          237,
+          28,
+          36,
+          0.24
+        ),
+      inset 0 1px 0
+        rgba(
+          255,
+          255,
+          255,
+          0.035
+        ),
+      0 8px 24px
+        rgba(
+          237,
+          28,
+          36,
+          0.055
+        );
+
+    pointer-events: none;
+
+    content: "";
+  }
+
+  .home-navbar-search
+    .home-search-shell
+    form {
+    position: relative;
+    z-index: 1;
+
+    display: grid !important;
+
+    width: 100%;
+    min-width: 0;
+
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(
+          0,
+          1fr
+        )
+      )
+      auto;
+
+    align-items: center;
+
+    gap: 0 !important;
+
+    margin: 0 !important;
+
+    padding:
+      0.18rem
+      0.25rem
+      0.18rem
+      0.45rem !important;
+  }
+
+  .home-navbar-search
+    .home-search-shell
+    form
+    > label:nth-of-type(1),
+  .home-navbar-search
+    .home-search-shell
+    form
+    > label:nth-of-type(2),
+  .home-navbar-search
+    .home-search-shell
+    form
+    > label:nth-of-type(3) {
+    width: 100% !important;
+
+    min-width: 0 !important;
+    max-width: none !important;
+
+    flex:
+      none !important;
+
+    align-self: stretch;
+
+    margin: 0 !important;
+
+    padding-top:
+      0.45rem !important;
+
+    padding-right:
+      0.7rem !important;
+
+    padding-bottom:
+      0.45rem !important;
+
+    padding-left:
+      0.7rem !important;
+
+    background:
+      transparent !important;
+  }
+
+  .home-navbar-search
+    .home-search-shell
+    form
+    > label:nth-of-type(2),
+  .home-navbar-search
+    .home-search-shell
+    form
+    > label:nth-of-type(3) {
+    border-left:
+      1px solid
+      rgba(
+        255,
+        255,
+        255,
+        0.085
+      );
+  }
+
+  .home-navbar-search
+    .home-search-shell
+    form
+    > button {
+    width: auto !important;
+    min-width: 0 !important;
+
+    flex:
+      none !important;
+
+    justify-self: end;
+
+    margin-left:
+      0.25rem !important;
+  }
+}
+
+/* ======================================
+   Search field text
+====================================== */
+
+.home-navbar-search
+  .home-search-control {
+  width: 100%;
+  min-width: 0;
+
+  color:
+    #ffffff !important;
+
+  opacity:
+    1 !important;
+}
+
+.home-navbar-search
+  .home-search-control::placeholder {
+  color:
+    rgba(
+      255,
+      255,
+      255,
+      0.9
+    ) !important;
+
+  opacity:
+    1 !important;
+}
+
+.home-navbar-search
+  .home-search-label {
+  color:
+    rgba(
+      255,
+      255,
+      255,
+      0.58
+    ) !important;
+}
+
+/* ======================================
+   Destination field
+====================================== */
+
+.home-navbar-search
+  form
+  > label:nth-of-type(1) {
+  text-align: left;
+}
+
+/* ======================================
+   Property type centred
+====================================== */
+
+.home-navbar-search
+  form
+  > label:nth-of-type(2) {
+  text-align: center;
+}
+
+.home-navbar-search
+  form
+  > label:nth-of-type(2)
+  .home-search-label {
+  justify-content:
+    center;
+}
+
+.home-navbar-search
+  form
+  > label:nth-of-type(2)
+  select.home-search-control {
+  width: 100%;
+
+  padding-right:
+    1.1rem;
+
+  padding-left:
+    1.1rem;
+
+  text-align:
+    center;
+
+  text-align-last:
+    center;
+}
+
+.home-navbar-search
+  form
+  > label:nth-of-type(2)
+  select.home-search-control
+  option {
+  text-align:
+    center;
+}
+
+.home-navbar-search
+  form
+  > label:nth-of-type(2)
+  > svg {
+  right:
+    0.15rem;
+}
+
+/* ======================================
+   Guests field
+====================================== */
+
+.home-navbar-search
+  form
+  > label:nth-of-type(3) {
+  text-align: left;
+}
+
+/* ======================================
+   Floating search after page scroll
+====================================== */
+
+.home-navbar-floating-search {
+  border:
+    0 !important;
+}
+
+.home-navbar-floating-search
+  .home-search-shell {
+  border:
+    0 !important;
+
+  outline:
+    0 !important;
+}
+
+/* ======================================
+   Laptop and desktop navbar grid
+====================================== */
+
+@media (min-width: 1280px) {
+  .home-navbar-grid.is-expanded {
+    grid-template-columns:
+      auto
+      auto
+      minmax(
+        420px,
+        720px
+      )
+      auto;
+
+    grid-template-areas:
+      "logo links search actions";
+
+    justify-content:
+      space-between;
+
+    column-gap:
+      clamp(
+        0.65rem,
+        1.25vw,
+        1.5rem
+      );
+  }
+
+  .home-navbar-grid.is-docked {
+    grid-template-columns:
+      minmax(
+        0,
+        1fr
+      )
+      auto
+      minmax(
+        0,
+        1fr
+      );
+
+    grid-template-areas:
+      "logo links actions";
+
+    column-gap:
+      1rem;
+  }
+}
+
+/* ======================================
+   Laptop category card width
+====================================== */
+
+@media (min-width: 1024px) {
+  .home-category-card {
+    min-width:
+      10.75rem !important;
+  }
+}
+
+/* ======================================
+   Hero description removed
+====================================== */
+
+.home-hero-description {
+  display:
+    none !important;
+}
+
+/* ======================================
+   Hero copy positioning
+====================================== */
+
+.home-hero-content {
+  width: 100%;
+
+  max-width:
+    none !important;
+
+  padding-right:
+    clamp(
+      1rem,
+      2vw,
+      2.5rem
+    ) !important;
+
+  padding-left:
+    clamp(
+      1rem,
+      2vw,
+      2.5rem
+    ) !important;
+}
+
+.home-hero-content
+  > .home-hero-copy,
+.home-hero-content
+  > .max-w-4xl.home-hero-copy,
+.home-hero-content
+  > div:first-child.home-hero-copy {
+  position:
+    relative !important;
+
+  top:
+    auto !important;
+
+  max-width:
+    62rem !important;
+
+  margin-left:
+    0 !important;
+
+  transform:
+    translate3d(
+      -0.65rem,
+      3.25rem,
+      0
+    ) !important;
+}
+
+/* ======================================
+   Larger vertical hero heading
+====================================== */
+
+.home-hero-title {
+  max-width:
+    62rem !important;
+
+  color:
+    #ffffff;
+
+  font-size:
+    clamp(
+      4.4rem,
+      7.7vw,
+      7.6rem
+    ) !important;
+
+  line-height:
+    0.84 !important;
+
+  letter-spacing:
+    -0.07em !important;
+}
+
+.home-hero-title
+  > span:not(
+    .home-heading-highlight
+  ) {
+  color:
+    #ffffff;
+
+  text-shadow:
+    0 12px 38px
+    rgba(
+      0,
+      0,
+      0,
+      0.42
+    );
+}
+
+/* ======================================
+   Hydewest red final line
+====================================== */
+
+.home-heading-highlight {
+  color:
+    transparent !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #ff5a60 0%,
+      #ed1c24 54%,
+      #bf0d14 100%
+    ) !important;
+
+  background-clip:
+    text !important;
+
+  -webkit-background-clip:
+    text !important;
+
+  text-shadow:
+    0 12px 38px
+    rgba(
+      237,
+      28,
+      36,
+      0.25
+    ) !important;
+}
+
+.home-heading-highlight::after {
+  background:
+    rgba(
+      237,
+      28,
+      36,
+      0.16
+    ) !important;
+}
+
+/* ======================================
+   Mobile-only navbar and hero changes
+====================================== */
+
+@media (max-width: 767px) {
+  /*
+    Mobile navbar mein full search trigger ki jagah
+    sirf existing search icon visible rahega.
+
+    Button click ki existing functionality same hai,
+    isliye mobile search modal pehle ki tarah open hoga.
+  */
+  .home-navbar-search {
+    width:
+      2.75rem !important;
+
+    min-width:
+      2.75rem !important;
+
+    max-width:
+      2.75rem !important;
+
+    justify-self:
+      center;
+  }
+
+  .home-navbar-search::before {
+    display: none !important;
+  }
+
+  .home-navbar-search
+    .home-search-shell {
+    display:
+      flex !important;
+
+    width:
+      2.75rem !important;
+
+    min-width:
+      2.75rem !important;
+
+    height:
+      2.75rem !important;
+
+    align-items:
+      center !important;
+
+    justify-content:
+      center !important;
+
+    gap:
+      0 !important;
+
+    border:
+      0 !important;
+
+    border-radius:
+      1rem !important;
+
+    padding:
+      0 !important;
+
+    background:
+      transparent !important;
+
+    box-shadow:
+      none !important;
+  }
+
+  /*
+    Search icon ke saath jo destination/property text tha,
+    woh mobile navbar mein hidden rahega.
+  */
+  .home-navbar-search
+    .home-search-shell
+    > span:first-child {
+    display:
+      flex !important;
+
+    min-width:
+      0 !important;
+
+    align-items:
+      center !important;
+
+    justify-content:
+      center !important;
+
+    gap:
+      0 !important;
+  }
+
+  .home-navbar-search
+    .home-search-shell
+    > span:first-child
+    > span:last-child {
+    display:
+      none !important;
+  }
+
+  /*
+    Right-side filter/sliders icon hidden.
+    Sirf main search icon visible hoga.
+  */
+  .home-navbar-search
+    .home-search-shell
+    > svg {
+    display:
+      none !important;
+  }
+
+  /*
+    Existing search icon ko navbar component
+    ke suitable compact size mein rakha gaya hai.
+  */
+  .home-navbar-search
+    .home-search-shell
+    > span:first-child
+    > span:first-child {
+    display:
+      grid !important;
+
+    width:
+      2.5rem !important;
+
+    min-width:
+      2.5rem !important;
+
+    height:
+      2.5rem !important;
+
+    place-items:
+      center !important;
+
+    border-radius:
+      0.9rem !important;
+
+    color:
+      #ffffff !important;
+
+    background:
+      linear-gradient(
+        135deg,
+        #ed1c24,
+        #b80f17
+      ) !important;
+
+    box-shadow:
+      0 8px 22px
+      rgba(
+        237,
+        28,
+        36,
+        0.24
+      ) !important;
+  }
+
+  /*
+    Hero content ki horizontal spacing same hai.
+  */
+  .home-hero-content {
+    padding-right:
+      0.75rem !important;
+
+    padding-left:
+      0.75rem !important;
+  }
+
+  /*
+    Heading ko current position se upar shift kiya hai,
+    taaki last line bottom se cut na ho.
+
+    Ye rule sirf mobile par apply hoga.
+  */
+  .home-hero-content
+    > .home-hero-copy,
+  .home-hero-content
+    > .max-w-4xl.home-hero-copy,
+  .home-hero-content
+    > div:first-child.home-hero-copy {
+    max-width:
+      100% !important;
+
+    transform:
+      translate3d(
+        -0.15rem,
+        -0.75rem,
+        0
+      ) !important;
+  }
+
+  .home-hero-title {
+    max-width:
+      100% !important;
+
+    font-size:
+      clamp(
+        3.65rem,
+        15.7vw,
+        5rem
+      ) !important;
+
+    line-height:
+      0.84 !important;
+
+    letter-spacing:
+      -0.075em !important;
+  }
+}
+
+/* ======================================
+   Short-height mobile screens
+====================================== */
+
+@media (
+  max-width: 767px
+) and (
+  max-height: 700px
+) {
+  /*
+    Chhoti-height wali mobile screen par
+    heading ko aur thoda upar rakha hai.
+  */
+  .home-hero-content
+    > .home-hero-copy,
+  .home-hero-content
+    > .max-w-4xl.home-hero-copy,
+  .home-hero-content
+    > div:first-child.home-hero-copy {
+    transform:
+      translate3d(
+        -0.15rem,
+        -1.5rem,
+        0
+      ) !important;
+  }
+
+  .home-hero-title {
+    font-size:
+      clamp(
+        3.2rem,
+        14vw,
+        4.25rem
+      ) !important;
+  }
+}

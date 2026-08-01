@@ -1,91 +1,296 @@
 .hydewest-home {
-  --home-bg: #090b17;
+  --home-bg: #080d16;
+  --home-bg-soft: #0b1220;
   --home-panel: #111827;
-  --home-pink: #ff4d8d;
-  --home-purple: #8b5cf6;
-  --home-gold: #f59e0b;
+  --home-panel-soft: #151f30;
+  --home-red: #ed1c24;
+  --home-red-dark: #b80f17;
+  --home-white: #ffffff;
+  --home-muted: #9ca3af;
+  --home-border: rgba(255, 255, 255, 0.09);
 
+  min-height: 100vh;
   color-scheme: dark;
+  color: var(--home-white);
+
+  font-family:
+    Avenir,
+    "Avenir Next",
+    "Segoe UI",
+    sans-serif;
 
   background:
     radial-gradient(
-      circle at 8% 32%,
-      rgba(139, 92, 246, 0.075),
-      transparent 32rem
+      circle at 8% 28%,
+      rgba(237, 28, 36, 0.08),
+      transparent 30rem
     ),
     radial-gradient(
-      circle at 92% 70%,
-      rgba(255, 77, 141, 0.06),
-      transparent 34rem
+      circle at 92% 72%,
+      rgba(255, 255, 255, 0.035),
+      transparent 28rem
     ),
-    var(--home-bg);
+    linear-gradient(
+      180deg,
+      var(--home-bg) 0%,
+      var(--home-bg-soft) 48%,
+      var(--home-bg) 100%
+    );
+}
+
+.hydewest-home * {
+  font-family: inherit;
+}
+
+/*
+  Hero/Header section ke liye Avenir Next.
+*/
+.home-hero-section,
+.home-hero-section * {
+  font-family:
+    "Avenir Next",
+    Avenir,
+    "Segoe UI",
+    sans-serif;
 }
 
 .hydewest-home input,
 .hydewest-home select {
-  color: #ffffff;
+  color: var(--home-white);
   background-color: transparent;
   box-shadow: none;
 }
 
 .hydewest-home input::placeholder {
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.42);
 }
 
-/* ======================================
-   Hero highlighted final heading line
-====================================== */
+/*
+  Hero ke alawa homepage ke sections ko
+  same premium dark palette milegi.
+*/
+.hydewest-home
+  > section:not(
+    .home-hero-section
+  ) {
+  border-color:
+    var(
+      --home-border
+    ) !important;
+
+  background-color:
+    var(
+      --home-bg-soft
+    ) !important;
+}
+
+.hydewest-home > main {
+  background: transparent;
+}
+
+/*
+  Existing pink utility colours ko logo red mein convert karega.
+*/
+.hydewest-home
+  [class*="text-[#ff4d8d]"],
+.hydewest-home
+  [class*="text-[#ff75a8]"],
+.hydewest-home
+  [class*="text-[#ff78aa]"],
+.hydewest-home
+  [class*="text-[#ff6aa1]"] {
+  color:
+    var(
+      --home-red
+    ) !important;
+}
+
+.hydewest-home
+  [class*="border-[#ff4d8d]"] {
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.34
+    ) !important;
+}
+
+.hydewest-home
+  [class*="bg-[#ff4d8d]"] {
+  background-color:
+    var(
+      --home-red
+    ) !important;
+}
+
+/* =====================================
+   Hero heading and highlight
+===================================== */
 
 .home-heading-highlight {
   position: relative;
+
   width: fit-content;
+
   color: transparent;
 
-  background: linear-gradient(
-    to bottom,
-    #ffffff 0%,
-    #ffffff 10%,
-    #ff86b3 10%,
-    #ff4d8d 100%
-  );
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #ffffff 12%,
+      #ff5a60 12%,
+      var(
+        --home-red
+      ) 100%
+    );
 
-  background-clip: text;
-  -webkit-background-clip: text;
+  background-clip:
+    text;
 
-  text-shadow: 0 0 38px rgba(255, 77, 141, 0.2);
+  -webkit-background-clip:
+    text;
+
+  text-shadow:
+    0 0 34px
+    rgba(
+      237,
+      28,
+      36,
+      0.2
+    );
 }
 
 .home-heading-highlight::after {
   position: absolute;
   z-index: -1;
+
   right: 4%;
   bottom: 4%;
 
   width: 58%;
   height: 32%;
 
-  border-radius: 999px;
+  border-radius:
+    999px;
 
-  background: rgba(255, 77, 141, 0.18);
-  filter: blur(28px);
+  background:
+    rgba(
+      237,
+      28,
+      36,
+      0.18
+    );
+
+  filter:
+    blur(
+      28px
+    );
 
   content: "";
 }
 
-/* ======================================
-   Hero ambient decorative orbs
-====================================== */
+/*
+  Verified stays badge.
+*/
+.home-hero-content
+  > .max-w-4xl
+  > p:first-child {
+  border-color:
+    rgba(
+      255,
+      255,
+      255,
+      0.18
+    ) !important;
+
+  color:
+    #ffffff !important;
+
+  background:
+    linear-gradient(
+      105deg,
+      rgba(
+        237,
+        28,
+        36,
+        0.94
+      ) 0%,
+      rgba(
+        184,
+        15,
+        23,
+        0.88
+      ) 52%,
+      rgba(
+        17,
+        24,
+        39,
+        0.9
+      ) 100%
+    ) !important;
+
+  box-shadow:
+    inset 0 1px 0
+      rgba(
+        255,
+        255,
+        255,
+        0.18
+      ),
+    0 14px 38px
+      rgba(
+        0,
+        0,
+        0,
+        0.22
+      ) !important;
+}
+
+.home-hero-content
+  > .max-w-4xl
+  > p:first-child
+  > span:first-child {
+  background:
+    #ffffff !important;
+
+  box-shadow:
+    0 0 16px
+    rgba(
+      255,
+      255,
+      255,
+      0.72
+    ) !important;
+}
+
+/* =====================================
+   Hero ambient effects
+===================================== */
 
 .home-hero-orb {
   position: absolute;
 
-  border-radius: 999px;
-  pointer-events: none;
+  border-radius:
+    999px;
 
-  filter: blur(70px);
-  opacity: 0.38;
+  pointer-events:
+    none;
 
-  animation: homeOrbFloat 11s ease-in-out infinite alternate;
+  filter:
+    blur(
+      72px
+    );
+
+  opacity: 0.3;
+
+  animation:
+    homeOrbFloat
+    11s
+    ease-in-out
+    infinite
+    alternate;
 }
 
 .home-hero-orb-one {
@@ -95,7 +300,13 @@
   width: 14rem;
   height: 14rem;
 
-  background: rgba(139, 92, 246, 0.26);
+  background:
+    rgba(
+      237,
+      28,
+      36,
+      0.26
+    );
 }
 
 .home-hero-orb-two {
@@ -105,116 +316,310 @@
   width: 11rem;
   height: 11rem;
 
-  background: rgba(245, 158, 11, 0.16);
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    );
 
-  animation-delay: -4s;
+  animation-delay:
+    -4s;
 }
 
-/* ======================================
-   Hero trust and metric cards
-====================================== */
+/* =====================================
+   Trust cards removed everywhere
+===================================== */
+
+/*
+  Mobile aur laptop dono view se
+  chaar trust cards completely hidden.
+*/
+.home-hero-trust-grid {
+  display:
+    none !important;
+}
 
 .home-trust-card,
+.home-trust-icon {
+  display:
+    none !important;
+}
+
+/* =====================================
+   Optional metric cards
+===================================== */
+
 .home-stat-card {
   display: flex;
+
   min-width: 0;
-  align-items: center;
+
+  align-items:
+    center;
+
   gap: 0.75rem;
 
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border:
+    1px solid
+    var(
+      --home-border
+    );
 
-  background: rgba(9, 11, 23, 0.42);
+  border-radius:
+    1.15rem;
+
+  padding: 0.8rem;
+
+  background:
+    rgba(
+      17,
+      24,
+      39,
+      0.82
+    );
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 14px 36px rgba(0, 0, 0, 0.15);
+    inset 0 1px 0
+      rgba(
+        255,
+        255,
+        255,
+        0.05
+      ),
+    0 14px 36px
+      rgba(
+        0,
+        0,
+        0,
+        0.2
+      );
 
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter:
+    blur(
+      18px
+    );
+
+  -webkit-backdrop-filter:
+    blur(
+      18px
+    );
 }
 
-.home-trust-card {
-  border-radius: 1rem;
-  padding: 0.7rem 0.8rem;
-}
-
-.home-stat-card {
-  border-radius: 1.15rem;
-  padding: 0.8rem;
-}
-
-.home-trust-icon,
 .home-stat-icon {
   display: grid;
-  flex: 0 0 auto;
-  place-items: center;
 
-  border: 1px solid rgba(255, 77, 141, 0.18);
-
-  color: #ff77aa;
-  background: rgba(255, 77, 141, 0.1);
-}
-
-.home-trust-icon {
-  width: 2rem;
-  height: 2rem;
-
-  border-radius: 0.8rem;
-  font-size: 0.85rem;
-}
-
-.home-stat-icon {
   width: 2.25rem;
   height: 2.25rem;
 
-  border-radius: 0.9rem;
+  flex:
+    0 0 auto;
+
+  place-items:
+    center;
+
+  border:
+    1px solid
+    rgba(
+      237,
+      28,
+      36,
+      0.26
+    );
+
+  border-radius:
+    0.9rem;
+
+  color: #ffffff;
+
+  background:
+    rgba(
+      237,
+      28,
+      36,
+      0.14
+    );
+
   font-size: 1rem;
 }
 
-/* ======================================
-   Unified homepage search
-====================================== */
+/* =====================================
+   Homepage search
+===================================== */
 
 .home-search-shell {
-  border: 1px solid rgba(255, 255, 255, 0.58);
+  border:
+    1px solid
+    rgba(
+      237,
+      28,
+      36,
+      0.42
+    );
 
-  background: linear-gradient(
-    104deg,
-    rgba(255, 77, 141, 0.96) 0%,
-    rgba(255, 151, 187, 0.92) 38%,
-    rgba(255, 224, 235, 0.96) 68%,
-    rgba(255, 255, 255, 0.98) 100%
-  );
+  background:
+    linear-gradient(
+      112deg,
+      rgba(
+        17,
+        24,
+        39,
+        0.98
+      ) 0%,
+      rgba(
+        17,
+        24,
+        39,
+        0.96
+      ) 66%,
+      rgba(
+        237,
+        28,
+        36,
+        0.16
+      ) 100%
+    );
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.62),
-    0 18px 48px rgba(104, 8, 45, 0.24);
+    inset 0 1px 0
+      rgba(
+        255,
+        255,
+        255,
+        0.06
+      ),
+    0 20px 54px
+      rgba(
+        0,
+        0,
+        0,
+        0.34
+      );
 
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter:
+    blur(
+      22px
+    );
+
+  -webkit-backdrop-filter:
+    blur(
+      22px
+    );
 }
 
 .home-search-label {
-  color: #9f1239;
+  color:
+    #ff6a70 !important;
 }
 
-.home-search-shell .home-search-control {
-  color: #111827 !important;
-  background: transparent !important;
+.home-search-shell
+  .home-search-control {
+  color:
+    #ffffff !important;
+
+  background:
+    transparent !important;
 }
 
-.home-search-shell .home-search-control::placeholder {
-  color: rgba(17, 24, 39, 0.72) !important;
+.home-search-shell
+  .home-search-control::placeholder {
+  color:
+    rgba(
+      255,
+      255,
+      255,
+      0.48
+    ) !important;
 }
 
-.home-search-shell select.home-search-control option {
-  color: #111827;
-  background: #ffffff;
+.home-search-shell
+  select.home-search-control
+  option {
+  color: #ffffff;
+
+  background:
+    var(
+      --home-panel
+    );
 }
 
-/* ======================================
+.home-search-shell
+  [class*="text-slate-950"] {
+  color:
+    #ffffff !important;
+}
+
+.home-search-shell
+  [class*="text-[#9f1239]"] {
+  color:
+    #ff7378 !important;
+}
+
+.home-search-shell
+  [class*="bg-[#d9165b]"] {
+  background:
+    var(
+      --home-red
+    ) !important;
+}
+
+/*
+  Search buttons se purple gradient remove.
+*/
+.home-search-ripple[
+  class*="from-[#ff4d8d]"
+],
+.home-search-ripple[
+  class*="to-[#8b5cf6]"
+] {
+  background:
+    linear-gradient(
+      135deg,
+      #ed1c24,
+      #b80f17
+    ) !important;
+}
+
+/*
+  Mobile search modal palette.
+*/
+[class*="z-[300]"][
+  class*="items-end"
+]
+  [class*="bg-[#0d1020]"] {
+  background:
+    #0b1220 !important;
+}
+
+[class*="z-[300]"][
+  class*="items-end"
+]
+  [class*="text-[#ff6aa1]"],
+[class*="z-[300]"][
+  class*="items-end"
+]
+  [class*="text-[#ff4d8d]"] {
+  color:
+    #ed1c24 !important;
+}
+
+[class*="z-[300]"][
+  class*="items-end"
+]
+  [class*="focus:border-[#ff4d8d]"] {
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.62
+    ) !important;
+}
+
+/* =====================================
    Category controls
-====================================== */
+===================================== */
 
 .home-rail-button {
   display: grid;
@@ -222,45 +627,103 @@
   width: 2.6rem;
   height: 2.6rem;
 
-  place-items: center;
+  place-items:
+    center;
 
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 0.95rem;
+  border:
+    1px solid
+    var(
+      --home-border
+    );
 
-  color: rgba(255, 255, 255, 0.78);
-  background: rgba(255, 255, 255, 0.045);
+  border-radius:
+    0.95rem;
+
+  color:
+    rgba(
+      255,
+      255,
+      255,
+      0.76
+    );
+
+  background:
+    rgba(
+      17,
+      24,
+      39,
+      0.82
+    );
 
   transition:
-    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
-    color 220ms ease,
-    border-color 220ms ease,
-    background-color 220ms ease;
+    transform
+      220ms
+      cubic-bezier(
+        0.22,
+        1,
+        0.36,
+        1
+      ),
+    color
+      220ms
+      ease,
+    border-color
+      220ms
+      ease,
+    background-color
+      220ms
+      ease;
 }
 
 .home-rail-button:hover {
-  transform: translateY(-2px);
+  transform:
+    translateY(
+      -2px
+    );
 
-  border-color: rgba(255, 77, 141, 0.34);
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.48
+    );
 
   color: #ffffff;
-  background: rgba(255, 77, 141, 0.1);
+
+  background:
+    rgba(
+      237,
+      28,
+      36,
+      0.13
+    );
 }
 
-/*
-  Category cards mobile aur laptop dono par center rahenge.
-  Scroll aur click functionality same rahegi.
-*/
 .home-category-rail {
-  width: min(100%, 35.05rem);
-  max-width: 35.05rem;
+  width:
+    min(
+      100%,
+      35.05rem
+    );
 
-  margin-right: auto;
-  margin-left: auto;
+  max-width:
+    35.05rem;
 
-  overflow-scrolling: touch;
-  -webkit-overflow-scrolling: touch;
+  margin-right:
+    auto;
 
-  scroll-snap-type: x proximity;
+  margin-left:
+    auto;
+
+  overflow-scrolling:
+    touch;
+
+  -webkit-overflow-scrolling:
+    touch;
+
+  scroll-snap-type:
+    x proximity;
 }
 
 .home-category-card {
@@ -268,61 +731,158 @@
 
   min-width: 8.2rem;
 
-  flex: 0 0 auto;
-  flex-direction: column;
-  align-items: flex-start;
+  flex:
+    0 0 auto;
+
+  flex-direction:
+    column;
+
+  align-items:
+    flex-start;
 
   gap: 0.45rem;
 
-  scroll-snap-align: start;
+  scroll-snap-align:
+    start;
 
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 1.35rem;
+  border:
+    1px solid
+    var(
+      --home-border
+    );
 
-  padding: 0.9rem 1rem;
+  border-radius:
+    1.35rem;
+
+  padding:
+    0.9rem
+    1rem;
+
+  color: #ffffff;
 
   text-align: left;
 
   background:
     linear-gradient(
       145deg,
-      rgba(255, 255, 255, 0.055),
-      rgba(255, 255, 255, 0.018)
+      rgba(
+        255,
+        255,
+        255,
+        0.055
+      ),
+      rgba(
+        255,
+        255,
+        255,
+        0.012
+      )
     ),
-    #111827;
+    var(
+      --home-panel
+    );
 
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  box-shadow:
+    inset 0 1px 0
+      rgba(
+        255,
+        255,
+        255,
+        0.045
+      ),
+    0 14px 34px
+      rgba(
+        0,
+        0,
+        0,
+        0.16
+      );
 
   transition:
-    border-color 220ms ease,
-    box-shadow 220ms ease,
-    background-color 220ms ease;
+    border-color
+      220ms
+      ease,
+    box-shadow
+      220ms
+      ease,
+    background-color
+      220ms
+      ease;
 }
 
 .home-category-card:hover {
-  border-color: rgba(255, 77, 141, 0.28);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.2);
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.4
+    );
+
+  box-shadow:
+    0 20px 54px
+    rgba(
+      0,
+      0,
+      0,
+      0.28
+    );
 }
 
 .home-category-card.is-active {
-  border-color: rgba(255, 77, 141, 0.5);
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.72
+    );
 
   background:
     radial-gradient(
-      circle at 80% 0%,
-      rgba(139, 92, 246, 0.24),
-      transparent 55%
+      circle at 82% 0%,
+      rgba(
+        237,
+        28,
+        36,
+        0.22
+      ),
+      transparent 58%
     ),
     linear-gradient(
       145deg,
-      rgba(255, 77, 141, 0.18),
-      rgba(255, 77, 141, 0.06)
+      rgba(
+        237,
+        28,
+        36,
+        0.18
+      ),
+      rgba(
+        255,
+        255,
+        255,
+        0.025
+      )
     ),
-    #111827;
+    var(
+      --home-panel
+    );
 
   box-shadow:
-    0 16px 50px rgba(255, 77, 141, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 18px 54px
+      rgba(
+        237,
+        28,
+        36,
+        0.14
+      ),
+    inset 0 1px 0
+      rgba(
+        255,
+        255,
+        255,
+        0.08
+      );
 }
 
 .home-category-icon {
@@ -331,32 +891,259 @@
   width: 2.25rem;
   height: 2.25rem;
 
-  place-items: center;
+  place-items:
+    center;
 
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 0.85rem;
+  border:
+    1px solid
+    rgba(
+      255,
+      255,
+      255,
+      0.09
+    );
 
-  color: #ff78aa;
-  background: rgba(255, 255, 255, 0.045);
+  border-radius:
+    0.85rem;
+
+  color: #ff6268;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.045
+    );
 }
 
-.home-category-card.is-active .home-category-icon {
-  border-color: rgba(255, 77, 141, 0.25);
+.home-category-card.is-active
+  .home-category-icon {
+  border-color:
+    rgba(
+      255,
+      255,
+      255,
+      0.12
+    );
 
   color: #ffffff;
 
-  background: linear-gradient(
-    135deg,
-    #ff4d8d,
-    #8b5cf6
-  );
+  background:
+    linear-gradient(
+      135deg,
+      var(
+        --home-red
+      ),
+      var(
+        --home-red-dark
+      )
+    );
 
-  box-shadow: 0 8px 24px rgba(255, 77, 141, 0.24);
+  box-shadow:
+    0 10px 28px
+    rgba(
+      237,
+      28,
+      36,
+      0.24
+    );
 }
 
-/* ======================================
+/* =====================================
+   Home listing cards
+===================================== */
+
+.home-luxury-card {
+  contain:
+    layout paint;
+}
+
+.home-luxury-card > a {
+  border-color:
+    var(
+      --home-border
+    ) !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(
+        17,
+        24,
+        39,
+        0.98
+      ),
+      rgba(
+        11,
+        18,
+        32,
+        0.98
+      )
+    ) !important;
+
+  box-shadow:
+    0 20px 58px
+    rgba(
+      0,
+      0,
+      0,
+      0.3
+    ) !important;
+}
+
+.home-luxury-card
+  > a:hover {
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.42
+    ) !important;
+
+  box-shadow:
+    0 32px 82px
+    rgba(
+      0,
+      0,
+      0,
+      0.42
+    ) !important;
+}
+
+.home-luxury-card
+  [class*="from-[#090b17]"] {
+  --tw-gradient-from:
+    rgba(
+      8,
+      13,
+      22,
+      0.92
+    )
+    var(
+      --tw-gradient-from-position
+    ) !important;
+}
+
+.home-luxury-card
+  [class*="bg-[#090b17]"] {
+  background-color:
+    rgba(
+      8,
+      13,
+      22,
+      0.82
+    ) !important;
+}
+
+.home-luxury-card
+  [class*="text-[#ff75a8]"] {
+  color:
+    var(
+      --home-red
+    ) !important;
+}
+
+/*
+  Rating badge ka golden colour remove.
+*/
+.home-luxury-card
+  [class*="border-amber-300"] {
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.26
+    ) !important;
+}
+
+.home-luxury-card
+  [class*="bg-amber-300"] {
+  background-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.12
+    ) !important;
+}
+
+.home-luxury-card
+  [class*="text-amber-200"] {
+  color:
+    #ffffff !important;
+}
+
+.home-luxury-card
+  [class*="text-slate-400"] {
+  color:
+    #aeb7c6 !important;
+}
+
+.home-luxury-card
+  [class*="text-slate-500"] {
+  color:
+    #7f8a9c !important;
+}
+
+.home-luxury-card
+  [class*="border-white/[0.07]"] {
+  border-color:
+    rgba(
+      255,
+      255,
+      255,
+      0.08
+    ) !important;
+}
+
+/*
+  View stay button se purple remove.
+*/
+.home-luxury-card
+  [class*="from-[#ff4d8d]"][
+    class*="to-[#8b5cf6]"
+  ] {
+  background:
+    linear-gradient(
+      135deg,
+      var(
+        --home-red
+      ),
+      var(
+        --home-red-dark
+      )
+    ) !important;
+
+  box-shadow:
+    0 12px 30px
+    rgba(
+      237,
+      28,
+      36,
+      0.22
+    ) !important;
+}
+
+.home-luxury-card
+  [class*="from-[#ff4d8d]"][
+    class*="to-[#8b5cf6]"
+  ]:hover {
+  box-shadow:
+    0 16px 38px
+    rgba(
+      237,
+      28,
+      36,
+      0.32
+    ) !important;
+}
+
+/* =====================================
    Featured location cards
-====================================== */
+===================================== */
 
 .home-location-card {
   position: relative;
@@ -366,125 +1153,410 @@
   min-height: 20rem;
 
   overflow: hidden;
+
   isolation: isolate;
 
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 1.75rem;
+  border:
+    1px solid
+    var(
+      --home-border
+    );
+
+  border-radius:
+    1.75rem;
 
   padding: 1.25rem;
 
-  box-shadow: 0 20px 58px rgba(0, 0, 0, 0.22);
+  background:
+    var(
+      --home-panel
+    );
+
+  box-shadow:
+    0 22px 62px
+    rgba(
+      0,
+      0,
+      0,
+      0.3
+    );
 
   transition:
-    border-color 260ms ease,
-    box-shadow 260ms ease;
+    border-color
+      260ms
+      ease,
+    box-shadow
+      260ms
+      ease;
 }
 
 .home-location-card:hover {
-  border-color: rgba(255, 77, 141, 0.28);
-  box-shadow: 0 30px 75px rgba(0, 0, 0, 0.32);
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.44
+    );
+
+  box-shadow:
+    0 32px 82px
+    rgba(
+      0,
+      0,
+      0,
+      0.42
+    );
 }
 
-/* ======================================
-   Loading skeleton
-====================================== */
+/*
+  Missing location image fallback.
+*/
+.home-location-card
+  > div[class*="from-[#4c1d95]"] {
+  background:
+    linear-gradient(
+      135deg,
+      var(
+        --home-panel
+      ),
+      var(
+        --home-red-dark
+      )
+    ) !important;
+}
+
+.home-location-card
+  > div[class*="from-[#090b17]"] {
+  background:
+    linear-gradient(
+      0deg,
+      rgba(
+        8,
+        13,
+        22,
+        0.98
+      ),
+      rgba(
+        8,
+        13,
+        22,
+        0.22
+      ),
+      transparent
+    ) !important;
+}
+
+/* =====================================
+   Why Hydewest section
+===================================== */
+
+.hydewest-home
+  > section:last-child {
+  background:
+    transparent !important;
+}
+
+.hydewest-home
+  > section:last-child
+  > div {
+  border-color:
+    rgba(
+      255,
+      255,
+      255,
+      0.1
+    ) !important;
+
+  background:
+    radial-gradient(
+      circle at 10% 0%,
+      rgba(
+        237,
+        28,
+        36,
+        0.14
+      ),
+      transparent 28rem
+    ),
+    linear-gradient(
+      135deg,
+      rgba(
+        17,
+        24,
+        39,
+        0.98
+      ),
+      rgba(
+        8,
+        13,
+        22,
+        0.98
+      )
+    ) !important;
+
+  box-shadow:
+    0 30px 100px
+    rgba(
+      0,
+      0,
+      0,
+      0.34
+    ) !important;
+}
+
+.hydewest-home
+  > section:last-child
+  article {
+  border-color:
+    var(
+      --home-border
+    ) !important;
+
+  background:
+    rgba(
+      17,
+      24,
+      39,
+      0.9
+    ) !important;
+
+  box-shadow:
+    inset 0 1px 0
+      rgba(
+        255,
+        255,
+        255,
+        0.045
+      ),
+    0 20px 54px
+      rgba(
+        0,
+        0,
+        0,
+        0.24
+      ) !important;
+}
+
+.hydewest-home
+  > section:last-child
+  article
+  > span {
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.3
+    ) !important;
+
+  color:
+    #ffffff !important;
+
+  background:
+    rgba(
+      237,
+      28,
+      36,
+      0.14
+    ) !important;
+}
+
+/* =====================================
+   Empty, error and loading states
+===================================== */
 
 .home-dark-skeleton {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.035) 25%,
-    rgba(255, 255, 255, 0.085) 50%,
-    rgba(255, 255, 255, 0.035) 75%
-  );
+  background:
+    linear-gradient(
+      90deg,
+      rgba(
+        255,
+        255,
+        255,
+        0.035
+      ) 25%,
+      rgba(
+        237,
+        28,
+        36,
+        0.12
+      ) 50%,
+      rgba(
+        255,
+        255,
+        255,
+        0.035
+      ) 75%
+    );
 
-  background-size: 200% 100%;
+  background-size:
+    200% 100%;
 
-  animation: homeSkeleton 1.45s linear infinite;
+  animation:
+    homeSkeleton
+    1.45s
+    linear
+    infinite;
 }
 
-/* ======================================
+.hydewest-home
+  [class*="bg-rose-400"] {
+  background-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.1
+    ) !important;
+}
+
+.hydewest-home
+  [class*="border-rose-400"] {
+  border-color:
+    rgba(
+      237,
+      28,
+      36,
+      0.28
+    ) !important;
+}
+
+.hydewest-home
+  [class*="text-rose-100"] {
+  color:
+    #ffffff !important;
+}
+
+/* =====================================
    Search button ripple
-====================================== */
+===================================== */
 
 .home-search-ripple {
   position: relative;
+
   overflow: hidden;
+
   isolation: isolate;
 }
 
 .home-search-ripple::after {
   position: absolute;
-  inset: 50% auto auto 50%;
+
+  inset:
+    50%
+    auto
+    auto
+    50%;
 
   width: 0;
   height: 0;
 
-  border-radius: 999px;
+  border-radius:
+    999px;
 
-  background: rgba(255, 255, 255, 0.32);
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.34
+    );
 
-  transform: translate(-50%, -50%);
+  transform:
+    translate(
+      -50%,
+      -50%
+    );
 
   opacity: 0;
 
   content: "";
 
   transition:
-    width 420ms ease,
-    height 420ms ease,
-    opacity 420ms ease;
+    width
+      420ms
+      ease,
+    height
+      420ms
+      ease,
+    opacity
+      420ms
+      ease;
 }
 
 .home-search-ripple:active::after {
   width: 10rem;
   height: 10rem;
 
-  opacity: 0.16;
+  opacity: 0.18;
 
-  transition-duration: 0ms;
+  transition-duration:
+    0ms;
 }
 
-.home-luxury-card {
-  contain: layout paint;
-}
-
-/* ======================================
+/* =====================================
    Animations
-====================================== */
+===================================== */
 
 @keyframes homeOrbFloat {
   0% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform:
+      translate3d(
+        0,
+        0,
+        0
+      )
+      scale(
+        1
+      );
   }
 
   100% {
-    transform: translate3d(18px, -14px, 0) scale(1.08);
+    transform:
+      translate3d(
+        18px,
+        -14px,
+        0
+      )
+      scale(
+        1.08
+      );
   }
 }
 
 @keyframes homeSkeleton {
   0% {
-    background-position: -200% 0;
+    background-position:
+      -200% 0;
   }
 
   100% {
-    background-position: 200% 0;
+    background-position:
+      200% 0;
   }
 }
 
-/* ======================================
-   Small-screen cards
-====================================== */
+/* =====================================
+   Small screens
+===================================== */
 
-@media (max-width: 639px) {
+@media (
+  max-width:
+  639px
+) {
   .home-hero-orb {
-    opacity: 0.22;
-    filter: blur(58px);
+    opacity: 0.18;
+
+    filter:
+      blur(
+        58px
+      );
   }
 
-  .home-trust-card,
   .home-stat-card {
     gap: 0.55rem;
+
     padding: 0.65rem;
   }
 
@@ -497,132 +1569,198 @@
   }
 }
 
-/* ======================================
-   Reduced-motion accessibility
-====================================== */
+/* =====================================
+   Mobile hero composition
+===================================== */
 
-@media (prefers-reduced-motion: reduce) {
-  .home-hero-orb,
-  .home-dark-skeleton {
-    animation: none !important;
-  }
-}
-
-/* ======================================
-   Mobile-only hero changes
-====================================== */
-
-@media (max-width: 767px) {
+@media (
+  max-width:
+  767px
+) {
   .home-hero-section {
-    min-height: 100svh;
-    align-items: flex-end;
-    padding-top: 4.25rem;
+    min-height:
+      100svh;
+
+    align-items:
+      flex-end;
+
+    padding-top:
+      4.25rem;
   }
 
   /*
-    Image par Framer Motion ka extra zoom mobile mein band.
-    Object-cover ke saath maximum useful image area visible rahega.
+    Maximum useful image area visible.
   */
   .home-hero-image {
-    object-fit: cover;
-    object-position: center center;
+    object-fit:
+      cover;
 
-    transform: scale(1) !important;
+    object-position:
+      center center;
+
+    transform:
+      scale(
+        1
+      ) !important;
   }
 
-  /*
-    Image ke upper part par bahut halka overlay.
-    Neeche text readability ke liye gradient.
-  */
   .home-hero-overlay-side {
-    background: linear-gradient(
-      180deg,
-      rgba(3, 5, 15, 0.02) 0%,
-      rgba(9, 11, 23, 0.01) 40%,
-      rgba(9, 11, 23, 0.14) 61%,
-      rgba(9, 11, 23, 0.68) 84%,
-      rgba(9, 11, 23, 0.9) 100%
-    ) !important;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(
+          3,
+          5,
+          15,
+          0.02
+        ) 0%,
+        rgba(
+          8,
+          13,
+          22,
+          0.02
+        ) 40%,
+        rgba(
+          8,
+          13,
+          22,
+          0.15
+        ) 61%,
+        rgba(
+          8,
+          13,
+          22,
+          0.7
+        ) 84%,
+        rgba(
+          8,
+          13,
+          22,
+          0.92
+        ) 100%
+      ) !important;
   }
 
   .home-hero-overlay-bottom {
-    background: linear-gradient(
-      180deg,
-      rgba(9, 11, 23, 0) 0%,
-      rgba(9, 11, 23, 0) 50%,
-      rgba(9, 11, 23, 0.08) 65%,
-      rgba(9, 11, 23, 0.46) 83%,
-      rgba(9, 11, 23, 0.84) 100%
-    ) !important;
+    background:
+      linear-gradient(
+        180deg,
+        rgba(
+          8,
+          13,
+          22,
+          0
+        ) 0%,
+        rgba(
+          8,
+          13,
+          22,
+          0
+        ) 50%,
+        rgba(
+          8,
+          13,
+          22,
+          0.08
+        ) 65%,
+        rgba(
+          8,
+          13,
+          22,
+          0.48
+        ) 83%,
+        rgba(
+          8,
+          13,
+          22,
+          0.86
+        ) 100%
+      ) !important;
   }
 
   .home-hero-content {
-    padding-top: clamp(
-      12rem,
-      34svh,
-      18rem
-    );
+    padding-top:
+      clamp(
+        12rem,
+        34svh,
+        18rem
+      );
 
-    padding-right: 1rem;
-    padding-bottom: 4.65rem;
-    padding-left: 1rem;
+    padding-right:
+      1rem;
+
+    padding-bottom:
+      4.65rem;
+
+    padding-left:
+      1rem;
   }
 
   /*
-    Sirf mobile par badge aur main heading upar jayenge.
-    Description aur search bar apni current position par rahenge.
+    Current mobile hero text positioning preserve.
   */
-  .home-hero-content > .max-w-4xl {
-    position: static !important;
-    top: auto !important;
-    transform: none !important;
-  }
+  .home-hero-content
+    > .max-w-4xl,
+  .home-hero-content
+    > div:first-child {
+    position:
+      relative !important;
 
-  .home-hero-content > .max-w-4xl > p:first-child,
-  .home-hero-content > .max-w-4xl > h1 {
-    position: relative;
-    z-index: 2;
-    top: -5.5rem;
+    top:
+      -72px !important;
+
+    transform:
+      none !important;
   }
 
   .home-hero-title {
     max-width: 100%;
+
     margin-top: 1rem;
 
-    font-size: clamp(
-      2.55rem,
-      10.8vw,
-      3.25rem
-    );
+    font-size:
+      clamp(
+        2.55rem,
+        10.8vw,
+        3.25rem
+      );
 
     line-height: 0.92;
-    letter-spacing: -0.065em;
 
-    text-wrap: balance;
+    letter-spacing:
+      -0.065em;
+
+    text-wrap:
+      balance;
   }
 
   .home-hero-description {
     max-width: 33rem;
+
     margin-top: 1rem;
 
-    font-size: 0.82rem;
-    line-height: 1.45rem;
+    color:
+      rgba(
+        255,
+        255,
+        255,
+        0.78
+      );
 
-    color: rgba(255, 255, 255, 0.78);
+    font-size:
+      0.82rem;
+
+    line-height:
+      1.45rem;
   }
 
-  /*
-    Search bar ka position intentionally same rakha hai.
-  */
   .home-hero-search {
     width: 100%;
+
     max-width: none;
 
-    margin-top: 1.4rem;
-  }
-
-  .home-hero-trust-grid {
-    display: none !important;
+    margin-top:
+      1.4rem;
   }
 
   .home-hero-dots {
@@ -630,49 +1768,67 @@
   }
 
   .home-hero-orb {
-    opacity: 0.12;
+    opacity: 0.1;
   }
 }
 
-/* ======================================
-   Very narrow phone support
-====================================== */
+/* =====================================
+   Very narrow phones
+===================================== */
 
-@media (max-width: 389px) {
+@media (
+  max-width:
+  389px
+) {
   .home-hero-content {
-    padding-top: clamp(
-      10.5rem,
-      30svh,
-      14rem
-    );
+    padding-top:
+      clamp(
+        10.5rem,
+        30svh,
+        14rem
+      );
 
-    padding-bottom: 4.4rem;
+    padding-bottom:
+      4.4rem;
   }
 
-  .home-hero-content > .max-w-4xl > p:first-child,
-  .home-hero-content > .max-w-4xl > h1 {
-    top: -4.5rem;
+  .home-hero-content
+    > .max-w-4xl,
+  .home-hero-content
+    > div:first-child {
+    top:
+      -58px !important;
   }
 
   .home-hero-title {
-    font-size: clamp(
-      2.35rem,
-      10.6vw,
-      2.75rem
-    );
+    font-size:
+      clamp(
+        2.35rem,
+        10.6vw,
+        2.75rem
+      );
   }
 
   .home-hero-description {
-    font-size: 0.78rem;
-    line-height: 1.3rem;
+    font-size:
+      0.78rem;
+
+    line-height:
+      1.3rem;
   }
 }
 
-/* ======================================
+/* =====================================
    Short-height mobile screens
-====================================== */
+===================================== */
 
-@media (max-width: 767px) and (max-height: 700px) {
+@media (
+  max-width:
+  767px
+) and (
+  max-height:
+  700px
+) {
   .home-hero-section {
     min-height: 46rem;
   }
@@ -681,8 +1837,26 @@
     padding-top: 12rem;
   }
 
-  .home-hero-content > .max-w-4xl > p:first-child,
-  .home-hero-content > .max-w-4xl > h1 {
-    top: -4rem;
+  .home-hero-content
+    > .max-w-4xl,
+  .home-hero-content
+    > div:first-child {
+    top:
+      -50px !important;
+  }
+}
+
+/* =====================================
+   Reduced motion
+===================================== */
+
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  .home-hero-orb,
+  .home-dark-skeleton {
+    animation:
+      none !important;
   }
 }
