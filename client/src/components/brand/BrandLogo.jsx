@@ -1,13 +1,17 @@
-import React, { useState } from "react";
+import React, {
+  useEffect,
+  useState,
+} from "react";
 
 // ======================================
-// Global brand logo path
+// Transparent Hydewest logo
 // ======================================
 
-const LOGO_PATH = "/images/logo.WEBP";
+const LOGO_PATH =
+  "/images/logo-transparent.webp";
 
 // ======================================
-// Responsive logo dimensions
+// Existing responsive logo dimensions
 // ======================================
 
 const sizeClasses = {
@@ -18,68 +22,161 @@ const sizeClasses = {
     "h-16 max-w-[205px] sm:h-20 sm:max-w-[245px]",
 };
 
+// ======================================
+// Existing outer spacing
+//
+// Background, border, radius and shadow
+// intentionally removed so the logo blends
+// directly with its surrounding page/navbar.
+// ======================================
+
+const wrapperClasses = {
+  navbar:
+    "px-2 py-1",
+
+  auth:
+    "px-5 py-3 sm:px-6 sm:py-3.5",
+};
+
+// ======================================
+// Navbar logo mask
+//
+// The transparent logo shape is used as a mask.
+// This keeps "hyde" visible on the dark navbar
+// while retaining the red "west" portion.
+//
+// No rectangular image background is rendered.
+// ======================================
+
+const navbarLogoStyle = {
+  background:
+    "linear-gradient(90deg, #f8fafc 0%, #f8fafc 50.1%, #ed1c24 50.1%, #ed1c24 100%)",
+
+  WebkitMaskImage:
+    `url("${LOGO_PATH}")`,
+
+  maskImage:
+    `url("${LOGO_PATH}")`,
+
+  WebkitMaskRepeat:
+    "no-repeat",
+
+  maskRepeat:
+    "no-repeat",
+
+  WebkitMaskPosition:
+    "center",
+
+  maskPosition:
+    "center",
+
+  WebkitMaskSize:
+    "contain",
+
+  maskSize:
+    "contain",
+};
+
 export default function BrandLogo({
   variant = "navbar",
   showText = false,
   className = "",
   imageClassName = "",
 }) {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [
+    imageFailed,
+    setImageFailed,
+  ] = useState(false);
 
   const logoSizeClass =
     sizeClasses[variant] ||
     sizeClasses.navbar;
 
-  // ======================================
-  // Variant based logo container
-  // ======================================
+  const wrapperClass =
+    wrapperClasses[variant] ||
+    wrapperClasses.navbar;
 
-  const surfaceClass =
-    variant === "navbar"
-      ? [
-          "rounded-xl",
-          "bg-white/95",
-          "px-2",
-          "py-1",
-          "shadow-[0_10px_30px_rgba(0,0,0,.18)]",
-        ].join(" ")
-      : [
-          // Login aur Signup page ke light background ke saath blended container.
-          "rounded-[26px]",
-          "border",
-          "border-slate-200/75",
-          "bg-white/75",
-          "px-5",
-          "py-3",
-          "shadow-[0_12px_32px_rgba(15,23,42,.055)]",
-          "backdrop-blur-sm",
-          "sm:rounded-[30px]",
-          "sm:px-6",
-          "sm:py-3.5",
-        ].join(" ");
+  // Verify that the transparent asset exists.
+  useEffect(() => {
+    const image =
+      new Image();
+
+    image.onload = () => {
+      setImageFailed(false);
+    };
+
+    image.onerror = () => {
+      setImageFailed(true);
+    };
+
+    image.src =
+      LOGO_PATH;
+
+    return () => {
+      image.onload = null;
+      image.onerror = null;
+    };
+  }, []);
 
   return (
     <span
-      className={`inline-flex min-w-0 items-center justify-center gap-2 ${surfaceClass} ${className}`}
+      className={`inline-flex min-w-0 items-center justify-center gap-2 bg-transparent ${wrapperClass} ${className}`}
       aria-label="hydewest"
     >
       {!imageFailed ? (
-        <img
-          src={LOGO_PATH}
-          alt="hydewest"
-          loading="eager"
-          decoding="async"
-          onError={() => setImageFailed(true)}
-          className={`${logoSizeClass} w-auto shrink-0 object-contain ${imageClassName}`}
-        />
+        variant === "navbar" ? (
+          /*
+            Navbar:
+            Transparent mask logo directly blends
+            into the dark glass navbar.
+
+            The aspect ratio matches the original
+            1024 × 355 logo dimensions.
+          */
+          <span
+            role="img"
+            aria-label="hydewest"
+            className={`${logoSizeClass} aspect-[1024/355] w-auto shrink-0 ${imageClassName}`}
+            style={
+              navbarLogoStyle
+            }
+          />
+        ) : (
+          /*
+            Login/Register:
+            Original dark-red transparent logo
+            directly blends with the light page.
+          */
+          <img
+            src={LOGO_PATH}
+            alt="hydewest"
+            loading="eager"
+            decoding="async"
+            onError={() =>
+              setImageFailed(
+                true
+              )
+            }
+            className={`${logoSizeClass} w-auto shrink-0 object-contain ${imageClassName}`}
+          />
+        )
       ) : (
-        // Logo path wrong hone par fallback brand icon dikhega.
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#ff385c] to-[#a90838] text-base font-black text-white shadow-lg shadow-rose-950/30">
-          h
+        /*
+          Asset fallback:
+          Plain text only, without any box,
+          background, border or shadow.
+        */
+        <span className="inline-flex items-baseline whitespace-nowrap font-serif text-2xl font-black tracking-[-0.06em] sm:text-3xl">
+          <span className="text-current">
+            hyde
+          </span>
+
+          <span className="text-[#ed1c24]">
+            west
+          </span>
         </span>
       )}
 
-      {/* Icon-only logo ke liye showText true kiya ja sakta hai. */}
       {showText && (
         <span className="truncate text-xl font-black lowercase tracking-tight text-current">
           hydewest
