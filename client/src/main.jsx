@@ -9,8 +9,14 @@ import store from "./redux/store";
 // Existing project styles.
 import "./index.css";
 
-// Global Hoefler Text override ko index.css ke baad load karna zaroori hai.
+// Global font rules.
 import "./styles/global-font.css";
+
+// Super Admin base white, red and dark-blue workspace palette.
+import "./styles/admin-theme.css";
+
+// Requested Super Admin sidebar, Dashboard, Search Demand and Profile refinements.
+import "./styles/admin-fine-tune.css";
 
 ReactDOM.createRoot(
   document.getElementById(

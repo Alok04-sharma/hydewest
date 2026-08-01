@@ -59,10 +59,26 @@ const CATEGORIES = [
 const SHOW_HOME_METRICS = false;
 
 const TRUST_ITEMS = [
-  { label: "Verified Hosts", caption: "Reviewed stays", Icon: FiShield },
-  { label: "Secure Payments", caption: "Protected checkout", Icon: FiCreditCard },
-  { label: "24×7 Support", caption: "Help when needed", Icon: FiHeadphones },
-  { label: "Instant Booking", caption: "Selected properties", Icon: FiZap },
+  {
+    label: "Verified Hosts",
+    caption: "Reviewed stays",
+    Icon: FiShield,
+  },
+  {
+    label: "Secure Payments",
+    caption: "Protected checkout",
+    Icon: FiCreditCard,
+  },
+  {
+    label: "24×7 Support",
+    caption: "Help when needed",
+    Icon: FiHeadphones,
+  },
+  {
+    label: "Instant Booking",
+    caption: "Selected properties",
+    Icon: FiZap,
+  },
 ];
 
 const WHY_ITEMS = [
@@ -84,45 +100,109 @@ const WHY_ITEMS = [
 ];
 
 const getCoverImage = (listing) => {
-  const images = Array.isArray(listing?.images) ? listing.images : [];
-  const cover = images.find((image) => image?.isCover) || images[0];
-  return typeof cover === "string" ? cover : cover?.url || "";
+  const images = Array.isArray(listing?.images)
+    ? listing.images
+    : [];
+
+  const cover =
+    images.find((image) => image?.isCover) ||
+    images[0];
+
+  return typeof cover === "string"
+    ? cover
+    : cover?.url || "";
 };
 
-function AnimatedMetric({ value, suffix = "", label, Icon }) {
+function AnimatedMetric({
+  value,
+  suffix = "",
+  label,
+  Icon,
+}) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, amount: 0.55 });
-  const [displayValue, setDisplayValue] = useState(0);
-  const safeValue = Math.max(Number(value || 0), 0);
+
+  const inView = useInView(ref, {
+    once: true,
+    amount: 0.55,
+  });
+
+  const [
+    displayValue,
+    setDisplayValue,
+  ] = useState(0);
+
+  const safeValue = Math.max(
+    Number(value || 0),
+    0
+  );
 
   useEffect(() => {
-    if (!inView) return undefined;
+    if (!inView) {
+      return undefined;
+    }
 
     const duration = 900;
     const startedAt = performance.now();
     let frameId = 0;
 
     const tick = (time) => {
-      const progress = Math.min((time - startedAt) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayValue(Math.round(safeValue * eased));
+      const progress = Math.min(
+        (time - startedAt) / duration,
+        1
+      );
 
-      if (progress < 1) frameId = window.requestAnimationFrame(tick);
+      const eased =
+        1 -
+        Math.pow(
+          1 - progress,
+          3
+        );
+
+      setDisplayValue(
+        Math.round(
+          safeValue * eased
+        )
+      );
+
+      if (progress < 1) {
+        frameId =
+          window.requestAnimationFrame(
+            tick
+          );
+      }
     };
 
-    frameId = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [inView, safeValue]);
+    frameId =
+      window.requestAnimationFrame(
+        tick
+      );
+
+    return () =>
+      window.cancelAnimationFrame(
+        frameId
+      );
+  }, [
+    inView,
+    safeValue,
+  ]);
 
   return (
-    <div ref={ref} className="home-stat-card">
-      <span className="home-stat-icon" aria-hidden="true">
+    <div
+      ref={ref}
+      className="home-stat-card"
+    >
+      <span
+        className="home-stat-icon"
+        aria-hidden="true"
+      >
         <Icon />
       </span>
 
       <div className="min-w-0">
         <p className="text-xl font-black tracking-tight text-white sm:text-2xl">
-          {displayValue.toLocaleString("en-IN")}
+          {displayValue.toLocaleString(
+            "en-IN"
+          )}
           {suffix}
         </p>
 
@@ -188,6 +268,11 @@ export default function Home() {
   ] = useState(0);
 
   const [
+    showAllListings,
+    setShowAllListings,
+  ] = useState(false);
+
+  const [
     tabVisible,
     setTabVisible,
   ] = useState(
@@ -201,7 +286,6 @@ export default function Home() {
     setSearchDocked,
   ] = useState(false);
 
-  // Mobile aur desktop hero animation ka zoom alag rakha gaya hai.
   const [
     isMobileViewport,
     setIsMobileViewport,
@@ -217,8 +301,28 @@ export default function Home() {
     ? MOBILE_HERO_IMAGES
     : HERO_IMAGES;
 
-  const categoryRailRef = useRef(null);
-  const heroRef = useRef(null);
+  const initialListingLimit =
+    isMobileViewport
+      ? 4
+      : 8;
+
+  const visibleListings =
+    showAllListings
+      ? listings
+      : listings.slice(
+          0,
+          initialListingLimit
+        );
+
+  const hasMoreListings =
+    listings.length >
+    initialListingLimit;
+
+  const categoryRailRef =
+    useRef(null);
+
+  const heroRef =
+    useRef(null);
 
   useEffect(() => {
     dispatch(
@@ -226,7 +330,15 @@ export default function Home() {
     );
   }, [dispatch]);
 
-  // Mobile par landscape hero photo ka zoom kam rahega.
+  useEffect(() => {
+    setShowAllListings(
+      false
+    );
+  }, [
+    listings,
+    isMobileViewport,
+  ]);
+
   useEffect(() => {
     const mediaQuery =
       window.matchMedia(
@@ -257,8 +369,6 @@ export default function Home() {
       );
   }, []);
 
-  // Navbar Explore target:
-  // navigation ke baad properties section tak smooth scroll.
   useEffect(() => {
     if (
       location.hash !==
@@ -330,11 +440,14 @@ export default function Home() {
   useEffect(() => {
     setHeroIndex(
       (current) =>
-        current >= activeHeroImages.length
+        current >=
+        activeHeroImages.length
           ? 0
           : current
     );
-  }, [activeHeroImages.length]);
+  }, [
+    activeHeroImages.length,
+  ]);
 
   useEffect(() => {
     if (!tabVisible) {
@@ -653,10 +766,6 @@ export default function Home() {
 
   return (
     <div className="hydewest-home min-h-screen overflow-x-hidden bg-[#090b17] text-white">
-      {/* ======================================
-          Homepage hero
-      ====================================== */}
-
       <section
         ref={heroRef}
         className="home-hero-section relative flex min-h-[100svh] items-center overflow-hidden bg-slate-950 pt-20"
@@ -711,8 +820,6 @@ export default function Home() {
           />
         </AnimatePresence>
 
-        {/* Desktop overlay classes remain same.
-            Mobile colours HomeLuxury.css se override hongi. */}
         <div className="home-hero-overlay-side absolute inset-0 bg-[linear-gradient(90deg,rgba(3,5,15,.88)_0%,rgba(9,11,23,.66)_47%,rgba(9,11,23,.36)_100%)]" />
 
         <div className="home-hero-overlay-bottom absolute inset-0 bg-[linear-gradient(180deg,rgba(9,11,23,.18)_0%,rgba(9,11,23,.08)_52%,rgba(9,11,23,.9)_100%)]" />
@@ -727,35 +834,33 @@ export default function Home() {
           aria-hidden="true"
         />
 
-        {/* Search position only: navbar ke just neeche. */}
         <motion.div
           initial={{
-              opacity: 0,
-              y: 24,
-              scale: 0.985,
-            }}
+            opacity: 0,
+            y: 24,
+            scale: 0.985,
+          }}
           animate={{
-              opacity: 1,
-              y: 0,
-              scale: 1,
-            }}
+            opacity: 1,
+            y: 0,
+            scale: 1,
+          }}
           transition={{
-              delay: 0.68,
-              duration: 0.65,
-              ease: [
-                0.22,
-                1,
-                0.36,
-                1,
-              ],
-            }}
+            delay: 0.68,
+            duration: 0.65,
+            ease: [
+              0.22,
+              1,
+              0.36,
+              1,
+            ],
+          }}
           className="home-hero-search home-hero-top-search"
         >
           <div className="home-hero-search-inner">
             <SearchBar />
           </div>
         </motion.div>
-
 
         <div className="home-hero-content relative mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <div className="home-hero-copy max-w-4xl">
@@ -858,8 +963,6 @@ export default function Home() {
             </motion.p>
           </div>
 
-
-          {/* Mobile par trust cards CSS se completely hidden hain. */}
           <motion.div
             initial="hidden"
             animate="visible"
@@ -932,7 +1035,6 @@ export default function Home() {
             )}
           </motion.div>
 
-          {/* ye feature baad m use krenge */}
           {SHOW_HOME_METRICS && (
             <motion.div
               initial={{
@@ -1012,10 +1114,6 @@ export default function Home() {
           )}
         </div>
       </section>
-
-      {/* ======================================
-          Categories
-      ====================================== */}
 
       <motion.section
         initial={{
@@ -1144,10 +1242,6 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* ======================================
-          Approved properties
-      ====================================== */}
-
       <main
         id="home-properties"
         className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-16 sm:px-6 sm:py-20 lg:px-8"
@@ -1197,7 +1291,8 @@ export default function Home() {
         {loading && (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({
-              length: 8,
+              length:
+                initialListingLimit,
             }).map(
               (
                 _,
@@ -1263,51 +1358,73 @@ export default function Home() {
           )}
 
         {!loading &&
+          !error &&
           listings.length >
             0 && (
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{
-                once: true,
-                amount: 0.08,
-              }}
-              variants={{
-                hidden: {},
+            <>
+              <motion.div
+                initial="hidden"
+                whileInView="visible"
+                viewport={{
+                  once: true,
+                  amount: 0.08,
+                }}
+                variants={{
+                  hidden: {},
 
-                visible: {
-                  transition: {
-                    staggerChildren:
-                      0.06,
+                  visible: {
+                    transition: {
+                      staggerChildren:
+                        0.06,
+                    },
                   },
-                },
-              }}
-              className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-            >
-              {listings.map(
-                (
-                  item,
-                  index
-                ) => (
-                  <ListingCard
-                    key={
-                      item._id
-                    }
-                    apartment={
-                      item
-                    }
-                    index={index}
-                    homeLuxury
-                  />
-                )
-              )}
-            </motion.div>
+                }}
+                className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              >
+                {visibleListings.map(
+                  (
+                    item,
+                    index
+                  ) => (
+                    <ListingCard
+                      key={
+                        item._id
+                      }
+                      apartment={
+                        item
+                      }
+                      index={index}
+                      homeLuxury
+                    />
+                  )
+                )}
+              </motion.div>
+
+              {!showAllListings &&
+                hasMoreListings && (
+                  <div className="mt-10 flex justify-center">
+                    <motion.button
+                      type="button"
+                      onClick={() =>
+                        setShowAllListings(
+                          true
+                        )
+                      }
+                      whileHover={{
+                        y: -2,
+                      }}
+                      whileTap={{
+                        scale: 0.97,
+                      }}
+                      className="rounded-2xl border border-[#ed1c24]/35 bg-[#ed1c24]/10 px-6 py-3 text-sm font-black text-white shadow-[0_14px_36px_rgba(237,28,36,.12)] transition hover:border-[#ed1c24]/60 hover:bg-[#ed1c24]/16"
+                    >
+                      View more
+                    </motion.button>
+                  </div>
+                )}
+            </>
           )}
       </main>
-
-      {/* ======================================
-          Featured locations
-      ====================================== */}
 
       {featuredLocations.length >
         0 && (
@@ -1364,14 +1481,14 @@ export default function Home() {
             >
               {featuredLocations.map(
                 (
-                  location
+                  featuredLocation
                 ) => (
                   <motion.button
-                    key={`${location.city}-${location.state}`}
+                    key={`${featuredLocation.city}-${featuredLocation.state}`}
                     type="button"
                     onClick={() =>
                       handleLocationSelect(
-                        location.city
+                        featuredLocation.city
                       )
                     }
                     variants={{
@@ -1405,12 +1522,12 @@ export default function Home() {
                     }}
                     className="home-location-card group"
                   >
-                    {location.image ? (
+                    {featuredLocation.image ? (
                       <img
                         src={
-                          location.image
+                          featuredLocation.image
                         }
-                        alt={`${location.city} stays`}
+                        alt={`${featuredLocation.city} stays`}
                         loading="lazy"
                         className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
                       />
@@ -1423,18 +1540,18 @@ export default function Home() {
                     <div className="relative mt-auto text-left">
                       <p className="text-xl font-black tracking-tight text-white">
                         {
-                          location.city
+                          featuredLocation.city
                         }
                       </p>
 
                       <p className="mt-1 text-xs font-semibold text-white/60">
                         {[
-                          location.state,
+                          featuredLocation.state,
 
                           `${
-                            location.count
+                            featuredLocation.count
                           } stay${
-                            location.count ===
+                            featuredLocation.count ===
                             1
                               ? ""
                               : "s"
@@ -1455,10 +1572,6 @@ export default function Home() {
           </div>
         </section>
       )}
-
-      {/* ======================================
-          Why hydewest
-      ====================================== */}
 
       <section className="px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
         <div className="mx-auto max-w-7xl rounded-[32px] border border-white/[0.09] bg-[linear-gradient(135deg,rgba(255,77,141,.09),rgba(139,92,246,.06)_45%,rgba(255,255,255,.025))] p-6 shadow-[0_28px_100px_rgba(0,0,0,.28)] backdrop-blur-2xl sm:p-9 lg:p-12">
