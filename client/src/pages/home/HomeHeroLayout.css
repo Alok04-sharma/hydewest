@@ -601,6 +601,29 @@
   color:
     transparent !important;
 
+  /*
+    Tight hero line-height ki wajah se Avenir ke
+    top/bottom glyph edges crop ho rahe the.
+
+    Equal negative margins ke saath extra paint space
+    milti hai, isliye mobile aur laptop layout position
+    ya heading spacing change nahi hoti.
+  */
+  overflow:
+    visible !important;
+
+  padding-top:
+    0.1em;
+
+  padding-bottom:
+    0.14em;
+
+  margin-top:
+    -0.1em;
+
+  margin-bottom:
+    -0.14em;
+
   background:
     linear-gradient(
       180deg,

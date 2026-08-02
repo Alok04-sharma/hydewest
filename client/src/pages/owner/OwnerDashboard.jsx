@@ -79,6 +79,27 @@ const formatCurrency = (value) => {
   );
 };
 
+// Mobile-only cue for horizontally scrollable dashboard content.
+function MobileScrollHint({ dark = false }) {
+  return (
+    <div
+      className={`mb-3 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-[11px] font-black md:hidden ${
+        dark
+          ? "border-white/15 bg-white/10 text-white/80"
+          : "border-blue-200 bg-blue-50 text-blue-900"
+      }`}
+    >
+      <span>Swipe left or right to view more</span>
+      <span
+        aria-hidden="true"
+        className="shrink-0 text-base tracking-[0.18em]"
+      >
+        &larr;&rarr;
+      </span>
+    </div>
+  );
+}
+
 // ======================================
 // Growth Badge
 // ======================================
@@ -498,57 +519,66 @@ function RevenueChart({
     );
 
   return (
-    <div className="overflow-x-auto pb-2">
-      <div className="flex h-64 min-w-[680px] items-end gap-3 pt-7">
-        {monthlyTrend.map(
-          (item) => {
-            const revenue =
-              Number(
-                item.revenue || 0
-              );
+    <div className="relative">
+      <MobileScrollHint />
 
-            const height =
-              revenue === 0
-                ? 4
-                : Math.max(
-                    (revenue /
-                      maxRevenue) *
-                      100,
-                    8
-                  );
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-2 right-0 top-11 z-10 w-10 bg-gradient-to-l from-white via-white/80 to-transparent md:hidden"
+      />
 
-            return (
-              <div
-                key={item.key}
-                className="flex h-full min-w-11 flex-1 flex-col items-center justify-end"
-                title={`${item.label}: ${formatCurrency(
-                  revenue
-                )}`}
-              >
-                <span className="mb-2 text-[10px] font-bold text-gray-500">
-                  {revenue > 0
-                    ? formatNumber(
-                        revenue
-                      )
-                    : "0"}
-                </span>
+      <div className="overflow-x-auto pb-2">
+        <div className="flex h-64 min-w-[680px] items-end gap-3 pt-7">
+          {monthlyTrend.map(
+            (item) => {
+              const revenue =
+                Number(
+                  item.revenue || 0
+                );
 
-                <div className="flex h-44 w-full items-end rounded-t-xl bg-purple-50 px-1.5">
-                  <div
-                    className="w-full rounded-t-lg bg-gradient-to-t from-purple-700 to-violet-400"
-                    style={{
-                      height: `${height}%`,
-                    }}
-                  />
+              const height =
+                revenue === 0
+                  ? 4
+                  : Math.max(
+                      (revenue /
+                        maxRevenue) *
+                        100,
+                      8
+                    );
+
+              return (
+                <div
+                  key={item.key}
+                  className="flex h-full min-w-11 flex-1 flex-col items-center justify-end"
+                  title={`${item.label}: ${formatCurrency(
+                    revenue
+                  )}`}
+                >
+                  <span className="mb-2 text-[10px] font-bold text-gray-500">
+                    {revenue > 0
+                      ? formatNumber(
+                          revenue
+                        )
+                      : "0"}
+                  </span>
+
+                  <div className="flex h-44 w-full items-end rounded-t-xl bg-purple-50 px-1.5">
+                    <div
+                      className="w-full rounded-t-lg bg-gradient-to-t from-purple-700 to-violet-400"
+                      style={{
+                        height: `${height}%`,
+                      }}
+                    />
+                  </div>
+
+                  <span className="mt-2 text-[11px] font-semibold text-gray-500">
+                    {item.label}
+                  </span>
                 </div>
-
-                <span className="mt-2 text-[11px] font-semibold text-gray-500">
-                  {item.label}
-                </span>
-              </div>
-            );
-          }
-        )}
+              );
+            }
+          )}
+        </div>
       </div>
     </div>
   );
@@ -1171,8 +1201,16 @@ export default function OwnerDashboard() {
             ka 12-month comparison.
           </p>
 
-          <div className="mt-5 overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
+          <div className="relative mt-5">
+            <MobileScrollHint />
+
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute bottom-0 right-0 top-11 z-10 w-10 bg-gradient-to-l from-white via-white/80 to-transparent md:hidden"
+            />
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase tracking-wide text-gray-400">
                   <th className="px-3 py-3 font-bold">
@@ -1262,7 +1300,8 @@ export default function OwnerDashboard() {
                   )
                 )}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         </section>
 

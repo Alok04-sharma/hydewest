@@ -56,6 +56,21 @@ const badgeClass = (status) => {
   return "bg-gray-100 text-gray-700";
 };
 
+// Mobile-only cue for the horizontally scrollable subscription table.
+function MobileScrollHint() {
+  return (
+    <div className="mx-4 mt-4 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] font-black text-blue-900 md:hidden">
+      <span>Swipe left or right to view all columns</span>
+      <span
+        aria-hidden="true"
+        className="shrink-0 text-base tracking-[0.18em]"
+      >
+        &larr;&rarr;
+      </span>
+    </div>
+  );
+}
+
 function SummaryCard({ title, value, icon: Icon, style }) {
   return (
     <article className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -249,7 +264,17 @@ export default function SubscriptionManagement() {
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-purple-600 border-t-transparent" />
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative">
+              {activeTab === "subscriptions" && <MobileScrollHint />}
+
+              {activeTab === "subscriptions" && (
+                <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute bottom-0 right-0 top-16 z-10 w-10 bg-gradient-to-l from-white via-white/80 to-transparent md:hidden"
+                />
+              )}
+
+              <div className="overflow-x-auto">
               {activeTab === "subscriptions" ? (
                 <table className="min-w-full divide-y divide-gray-100 text-sm">
                   <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
@@ -324,6 +349,7 @@ export default function SubscriptionManagement() {
                   </tbody>
                 </table>
               )}
+              </div>
             </div>
           )}
 

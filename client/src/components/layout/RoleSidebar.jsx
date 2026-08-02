@@ -676,6 +676,16 @@ function SidebarContent({
     premiumGuestShell ||
     premiumHostShell;
 
+  /*
+    Normal Guest workspace uses the same visual language as
+    the Super Admin workspace. Guest routes, links, access and
+    premium behaviour remain unchanged.
+  */
+  const adminVisualShell =
+    roleType === "admin" ||
+    (roleType === "guest" &&
+      !isPremiumGuest);
+
   const links = useMemo(
     () =>
       getLinks(
@@ -691,8 +701,10 @@ function SidebarContent({
   const tone =
     premiumShell
       ? TONES.premium
-      : TONES[roleType] ||
-        TONES.guest;
+      : adminVisualShell
+        ? TONES.admin
+        : TONES[roleType] ||
+          TONES.guest;
 
   const roleLabel =
     roleType === "admin"
@@ -724,7 +736,12 @@ function SidebarContent({
 
   return (
     <div
-      className={`role-sidebar-shell role-sidebar-${roleType} flex h-full flex-col ${
+      className={`role-sidebar-shell role-sidebar-${roleType} ${
+        adminVisualShell &&
+        roleType !== "admin"
+          ? "role-sidebar-admin guest-admin-sidebar"
+          : ""
+      } flex h-full flex-col ${
         premiumShell
           ? "premium-sidebar-dark bg-[radial-gradient(circle_at_top,rgba(251,191,36,.14),transparent_19rem),linear-gradient(180deg,#171208,#0b1020)] text-white"
           : "bg-white"
@@ -1094,8 +1111,13 @@ export default function RoleSidebar({
     premiumGuestShell ||
     premiumHostShell;
 
+  const adminVisualShell =
+    roleType === "admin" ||
+    (roleType === "guest" &&
+      !isPremiumGuest);
+
   const regularShellClass =
-    roleType === "admin"
+    adminVisualShell
       ? "border-violet-200/80 bg-[linear-gradient(180deg,#faf7ff_0%,#f2ebff_100%)]"
       : roleType ===
           "host"

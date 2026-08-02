@@ -42,6 +42,27 @@ const compactMoney = (value) =>
 const number = (value) =>
   new Intl.NumberFormat("en-GB").format(Number(value || 0));
 
+// Mobile-only cue for horizontally scrollable revenue content.
+function MobileScrollHint({ dark = false }) {
+  return (
+    <div
+      className={`mb-3 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-[11px] font-black md:hidden ${
+        dark
+          ? "border-white/15 bg-white/10 text-white/80"
+          : "border-blue-200 bg-blue-50 text-blue-900"
+      }`}
+    >
+      <span>Swipe left or right to view more</span>
+      <span
+        aria-hidden="true"
+        className="shrink-0 text-base tracking-[0.18em]"
+      >
+        &larr;&rarr;
+      </span>
+    </div>
+  );
+}
+
 function MetricCard({ title, value, helper, icon: Icon, tone }) {
   return (
     <motion.article
@@ -191,7 +212,7 @@ function RevenueTrendChart({ rows, period }) {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-[26px] border border-slate-800 bg-slate-950 p-3 shadow-[0_24px_70px_rgba(15,23,42,.20)] sm:p-5">
+      <div className="relative rounded-[26px] border border-slate-800 bg-slate-950 p-3 shadow-[0_24px_70px_rgba(15,23,42,.20)] sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
           <div>
             <p className="text-sm font-black text-white">Revenue source comparison</p>
@@ -216,6 +237,14 @@ function RevenueTrendChart({ rows, period }) {
           </div>
         </div>
 
+        <MobileScrollHint dark />
+
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-3 right-3 top-40 z-10 w-10 bg-gradient-to-l from-slate-950 via-slate-950/80 to-transparent md:hidden"
+        />
+
+        <div className="overflow-x-auto">
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="min-w-[760px]"
@@ -371,6 +400,7 @@ function RevenueTrendChart({ rows, period }) {
             />
           ))}
         </svg>
+        </div>
       </div>
     </div>
   );
@@ -548,42 +578,101 @@ export default function AdminRevenueAnalytics() {
         </section>
 
         <section className="grid gap-6 xl:grid-cols-3">
-          <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-lg">
+          <article className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-lg md:p-5">
             <h2 className="font-black text-slate-950">
               Revenue source breakdown
             </h2>
 
-            <div className="mt-5 space-y-5">
+            <div className="mt-5 space-y-4 md:space-y-5">
               {sources.map((row) => (
-                <div key={row.label}>
-                  <div className="flex justify-between gap-3 text-sm">
-                    <span className="font-bold text-slate-600">
+                <div
+                  key={row.label}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 md:rounded-none md:border-0 md:bg-transparent md:p-0"
+                >
+                  <div className="flex items-start justify-between gap-3 text-sm">
+                    <span className="min-w-0 font-bold leading-5 text-slate-600">
                       {row.label}
                     </span>
-                    <strong>{money(row.amount)}</strong>
+                    <strong className="shrink-0 text-right text-base text-slate-950 md:text-sm">
+                      {money(row.amount)}
+                    </strong>
                   </div>
-                  <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+
+                  <div className="mt-3 h-3 overflow-hidden rounded-full bg-slate-200 md:mt-2 md:bg-slate-100">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${row.percentage}%` }}
                       className={`h-full rounded-full ${row.color}`}
                     />
                   </div>
-                  <p className="mt-1 text-right text-[10px] font-black text-slate-400">
-                    {row.percentage.toFixed(1)}%
-                  </p>
+
+                  <div className="mt-2 flex justify-end md:mt-1">
+                    <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black text-slate-600 shadow-sm md:bg-transparent md:p-0 md:text-slate-400 md:shadow-none">
+                      {row.percentage.toFixed(1)}%
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           </article>
 
-          <article className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-lg xl:col-span-2">
+          <article className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-lg md:p-5 xl:col-span-2">
             <div className="flex items-center gap-2">
               <FiUsers className="text-violet-600" />
               <h2 className="font-black text-slate-950">Top earning Hosts</h2>
             </div>
 
-            <div className="mt-4 overflow-x-auto">
+            <div className="mt-4 space-y-3 md:hidden">
+              {(data?.topEarningHosts || []).map((host, index) => (
+                <article
+                  key={host.hostId}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+                        Host #{index + 1}
+                      </p>
+                      <p className="mt-1 truncate font-black text-slate-900">
+                        {host.name || "Host"}
+                      </p>
+                    </div>
+
+                    <span className="shrink-0 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-black text-blue-800">
+                      {number(host.bookings)} bookings
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-xl bg-white p-3 shadow-sm">
+                      <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">
+                        Host earnings
+                      </p>
+                      <p className="mt-1 break-words text-sm font-black text-slate-900">
+                        {money(host.hostEarnings)}
+                      </p>
+                    </div>
+
+                    <div className="rounded-xl bg-red-50 p-3">
+                      <p className="text-[9px] font-black uppercase tracking-wide text-red-500">
+                        Admin commission
+                      </p>
+                      <p className="mt-1 break-words text-sm font-black text-red-700">
+                        {money(host.adminCommission)}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              ))}
+
+              {(data?.topEarningHosts || []).length === 0 && (
+                <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm font-semibold text-slate-500">
+                  No Host earnings data available.
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 hidden overflow-x-auto md:block">
               <table className="min-w-[620px] text-left text-sm">
                 <thead>
                   <tr className="text-xs uppercase text-slate-400">

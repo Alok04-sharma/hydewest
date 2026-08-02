@@ -53,6 +53,58 @@ function LoadingDashboard() {
   );
 }
 
+function GuestStatCard({
+  label,
+  value,
+  icon,
+  to,
+  helper,
+  index,
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+      whileHover={{ y: -6, scale: 1.01 }}
+      whileTap={{ scale: 0.985 }}
+    >
+      <Link
+        to={to}
+        className="group relative block h-full overflow-hidden rounded-[26px] border border-gray-200 bg-white p-5 shadow-sm transition hover:border-violet-200 hover:shadow-[0_18px_55px_rgba(17,24,39,.1)]"
+      >
+        <span className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full bg-violet-100/70 transition duration-300 group-hover:scale-125" />
+
+        <div className="relative flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-gray-500">
+              {label}
+            </p>
+
+            <p className="mt-2 text-2xl font-black tracking-tight text-gray-900 sm:text-3xl">
+              {value}
+            </p>
+          </div>
+
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-violet-100 text-xl text-violet-700">
+            {icon}
+          </span>
+        </div>
+
+        <div className="relative mt-5 flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
+          <span className="text-xs font-black text-violet-700">
+            Open →
+          </span>
+
+          <span className="text-right text-xs font-medium text-gray-400">
+            {helper}
+          </span>
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
+
 export default function GuestDashboard() {
   const [data, setData] = useState(null);
   const [bookings, setBookings] = useState(null);
@@ -114,7 +166,7 @@ export default function GuestDashboard() {
       className={`guest-page min-h-screen px-4 pb-12 pt-16 sm:px-6 lg:px-8 ${
         premiumActive
           ? "bg-[radial-gradient(circle_at_8%_0%,rgba(251,191,36,.16),transparent_26rem),radial-gradient(circle_at_92%_4%,rgba(244,63,94,.13),transparent_28rem),linear-gradient(180deg,#090d1a_0%,#111827_32%,#151b2b_100%)]"
-          : "bg-[radial-gradient(circle_at_10%_0%,rgba(255,56,92,.11),transparent_28rem),linear-gradient(180deg,#fff1f3_0%,#f7eef1_30%,#eef2f7_100%)]"
+          : "bg-gray-50 lg:pt-8"
       }`}
     >
       <div className="mx-auto max-w-7xl">
@@ -190,72 +242,103 @@ export default function GuestDashboard() {
             </div>
           </motion.section>
         ) : (
-          <motion.section
+          <motion.header
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            className="overflow-hidden rounded-[34px] border border-rose-200/60 bg-gradient-to-br from-[#fff8f8]/90 via-rose-50/80 to-violet-50/75 p-6 shadow-[0_25px_70px_rgba(74,18,36,.10)] backdrop-blur sm:p-9"
+            className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"
           >
-            <div className="flex flex-col justify-between gap-7 lg:flex-row lg:items-center">
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-[#bd123f]">hydewest Guest Dashboard</p>
-                <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-5xl">Find a stay that fits your trip.</h1>
-                <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                  Search approved properties, manage bookings, save favourites and discover Host offers from one clean dashboard.
-                </p>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <Link to="/guest/search" className="rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-[#bd123f]">Search Stays →</Link>
-                  <Link to="/guest/premium" className="rounded-2xl border border-amber-300/70 bg-amber-100/75 px-5 py-3 text-sm font-black text-amber-900">👑 Upgrade to Premium</Link>
-                  <UberRideButton />
-                </div>
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-purple-100 px-3 py-1 text-xs font-black uppercase tracking-wide text-purple-700">
+                ✦ Guest Travel Center
               </div>
 
-              <div className="rounded-[30px] bg-gradient-to-br from-rose-700 via-[#d3134c] to-orange-500 p-6 text-white shadow-xl lg:max-w-sm">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/70">Premium preview</p>
-                <h2 className="mt-2 text-2xl font-black">Pay less and unlock more.</h2>
-                <p className="mt-3 text-sm leading-6 text-white/80">Host chat, member discounts, exclusive listings, unlimited wishlist, price alerts and 48-hour flexible cancellation.</p>
-                <Link to="/guest/premium" className="mt-5 inline-flex rounded-2xl bg-rose-50 px-4 py-2.5 text-xs font-black text-[#a70836]">Compare plans</Link>
-              </div>
+              <h1 className="text-3xl font-black tracking-tight text-gray-900 sm:text-4xl">
+                Guest Dashboard
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+                Search approved properties, manage bookings, save favourites and keep every trip update in one operational overview.
+              </p>
             </div>
-          </motion.section>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to="/guest/search"
+                className="rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-purple-700"
+              >
+                Search Stays →
+              </Link>
+
+              <Link
+                to="/guest/premium"
+                className="rounded-xl border border-purple-200 bg-white px-4 py-2.5 text-sm font-bold text-purple-700 shadow-sm transition hover:bg-purple-50"
+              >
+                👑 Premium Plans
+              </Link>
+
+              <UberRideButton />
+            </div>
+          </motion.header>
         )}
 
-        <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            ["All property", data?.counts?.approved || 0, "🏠", "/guest/search"],
-            ["Featured", data?.counts?.featured || 0, "⭐", "/guest/search"],
-            ["Available now", data?.counts?.available || 0, "🗓️", "/guest/search"],
-            ["Reward points", loyalty.balance || 0, "🎁", "/guest/loyalty"],
-          ].map(([label, value, icon, to], index) => (
-            <motion.div key={label} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} whileHover={{ y: -5 }}>
-              <Link to={to} className={`block rounded-[26px] border p-5 shadow-sm backdrop-blur transition ${premiumActive ? "border-amber-300/20 bg-white/[0.07]" : "border-rose-200/60 bg-[#fff8f8]/75"}`}>
-                <span className="text-2xl">{icon}</span>
-                <p className={`mt-3 text-2xl font-black ${premiumActive ? "text-white" : "text-slate-950"}`}>{value}</p>
-                <p className={`mt-1 text-xs font-bold ${premiumActive ? "text-amber-100/50" : "text-slate-500"}`}>{label}</p>
-              </Link>
-            </motion.div>
-          ))}
-        </section>
+        {premiumActive ? (
+          <section className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["All property", data?.counts?.approved || 0, "🏠", "/guest/search"],
+              ["Featured", data?.counts?.featured || 0, "⭐", "/guest/search"],
+              ["Available now", data?.counts?.available || 0, "🗓️", "/guest/search"],
+              ["Reward points", loyalty.balance || 0, "🎁", "/guest/loyalty"],
+            ].map(([label, value, icon, to], index) => (
+              <motion.div key={label} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} whileHover={{ y: -5 }}>
+                <Link to={to} className="block rounded-[26px] border border-amber-300/20 bg-white/[0.07] p-5 shadow-sm backdrop-blur transition">
+                  <span className="text-2xl">{icon}</span>
+                  <p className="mt-3 text-2xl font-black text-white">{value}</p>
+                  <p className="mt-1 text-xs font-bold text-amber-100/50">{label}</p>
+                </Link>
+              </motion.div>
+            ))}
+          </section>
+        ) : (
+          <section className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              ["All Properties", data?.counts?.approved || 0, "🏠", "/guest/search", "Approved stays"],
+              ["Featured Stays", data?.counts?.featured || 0, "⭐", "/guest/search", "Curated for guests"],
+              ["Available Now", data?.counts?.available || 0, "🗓️", "/guest/search", "Ready to book"],
+              ["Reward Points", loyalty.balance || 0, "🎁", "/guest/loyalty", "Loyalty balance"],
+            ].map(([label, value, icon, to, helper], index) => (
+              <GuestStatCard
+                key={label}
+                label={label}
+                value={value}
+                icon={icon}
+                to={to}
+                helper={helper}
+                index={index}
+              />
+            ))}
+          </section>
+        )}
 
         {nextBooking && (
           <motion.section
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`mt-7 rounded-[30px] border p-5 shadow-sm backdrop-blur sm:p-6 ${premiumActive ? "border-amber-300/20 bg-white/[0.07]" : "border-rose-200/60 bg-[#fff8f8]/80"}`}
+            className={`mt-7 rounded-[30px] border p-5 shadow-sm backdrop-blur sm:p-6 ${premiumActive ? "border-amber-300/20 bg-white/[0.07]" : "border-gray-200 bg-white"}`}
           >
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
               <div>
-                <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${premiumActive ? "text-amber-300" : "text-[#bd123f]"}`}>Next stay</p>
+                <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${premiumActive ? "text-amber-300" : "text-purple-700"}`}>Next stay</p>
                 <h2 className={`mt-2 text-xl font-black ${premiumActive ? "text-white" : "text-slate-950"}`}>{nextBooking.apartment?.title || "Upcoming hydewest booking"}</h2>
                 <p className={`mt-1 text-sm ${premiumActive ? "text-white/55" : "text-slate-500"}`}>{new Date(nextBooking.checkIn).toLocaleDateString("en-IN")} → {new Date(nextBooking.checkOut).toLocaleDateString("en-IN")}</p>
               </div>
-              <Link to={`/guest/bookings/${nextBooking._id}`} className={`w-fit rounded-2xl px-5 py-3 text-sm font-black ${premiumActive ? "bg-gradient-to-r from-amber-300 to-orange-300 text-slate-950" : "bg-slate-950 text-white"}`}>View booking →</Link>
+              <Link to={`/guest/bookings/${nextBooking._id}`} className={`w-fit rounded-2xl px-5 py-3 text-sm font-black ${premiumActive ? "bg-gradient-to-r from-amber-300 to-orange-300 text-slate-950" : "bg-gray-900 text-white hover:bg-purple-700"}`}>View booking →</Link>
             </div>
           </motion.section>
         )}
 
         <section className="mt-10">
           <div className="mb-5">
-            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${premiumActive ? "text-amber-300" : "text-[#bd123f]"}`}>{premiumActive ? "Premium control center" : "Guest shortcuts"}</p>
+            <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${premiumActive ? "text-amber-300" : "text-purple-700"}`}>{premiumActive ? "Premium control center" : "Guest shortcuts"}</p>
             <h2 className={`mt-1 text-2xl font-black ${premiumActive ? "text-amber-100" : "text-slate-950"}`}>Everything you need</h2>
             <p className={`mt-1 text-sm ${premiumActive ? "text-amber-100/55" : "text-slate-600"}`}>Your everyday booking, payment and account tools.</p>
           </div>
@@ -263,8 +346,8 @@ export default function GuestDashboard() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {freeActions.map(([label, to, icon, description], index) => (
               <motion.div key={`${label}-${to}`} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.035 }} whileHover={{ y: -4 }}>
-                <Link to={to} className={`group flex h-full items-start gap-4 rounded-[24px] border p-4 shadow-sm backdrop-blur transition ${premiumActive ? "border-amber-300/15 bg-white/[0.06] hover:border-amber-300/35" : "border-rose-200/60 bg-[#fff8f8]/76 hover:border-rose-300"}`}>
-                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-xl ${premiumActive ? "bg-amber-300/12" : "bg-rose-100/80"}`}>{icon}</span>
+                <Link to={to} className={`group flex h-full items-start gap-4 rounded-[24px] border p-4 shadow-sm backdrop-blur transition ${premiumActive ? "border-amber-300/15 bg-white/[0.06] hover:border-amber-300/35" : "border-gray-200 bg-white hover:border-violet-200 hover:shadow-[0_16px_45px_rgba(17,24,39,.08)]"}`}>
+                  <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-xl ${premiumActive ? "bg-amber-300/12" : "bg-violet-100"}`}>{icon}</span>
                   <span className="min-w-0">
                     <span className={`block text-sm font-black ${premiumActive ? "text-white" : "text-slate-950"}`}>{label}</span>
                     <span className={`mt-1 block text-xs leading-5 ${premiumActive ? "text-white/45" : "text-slate-500"}`}>{description}</span>
@@ -303,9 +386,9 @@ export default function GuestDashboard() {
             </div>
           ) : (
             <motion.div whileHover={{ y: -4 }} className="mt-5">
-              <Link to="/guest/premium" className="flex flex-col justify-between gap-4 rounded-[28px] border border-amber-300/60 bg-gradient-to-r from-amber-100/80 via-rose-50/80 to-violet-100/65 p-6 shadow-sm backdrop-blur sm:flex-row sm:items-center">
-                <div><p className="text-xs font-black uppercase tracking-[0.2em] text-amber-800">👑 Upgrade to Premium</p><h3 className="mt-2 text-xl font-black text-slate-950">Unlock premium travel tools without dashboard clutter.</h3><p className="mt-1 text-sm text-slate-600">Host chat, price alerts, coupons, exclusive stays, AI planning and more.</p></div>
-                <span className="w-fit rounded-2xl bg-slate-950 px-5 py-3 text-sm font-black text-white">View Premium →</span>
+              <Link to="/guest/premium" className="flex flex-col justify-between gap-4 rounded-[28px] border border-violet-200 bg-gradient-to-r from-white via-violet-50 to-rose-50 p-6 shadow-sm backdrop-blur sm:flex-row sm:items-center">
+                <div><p className="text-xs font-black uppercase tracking-[0.2em] text-purple-700">👑 Upgrade to Premium</p><h3 className="mt-2 text-xl font-black text-slate-950">Unlock premium travel tools without dashboard clutter.</h3><p className="mt-1 text-sm text-slate-600">Host chat, price alerts, coupons, exclusive stays, AI planning and more.</p></div>
+                <span className="w-fit rounded-2xl bg-gray-900 px-5 py-3 text-sm font-black text-white">View Premium →</span>
               </Link>
             </motion.div>
           )}
@@ -315,11 +398,11 @@ export default function GuestDashboard() {
           <section key={key} className="mt-12">
             <div className="mb-5 flex items-end justify-between gap-3">
               <div>
-                <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${premiumActive ? "text-amber-300" : "text-[#bd123f]"}`}>{icon} Curated for guests</p>
+                <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${premiumActive ? "text-amber-300" : "text-purple-700"}`}>{icon} Curated for guests</p>
                 <h2 className={`mt-1 text-2xl font-black ${premiumActive ? "text-white" : "text-slate-950"}`}>{title}</h2>
                 <p className={`mt-1 text-xs font-semibold ${premiumActive ? "text-white/45" : "text-slate-500"}`}>{subtitle}</p>
               </div>
-              <Link to="/guest/search" className={`text-xs font-black ${premiumActive ? "text-amber-300" : "text-[#bd123f]"}`}>View all →</Link>
+              <Link to="/guest/search" className={`text-xs font-black ${premiumActive ? "text-amber-300" : "text-purple-700"}`}>View all →</Link>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {(data?.sections?.[key] || []).slice(0, 8).map((apartment, index) => (

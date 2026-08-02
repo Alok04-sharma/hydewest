@@ -75,6 +75,27 @@ const dayLabel = (value) => {
   }).format(parsed);
 };
 
+// Mobile-only cue for the horizontally scrollable demand chart.
+function MobileScrollHint({ dark = false }) {
+  return (
+    <div
+      className={`mb-3 flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-[11px] font-black md:hidden ${
+        dark
+          ? "border-white/15 bg-white/10 text-white/80"
+          : "border-blue-200 bg-blue-50 text-blue-900"
+      }`}
+    >
+      <span>Swipe left or right to view more</span>
+      <span
+        aria-hidden="true"
+        className="shrink-0 text-base tracking-[0.18em]"
+      >
+        &larr;&rarr;
+      </span>
+    </div>
+  );
+}
+
 function SummaryCard({ title, value, helper, icon: Icon, tone }) {
   return (
     <motion.article
@@ -137,36 +158,45 @@ function DemandTrend({ rows }) {
   const visibleRows = normalizedRows.slice(-30);
 
   return (
-    <div className="overflow-x-auto rounded-[24px] border border-slate-800 bg-slate-950 p-4 shadow-xl">
-      <div className="flex min-w-[720px] items-end gap-2" style={{ height: 250 }}>
-        {visibleRows.map((row) => {
-          const height = Math.max(
-            (Number(row.searches || 0) / maximum) * 190,
-            row.searches ? 12 : 3
-          );
+    <div className="relative rounded-[24px] border border-slate-800 bg-slate-950 p-4 shadow-xl">
+      <MobileScrollHint dark />
 
-          return (
-            <div
-              key={row.date}
-              className="group flex min-w-[30px] flex-1 flex-col items-center justify-end"
-            >
-              <div className="pointer-events-none mb-2 whitespace-nowrap rounded-lg bg-white px-2 py-1 text-[9px] font-black text-slate-950 opacity-0 shadow-lg transition group-hover:opacity-100">
-                {number(row.searches)} searches
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-4 right-4 top-16 z-10 w-10 bg-gradient-to-l from-slate-950 via-slate-950/80 to-transparent md:hidden"
+      />
+
+      <div className="overflow-x-auto">
+        <div className="flex min-w-[720px] items-end gap-2" style={{ height: 250 }}>
+          {visibleRows.map((row) => {
+            const height = Math.max(
+              (Number(row.searches || 0) / maximum) * 190,
+              row.searches ? 12 : 3
+            );
+
+            return (
+              <div
+                key={row.date}
+                className="group flex min-w-[30px] flex-1 flex-col items-center justify-end"
+              >
+                <div className="pointer-events-none mb-2 whitespace-nowrap rounded-lg bg-white px-2 py-1 text-[9px] font-black text-slate-950 opacity-0 shadow-lg transition group-hover:opacity-100">
+                  {number(row.searches)} searches
+                </div>
+
+                <motion.div
+                  initial={{ height: 0 }}
+                  animate={{ height }}
+                  transition={{ duration: 0.5 }}
+                  className="w-full max-w-[34px] rounded-t-xl bg-gradient-to-t from-violet-700 via-fuchsia-500 to-rose-300"
+                />
+
+                <span className="mt-2 -rotate-45 whitespace-nowrap text-[8px] font-bold text-white/45">
+                  {dayLabel(row.date)}
+                </span>
               </div>
-
-              <motion.div
-                initial={{ height: 0 }}
-                animate={{ height }}
-                transition={{ duration: 0.5 }}
-                className="w-full max-w-[34px] rounded-t-xl bg-gradient-to-t from-violet-700 via-fuchsia-500 to-rose-300"
-              />
-
-              <span className="mt-2 -rotate-45 whitespace-nowrap text-[8px] font-bold text-white/45">
-                {dayLabel(row.date)}
-              </span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
