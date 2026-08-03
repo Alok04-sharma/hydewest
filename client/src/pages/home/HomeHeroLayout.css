@@ -557,7 +557,37 @@
 
 .home-hero-title {
   max-width:
-    62rem !important;
+    calc(62rem + 0.18em) !important;
+
+  box-sizing:
+    border-box;
+
+  overflow:
+    visible !important;
+
+  padding-top:
+    0.1em;
+
+  padding-right:
+    0.09em;
+
+  padding-bottom:
+    0.14em;
+
+  padding-left:
+    0.09em;
+
+  margin-top:
+    -0.1em !important;
+
+  margin-right:
+    -0.09em !important;
+
+  margin-bottom:
+    -0.14em !important;
+
+  margin-left:
+    -0.09em !important;
 
   color:
     #ffffff;
@@ -570,10 +600,28 @@
     ) !important;
 
   line-height:
-    0.84 !important;
+    0.92 !important;
 
   letter-spacing:
     -0.07em !important;
+}
+
+.home-hero-title
+  > span {
+  overflow:
+    visible !important;
+
+  padding-right:
+    0.04em;
+
+  padding-left:
+    0.04em;
+
+  margin-right:
+    -0.04em;
+
+  margin-left:
+    -0.04em;
 }
 
 .home-hero-title
@@ -601,14 +649,6 @@
   color:
     transparent !important;
 
-  /*
-    Tight hero line-height ki wajah se Avenir ke
-    top/bottom glyph edges crop ho rahe the.
-
-    Equal negative margins ke saath extra paint space
-    milti hai, isliye mobile aur laptop layout position
-    ya heading spacing change nahi hoti.
-  */
   overflow:
     visible !important;
 
@@ -851,7 +891,7 @@
 
   .home-hero-title {
     max-width:
-      100% !important;
+      calc(100% + 0.18em) !important;
 
     font-size:
       clamp(
@@ -861,7 +901,7 @@
       ) !important;
 
     line-height:
-      0.84 !important;
+      0.92 !important;
 
     letter-spacing:
       -0.075em !important;
