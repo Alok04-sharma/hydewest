@@ -247,8 +247,24 @@ export default function SearchResults() {
           <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
             <div>
               <p className={`text-xs font-black uppercase tracking-[0.22em] ${premiumActive ? "text-amber-300" : "text-[#bd123f]"}`}>{premiumActive ? "👑 Premium Discovery" : "hydewest Search"}</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Search stays without the clutter.</h1>
-              <p className={`mt-2 max-w-2xl text-sm leading-6 ${premiumActive ? "text-white/55" : "text-slate-600"}`}>All important filters now stay in one horizontal workspace.</p>
+              <h1
+                className={`mt-2 text-3xl font-black tracking-tight sm:text-4xl ${
+                  premiumActive
+                    ? "text-white"
+                    : "bg-gradient-to-r from-[#cf3657] via-[#ee8da1] to-white bg-clip-text text-transparent drop-shadow-[0_1px_1px_rgba(127,29,29,.18)]"
+                }`}
+              >
+                Search stays without the clutter.
+              </h1>
+              <p
+                className={`mt-2 max-w-2xl text-sm leading-6 ${
+                  premiumActive
+                    ? "text-white/55"
+                    : "bg-gradient-to-r from-[#d65370] via-[#f0a0b0] to-white bg-clip-text font-semibold text-transparent drop-shadow-[0_1px_1px_rgba(127,29,29,.14)]"
+                }`}
+              >
+                All important filters now stay in one horizontal workspace.
+              </p>
             </div>
             <div className={`rounded-2xl px-4 py-2.5 text-sm font-black ${premiumActive ? "bg-amber-300 text-slate-950" : "bg-rose-100/80 text-[#a90836]"}`}>{result.total || 0} properties found</div>
           </div>

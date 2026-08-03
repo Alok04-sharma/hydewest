@@ -904,3 +904,58 @@
       ) !important;
   }
 }
+
+/* ======================================
+   Home page typography
+
+   Global font stylesheet uses #root * with
+   !important, so these Home-only selectors
+   intentionally use higher specificity.
+====================================== */
+
+/* Navbar visible text: Avenir Next */
+#root .home-navbar-grid,
+#root .home-navbar-grid *,
+#root .home-navbar-floating-search,
+#root .home-navbar-floating-search * {
+  font-family:
+    "Avenir Next",
+    Avenir,
+    "Segoe UI",
+    sans-serif !important;
+}
+
+/*
+  Home page base typography after the Hero:
+  Avenir for categories, listing cards,
+  featured locations, Why HydeWest and any
+  other text-based Home section.
+*/
+#root .hydewest-home,
+#root .hydewest-home * {
+  font-family:
+    Avenir,
+    "Avenir Next",
+    "Segoe UI",
+    sans-serif !important;
+}
+
+/* Hero section text: Avenir Next */
+#root .hydewest-home .home-hero-section,
+#root .hydewest-home .home-hero-section * {
+  font-family:
+    "Avenir Next",
+    Avenir,
+    "Segoe UI",
+    sans-serif !important;
+}
+
+/* Home page footer follows the post-Hero Avenir typography. */
+#root:has(.hydewest-home) footer,
+#root:has(.hydewest-home) footer * {
+  font-family:
+    Avenir,
+    "Avenir Next",
+    "Segoe UI",
+    sans-serif !important;
+}

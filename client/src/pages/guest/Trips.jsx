@@ -171,9 +171,9 @@ export default function Trips() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.04 }}
                   whileHover={{ y: -4 }}
-                  className="guest-card overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm"
+                  className="guest-card min-w-0 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm"
                 >
-                  <div className="grid sm:grid-cols-[190px_1fr]">
+                  <div className="grid min-w-0 sm:grid-cols-[190px_minmax(0,1fr)]">
                     <div className="relative min-h-48 bg-slate-200">
                       {image ? (
                         <img
@@ -194,28 +194,28 @@ export default function Trips() {
                       )}
                     </div>
 
-                    <div className="p-5">
-                      <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 p-5">
+                      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#FF385C]">
                             {activeTabMeta.label}
                           </p>
-                          <h2 className="mt-1 truncate text-lg font-black text-slate-950">
+                          <h2 className="mt-1 break-words text-lg font-black text-slate-950">
                             {booking.apartment?.title || "Property booking"}
                           </h2>
-                          <p className="mt-1 truncate text-xs font-semibold text-slate-400">
+                          <p className="mt-1 break-words text-xs font-semibold text-slate-400">
                             {[booking.apartment?.location?.city, booking.apartment?.location?.state]
                               .filter(Boolean)
                               .join(", ") || "Location unavailable"}
                           </p>
                         </div>
 
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-black uppercase text-slate-600">
+                        <span className="max-w-full break-words rounded-full bg-slate-100 px-2.5 py-1 text-[9px] font-black uppercase text-slate-600 sm:max-w-[45%] sm:text-right">
                           {booking.paymentStatus}
                         </span>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                      <div className="mt-4 grid min-w-0 grid-cols-1 gap-2 text-xs min-[420px]:grid-cols-2">
                         <div className="rounded-2xl bg-slate-50 p-3">
                           <p className="font-bold text-slate-400">Check-in</p>
                           <p className="mt-1 font-black text-slate-800">
@@ -231,21 +231,21 @@ export default function Trips() {
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black uppercase tracking-wide text-slate-500">
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                        <span className="max-w-full break-words rounded-full bg-slate-100 px-2.5 py-1">
                           {booking.guestsCount || 1} guest(s)
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                        <span className="max-w-full break-words rounded-full bg-slate-100 px-2.5 py-1">
                           {booking.pricing?.unitCount || 1} × {unit}
                         </span>
                         {booking.pricing?.couponCode && (
-                          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">
+                          <span className="max-w-full break-all rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-700">
                             {booking.pricing.couponCode}
                           </span>
                         )}
                       </div>
 
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                        <p className="text-lg font-black text-slate-950">
+                      <div className="mt-4 flex min-w-0 flex-wrap items-center justify-between gap-3">
+                        <p className="min-w-0 break-words text-lg font-black text-slate-950">
                           {money(booking.pricing?.totalAmount)}
                         </p>
 

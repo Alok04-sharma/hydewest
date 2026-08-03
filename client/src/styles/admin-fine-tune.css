@@ -17,7 +17,12 @@
 body:has(.role-sidebar-admin)
   .role-sidebar-admin
   nav
-  a {
+  a,
+body:has(.role-sidebar-admin)
+  .role-sidebar-admin
+  nav
+  > div
+  > button {
   color: #111827 !important;
   background: rgba(237, 28, 36, 0.07) !important;
 }
@@ -25,7 +30,12 @@ body:has(.role-sidebar-admin)
 body:has(.role-sidebar-admin)
   .role-sidebar-admin
   nav
-  a:hover {
+  a:hover,
+body:has(.role-sidebar-admin)
+  .role-sidebar-admin
+  nav
+  > div
+  > button:hover {
   color: #111827 !important;
   background: rgba(237, 28, 36, 0.07) !important;
 }
@@ -38,7 +48,17 @@ body:has(.role-sidebar-admin)
 body:has(.role-sidebar-admin)
   .role-sidebar-admin
   nav
-  a[class*="from-fuchsia-600"] {
+  a[class*="from-fuchsia-600"],
+body:has(.role-sidebar-admin)
+  .role-sidebar-admin
+  nav
+  > div
+  > button[class*="from-violet-600"],
+body:has(.role-sidebar-admin)
+  .role-sidebar-admin
+  nav
+  > div
+  > button[class*="from-fuchsia-600"] {
   color: #ffffff !important;
 
   background:
